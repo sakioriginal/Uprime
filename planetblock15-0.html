@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Uprime α0.4 – Voxel Planet Sandbox</title>
+<style>
+  body { margin: 0; overflow: hidden; background:#000; }
+
+  #hud {
+    position:fixed; top:10px; left:10px;
+    color:white; background:rgba(0,0,0,0.5);
+    padding:8px 10px; border-radius:6px;
+    font-family:sans-serif; font-size:12px;
+    z-index:10;
+  }
+
+  #inventoryUI {
+    position:fixed; right:10px; top:10px;
+    background:rgba(0,0,0,0.5);
+    color:white; padding:8px 10px;
+    border-radius:6px; font-size:14px;
+    font-family:sans-serif;
+    white-space:pre;
+  }
+
+  #hotbar {
+    position:fixed; bottom:20px; left:50%;
+    transform:translateX(-50%);
+    display:flex; gap:8px; z-index:20;
+  }
+
+  #hotbar .slot {
+    padding:6px 12px;
+    background:rgba(255,255,255,0.1);
+    color:white; border:1px solid rgba(255,255,255,0.3);
+    border-radius:4px; font-size:14px;
+    cursor:pointer; user-select:none;
+  }
+  #hotbar .selected {
+    background:rgba(255,255,255,0.6);
+    border-color:white; color:black;
+    font-weight:bold;
+  }
+</style>
+</head>
+
+<body>
+<div id="hud">
+  クリックでマウスロック<br>
+  WASD移動 / Spaceジャンプ / Shift下降（宇宙）<br>
+  左クリック：掘る / 右クリック：置く<br>
+  マウスホイール or 1〜5：ブロック切替
+</div>
+
+<div id="inventoryUI"></div>
+
+<div id="hotbar">
+  <div class="slot" data-type="0">Grass</div>
+  <div class="slot" data-type="1">Dirt</div>
+  <div class="slot" data-type="2">Stone</div>
+  <div class="slot" data-type="3">Iron</div>
+  <div class="slot" data-type="4">Crystal</div>
+</div>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { SimplexNoise } from "https://unpkg.com/three@0.160.0/examples/jsm/math/SimplexNoise.js";
+
+//
+// =========================
+// 基本セットアップ
+// =========================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(
+ 75, window.innerWidth / window.innerHeight, 0.1, 2000
+);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.4);
+scene.add(light);
+
+//
+// =========================
+// プレイヤー（カメラ）
+const player = new THREE.Object3D();
+scene.add(player);
+player.add(camera);
+player.position.set(0, 0, 60);
+
+let yaw=0, pitch=0;
+let isLocked = false;
+
+//
+// =========================
+// 入力
+let move = {f:0,b:0,l:0,r:0,up:0,down:0};
+
+renderer.domElement.addEventListener("click", ()=>{
+  renderer.domElement.requestPointerLock();
+});
+document.addEventListener("pointerlockchange", ()=>{
+  isLocked = (document.pointerLockElement === renderer.domElement);
+});
+
+document.addEventListener("mousemove", e=>{
+  if(!isLocked) return;
+  yaw   -= e.movementX * 0.002;
+  pitch -= e.movementY * 0.002;
+  pitch = Math.max(Math.min(pitch, Math.PI/2-0.1), -Math.PI/2+0.1);
+});
+
+//
+// =========================
+// ブロック種類
+const blockTypes = [
+  { color: 0x44aa44 }, // grass
+  { color: 0x7b4f25 }, // dirt
+  { color: 0xaaaaaa }, // stone
+  { color: 0xcc4444 }, // iron ore
+  { color: 0x66ccff }  // crystal
+];
+
+let placeType = 0;
+
+// ホットバー更新
+function updateHotbarUI(){
+  document.querySelectorAll("#hotbar .slot").forEach(el=>{
+    el.classList.toggle("selected", Number(el.dataset.type)===placeType);
+  });
+}
+updateHotbarUI();
+
+document.querySelectorAll("#hotbar .slot").forEach(el=>{
+  el.addEventListener("click", ()=>{
+    placeType = Number(el.dataset.type);
+    updateHotbarUI();
+  });
+});
+
+// ホイール切替
+window.addEventListener("wheel", e=>{
+  if(e.deltaY>0) placeType++;
+  else placeType--;
+  if(placeType<0) placeType = blockTypes.length-1;
+  if(placeType>=blockTypes.length) placeType=0;
+  updateHotbarUI();
+});
+
+// 数字キー切替
+document.addEventListener("keydown", e=>{
+  const n = Number(e.key);
+  if(n>=1 && n<=blockTypes.length){
+    placeType = n-1;
+    updateHotbarUI();
+  }
+});
+
+//
+// =========================
+// 惑星生成（ノイズ）
+const R = 20;
+const blockSize = 1;
+
+let positions = [];  // {x,y,z,type}の配列
+let planetMesh = [];
+
+const noise3d = new SimplexNoise();
+
+function generatePlanet(){
+  positions = [];
+  const baseR = R;
+  const amp = 3;
+  const freq = 0.12;
+
+  for(let x=-R-4; x<=R+4; x++){
+    for(let y=-R-4; y<=R+4; y++){
+      for(let z=-R-4; z<=R+4; z++){
+
+        const d = Math.sqrt(x*x + y*y + z*z);
+        if(d > baseR + amp + 1) continue;
+
+        const nx=x*freq, ny=y*freq, nz=z*freq;
+        const n = noise3d.noise3d(nx,ny,nz);  // -1〜1
+        const height = baseR + n*amp;
+
+        if(d <= height){
+          let type = 2; // stone
+
+          if(d > height-1) type = 0;
+          else if(d > height-2) type = 1;
+
+          if(Math.random() < 0.02) type = 3;     // iron
+          if(Math.random() < 0.005) type = 4;    // crystal
+
+          positions.push({x,y,z,type});
+        }
+      }
+    }
+  }
+
+  rebuildPlanet();
+}
+
+function rebuildPlanet(){
+  for(const m of planetMesh){
+    if(!m) continue;
+    scene.remove(m);
+    m.geometry.dispose();
+    m.material.dispose();
+  }
+
+  planetMesh = [];
+  const dummy = new THREE.Object3D();
+
+  // 種類ごとに分ける
+  const groups = {};
+  for(let i=0;i<blockTypes.length;i++) groups[i]=[];
+
+  for(const p of positions) groups[p.type].push(p);
+
+  for(let t=0; t<blockTypes.length; t++){
+    const arr = groups[t];
+    if(arr.length===0){
+      planetMesh[t]=null;
+      continue;
+    }
+
+    const geom = new THREE.BoxGeometry(blockSize,blockSize,blockSize);
+    const mat = new THREE.MeshStandardMaterial({ color: blockTypes[t].color });
+    const mesh = new THREE.InstancedMesh(geom,mat,arr.length);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    for(let i=0;i<arr.length;i++){
+      const p = arr[i];
+      dummy.position.set(p.x,p.y,p.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i,dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    planetMesh[t]=mesh;
+    scene.add(mesh);
+  }
+}
+
+generatePlanet();
+
+//
+// =========================
+// インベントリ
+let inventory = [0,0,0,0,0];
+
+function updateInventoryUI(){
+  document.getElementById("inventoryUI").innerText =
+`Inventory
+Grass:   ${inventory[0]}
+Dirt:    ${inventory[1]}
+Stone:   ${inventory[2]}
+Iron:    ${inventory[3]}
+Crystal: ${inventory[4]}`;
+}
+updateInventoryUI();
+
+//
+// =========================
+// 掘削（左クリック）
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener("mousedown", e=>{
+  if(e.button!==0) return;
+  if(!isLocked) return;
+
+  mouse.set(0,0);
+  raycaster.setFromCamera(mouse,camera);
+
+  const hits = raycaster.intersectObjects(planetMesh.filter(m=>m));
+  if(hits.length===0) return;
+
+  const hit = hits[0];
+  const mesh = hit.object;
+  const id = hit.instanceId;
+
+  // どの種類だった？
+  let t = -1;
+  for(let i=0;i<planetMesh.length;i++){
+    if(planetMesh[i]===mesh){
+      t=i; break;
+    }
+  }
+  if(t<0) return;
+
+  // 同じ種類の配列から該当ブロック探索
+  const group = positions.filter(p=>p.type===t);
+  const target = group[id];
+
+  // インベントリに追加
+  inventory[t]++;
+  updateInventoryUI();
+
+  // positions から削除
+  positions = positions.filter(p => !(p.x===target.x && p.y===target.y && p.z===target.z));
+  rebuildPlanet();
+});
+
+//
+// =========================
+// 建築（右クリック）
+window.addEventListener("contextmenu", e=>{
+  e.preventDefault();
+  if(!isLocked) return;
+
+  mouse.set(0,0);
+  raycaster.setFromCamera(mouse,camera);
+
+  const hits = raycaster.intersectObjects(planetMesh.filter(m=>m));
+  if(hits.length===0) return;
+
+  const hit = hits[0];
+  const p = hit.point.clone();
+  const normal = hit.face.normal.clone().applyMatrix3(
+    new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)
+  ).normalize();
+
+  const placePos = p.add(normal.multiplyScalar(1));
+  const gx = Math.round(placePos.x);
+  const gy = Math.round(placePos.y);
+  const gz = Math.round(placePos.z);
+
+  if(!positions.some(b => b.x===gx && b.y===gy && b.z===gz)){
+    positions.push({x:gx,y:gy,z:gz,type:placeType});
+    rebuildPlanet();
+  }
+});
+
+//
+// =========================
+// 惑星重力＋歩行＋ジャンプ
+let velocity = new THREE.Vector3();
+let onGround = false;
+const GRAVITY = 30;
+const planetCenter = new THREE.Vector3(0,0,0);
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="w") move.f=1;
+  if(e.key==="s") move.b=1;
+  if(e.key==="a") move.l=1;
+  if(e.key==="d") move.r=1;
+
+  if(e.key===" "){
+    if(onGround){
+      const normal = player.position.clone().normalize();
+      velocity.add(normal.multiplyScalar(12));
+      onGround=false;
+    }
+  }
+  if(e.key==="Shift") move.down=1;
+});
+document.addEventListener("keyup", e=>{
+  if(e.key==="w") move.f=0;
+  if(e.key==="s") move.b=0;
+  if(e.key==="a") move.l=0;
+  if(e.key==="d") move.r=0;
+  if(e.key==="Shift") move.down=0;
+});
+
+//
+// =========================
+// アニメーション
+const clock = new THREE.Clock();
+
+function animate(){
+  const dt = clock.getDelta();
+  const toC = planetCenter.clone().sub(player.position);
+  const dist = toC.length();
+  const normal = player.position.clone().normalize();
+  const groundHeight = R + 0.6;
+
+  // ===== 重力 =====
+  const gravityDir = toC.normalize();
+  if(dist < groundHeight + 3){
+    velocity.add(gravityDir.multiplyScalar(GRAVITY * dt));
+  }
+
+  // ===== 着地判定 =====
+  if(dist <= groundHeight){
+    const target = normal.clone().multiplyScalar(groundHeight);
+    player.position.copy(target);
+    velocity.set(0,0,0);
+    onGround = true;
+  } else {
+    onGround = false;
+  }
+
+  player.position.add(velocity.clone().multiplyScalar(dt));
+
+  // ===== カメラ向き =====
+  camera.up.copy(normal);
+  const e = new THREE.Euler(pitch,yaw,0,"YXZ");
+  camera.quaternion.setFromEuler(e);
+
+  // ===== 移動（表面に沿って） =====
+  const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+  const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+
+  // 地表に沿うように正規化
+  forward.sub(normal.clone().multiplyScalar(forward.dot(normal)));
+  right.sub(normal.clone().multiplyScalar(right.dot(normal)));
+
+  const walk = new THREE.Vector3();
+  if(move.f) walk.add(forward);
+  if(move.b) walk.sub(forward);
+  if(move.l) walk.sub(right);
+  if(move.r) walk.add(right);
+
+  if(walk.lengthSq()>0){
+    walk.normalize();
+    player.position.add(walk.multiplyScalar(7*dt));
+  }
+
+  // 宇宙での上下
+  if(dist > groundHeight + 2){
+    if(move.up) player.position.add(normal.multiplyScalar(10*dt));
+    if(move.down) player.position.sub(normal.multiplyScalar(10*dt));
+  }
+
+  renderer.render(scene,camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+//
+// =========================
+// リサイズ
+window.addEventListener("resize", ()=>{
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

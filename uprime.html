@@ -1,8 +1,11 @@
+//Uprime α0.5
+
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<title>Uprime α0.4 – Voxel Planet Sandbox</title>
+<title>Uprime α0.5 – Voxel Planet Sandbox</title>
 <style>
   body { margin: 0; overflow: hidden; background:#000; }
 
@@ -49,6 +52,7 @@
   クリックでマウスロック<br>
   WASD移動 / Spaceジャンプ / Shift下降（宇宙）<br>
   左クリック：掘る / 右クリック：置く<br>
+  Shift＋右クリック：直線建築<br>
   マウスホイール or 1〜5：ブロック切替
 </div>
 
@@ -67,9 +71,9 @@ import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 import { SimplexNoise } from "https://unpkg.com/three@0.160.0/examples/jsm/math/SimplexNoise.js";
 
 //
-// =========================
-// 基本セットアップ
-// =========================
+// -------------------------------
+//  基本セットアップ
+// -------------------------------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
@@ -85,8 +89,9 @@ const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.4);
 scene.add(light);
 
 //
-// =========================
-// プレイヤー（カメラ）
+// -------------------------------
+//  プレイヤー（カメラ保持）
+// -------------------------------
 const player = new THREE.Object3D();
 scene.add(player);
 player.add(camera);
@@ -94,11 +99,6 @@ player.position.set(0, 0, 60);
 
 let yaw=0, pitch=0;
 let isLocked = false;
-
-//
-// =========================
-// 入力
-let move = {f:0,b:0,l:0,r:0,up:0,down:0};
 
 renderer.domElement.addEventListener("click", ()=>{
   renderer.domElement.requestPointerLock();
@@ -115,8 +115,9 @@ document.addEventListener("mousemove", e=>{
 });
 
 //
-// =========================
-// ブロック種類
+// -------------------------------
+//  ブロック種類
+// -------------------------------
 const blockTypes = [
   { color: 0x44aa44 }, // grass
   { color: 0x7b4f25 }, // dirt
@@ -127,7 +128,6 @@ const blockTypes = [
 
 let placeType = 0;
 
-// ホットバー更新
 function updateHotbarUI(){
   document.querySelectorAll("#hotbar .slot").forEach(el=>{
     el.classList.toggle("selected", Number(el.dataset.type)===placeType);
@@ -142,7 +142,6 @@ document.querySelectorAll("#hotbar .slot").forEach(el=>{
   });
 });
 
-// ホイール切替
 window.addEventListener("wheel", e=>{
   if(e.deltaY>0) placeType++;
   else placeType--;
@@ -151,7 +150,6 @@ window.addEventListener("wheel", e=>{
   updateHotbarUI();
 });
 
-// 数字キー切替
 document.addEventListener("keydown", e=>{
   const n = Number(e.key);
   if(n>=1 && n<=blockTypes.length){
@@ -161,15 +159,15 @@ document.addEventListener("keydown", e=>{
 });
 
 //
-// =========================
-// 惑星生成（ノイズ）
+// -------------------------------
+//  惑星生成
+// -------------------------------
 const R = 20;
 const blockSize = 1;
-
-let positions = [];  // {x,y,z,type}の配列
-let planetMesh = [];
-
 const noise3d = new SimplexNoise();
+
+let positions = []; // {x,y,z,type}
+let planetMesh = [];
 
 function generatePlanet(){
   positions = [];
@@ -184,18 +182,16 @@ function generatePlanet(){
         const d = Math.sqrt(x*x + y*y + z*z);
         if(d > baseR + amp + 1) continue;
 
-        const nx=x*freq, ny=y*freq, nz=z*freq;
-        const n = noise3d.noise3d(nx,ny,nz);  // -1〜1
+        const n = noise3d.noise3d(x*freq,y*freq,z*freq);
         const height = baseR + n*amp;
 
         if(d <= height){
-          let type = 2; // stone
-
+          let type = 2;
           if(d > height-1) type = 0;
           else if(d > height-2) type = 1;
 
-          if(Math.random() < 0.02) type = 3;     // iron
-          if(Math.random() < 0.005) type = 4;    // crystal
+          if(Math.random()<0.02) type=3;
+          if(Math.random()<0.005) type=4;
 
           positions.push({x,y,z,type});
         }
@@ -213,17 +209,15 @@ function rebuildPlanet(){
     m.geometry.dispose();
     m.material.dispose();
   }
-
   planetMesh = [];
-  const dummy = new THREE.Object3D();
 
-  // 種類ごとに分ける
+  const dummy = new THREE.Object3D();
   const groups = {};
   for(let i=0;i<blockTypes.length;i++) groups[i]=[];
 
   for(const p of positions) groups[p.type].push(p);
 
-  for(let t=0; t<blockTypes.length; t++){
+  for(let t=0;t<blockTypes.length;t++){
     const arr = groups[t];
     if(arr.length===0){
       planetMesh[t]=null;
@@ -231,7 +225,7 @@ function rebuildPlanet(){
     }
 
     const geom = new THREE.BoxGeometry(blockSize,blockSize,blockSize);
-    const mat = new THREE.MeshStandardMaterial({ color: blockTypes[t].color });
+    const mat  = new THREE.MeshStandardMaterial({ color:blockTypes[t].color });
     const mesh = new THREE.InstancedMesh(geom,mat,arr.length);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
@@ -250,8 +244,31 @@ function rebuildPlanet(){
 generatePlanet();
 
 //
-// =========================
-// インベントリ
+// -------------------------------
+//  ブロックハイライト（輪郭線）
+// -------------------------------
+const highlightGeom = new THREE.BoxGeometry(1.01,1.01,1.01);
+const highlightMat = new THREE.LineBasicMaterial({ color:0xffffff });
+const edges = new THREE.EdgesGeometry(highlightGeom);
+const highlight = new THREE.LineSegments(edges, highlightMat);
+highlight.visible = false;
+scene.add(highlight);
+
+function showHighlight(x,y,z){
+  highlight.position.set(x,y,z);
+  highlight.visible = true;
+}
+
+function hideHighlight(){
+  highlight.visible = false;
+}
+
+//part2
+
+//
+// -------------------------------
+//  インベントリ
+// -------------------------------
 let inventory = [0,0,0,0,0];
 
 function updateInventoryUI(){
@@ -266,99 +283,184 @@ Crystal: ${inventory[4]}`;
 updateInventoryUI();
 
 //
-// =========================
-// 掘削（左クリック）
+// -------------------------------
+//  ヒットテスト（レイキャスト）
+// -------------------------------
 const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+const mouse = new THREE.Vector2(0,0); // 常に中央
 
+function raycastBlock(){
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(
+    planetMesh.filter(m=>m)
+  );
+  if(hits.length===0) return null;
+
+  const hit = hits[0];
+
+  // ブロックの種類を判定
+  let t = -1;
+  for(let i=0;i<planetMesh.length;i++){
+    if(planetMesh[i]===hit.object){ t=i; break; }
+  }
+  if(t<0) return null;
+
+  // instanceId → positions の中から探す
+  // ただし instancedMesh の順番と positions の順番は rebuildPlanet() で揃えているので OK
+  const posList = positions.filter(p=>p.type===t);
+  const p = posList[hit.instanceId];
+  if(!p) return null;
+
+  return { hit, type:t, block:p };
+}
+
+//
+// -------------------------------
+//  掘削（左クリック）
+// -------------------------------
 window.addEventListener("mousedown", e=>{
   if(e.button!==0) return;
   if(!isLocked) return;
 
-  mouse.set(0,0);
-  raycaster.setFromCamera(mouse,camera);
+  const info = raycastBlock();
+  if(!info) return;
 
-  const hits = raycaster.intersectObjects(planetMesh.filter(m=>m));
-  if(hits.length===0) return;
+  const { type, block } = info;
 
-  const hit = hits[0];
-  const mesh = hit.object;
-  const id = hit.instanceId;
-
-  // どの種類だった？
-  let t = -1;
-  for(let i=0;i<planetMesh.length;i++){
-    if(planetMesh[i]===mesh){
-      t=i; break;
-    }
-  }
-  if(t<0) return;
-
-  // 同じ種類の配列から該当ブロック探索
-  const group = positions.filter(p=>p.type===t);
-  const target = group[id];
-
-  // インベントリに追加
-  inventory[t]++;
+  // 採取
+  inventory[type]++;
   updateInventoryUI();
 
   // positions から削除
-  positions = positions.filter(p => !(p.x===target.x && p.y===target.y && p.z===target.z));
+  positions = positions.filter(p => !(p.x===block.x && p.y===block.y && p.z===block.z));
+
   rebuildPlanet();
 });
 
 //
-// =========================
-// 建築（右クリック）
-window.addEventListener("contextmenu", e=>{
-  e.preventDefault();
-  if(!isLocked) return;
+// -------------------------------
+//  建築：連続設置（E1）
+// -------------------------------
+let isRightDown = false;
+window.addEventListener("mousedown", e=>{
+  if(e.button===2){
+    isRightDown = true;
+  }
+});
+window.addEventListener("mouseup", e=>{
+  if(e.button===2){
+    isRightDown = false;
+  }
+});
 
-  mouse.set(0,0);
-  raycaster.setFromCamera(mouse,camera);
+function placeSingleBlock(){
+  const info = raycastBlock();
+  if(!info) return;
 
-  const hits = raycaster.intersectObjects(planetMesh.filter(m=>m));
-  if(hits.length===0) return;
-
-  const hit = hits[0];
-  const p = hit.point.clone();
-  const normal = hit.face.normal.clone().applyMatrix3(
-    new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)
+  const normal = info.hit.face.normal.clone().applyMatrix3(
+    new THREE.Matrix3().getNormalMatrix(info.hit.object.matrixWorld)
   ).normalize();
 
-  const placePos = p.add(normal.multiplyScalar(1));
-  const gx = Math.round(placePos.x);
-  const gy = Math.round(placePos.y);
-  const gz = Math.round(placePos.z);
+  const pos = info.hit.point.clone().add(normal.multiplyScalar(1));
+  const gx = Math.round(pos.x);
+  const gy = Math.round(pos.y);
+  const gz = Math.round(pos.z);
 
   if(!positions.some(b => b.x===gx && b.y===gy && b.z===gz)){
     positions.push({x:gx,y:gy,z:gz,type:placeType});
     rebuildPlanet();
   }
-});
+}
 
 //
-// =========================
-// 惑星重力＋歩行＋ジャンプ
-let velocity = new THREE.Vector3();
-let onGround = false;
-const GRAVITY = 30;
-const planetCenter = new THREE.Vector3(0,0,0);
+// -------------------------------
+//  建築：直線設置（E2）
+// -------------------------------
+let lineStart = null;
+
+window.addEventListener("contextmenu", e=> e.preventDefault());
+
+window.addEventListener("mousedown", e=>{
+  if(e.button !== 2) return;
+  if(!isLocked) return;
+
+  // Shift + 右クリック → 直線
+  if(e.shiftKey){
+    const info = raycastBlock();
+    if(!info) return;
+
+    if(!lineStart){
+      lineStart = { x:info.block.x, y:info.block.y, z:info.block.z };
+      console.log("Line start:", lineStart);
+    } else {
+      // 終点
+      const end = { x:info.block.x, y:info.block.y, z:info.block.z };
+      console.log("Line end:", end);
+
+      makeLine(lineStart, end, placeType);
+      lineStart = null;
+      rebuildPlanet();
+    }
+    return;
+  }
+
+  // 通常右クリック（押し始め）
+  // 連続設置対象は「isRightDown」を使用
+});
+
+// 3D ブレゼンハム直線
+function makeLine(a, b, type){
+  const dx = Math.abs(b.x - a.x);
+  const dy = Math.abs(b.y - a.y);
+  const dz = Math.abs(b.z - a.z);
+
+  const sx = a.x < b.x ? 1 : -1;
+  const sy = a.y < b.y ? 1 : -1;
+  const sz = a.z < b.z ? 1 : -1;
+
+  let x = a.x, y=a.y, z=a.z;
+
+  // 最も長い軸を基準に進める
+  const steps = Math.max(dx, dy, dz);
+
+  for(let i=0;i<=steps;i++){
+    if(!positions.some(p=>p.x===x && p.y===y && p.z===z)){
+      positions.push({x,y,z,type});
+    }
+    x += sx;
+    y += sy;
+    z += sz;
+  }
+}
+
+// 毎フレーム連続設置
+function updateContinuousPlace(){
+  if(isRightDown){
+    placeSingleBlock();
+  }
+}
+
+//
+// -------------------------------
+//  プレイヤー移動入力
+// -------------------------------
+let move = {f:0,b:0,l:0,r:0,down:0};
 
 document.addEventListener("keydown", e=>{
   if(e.key==="w") move.f=1;
   if(e.key==="s") move.b=1;
   if(e.key==="a") move.l=1;
   if(e.key==="d") move.r=1;
+  if(e.key==="Shift") move.down=1;
 
+  // ジャンプ
   if(e.key===" "){
     if(onGround){
-      const normal = player.position.clone().normalize();
-      velocity.add(normal.multiplyScalar(12));
-      onGround=false;
+      const n = player.position.clone().normalize();
+      velocity.add(n.multiplyScalar(12));
+      onGround = false;
     }
   }
-  if(e.key==="Shift") move.down=1;
 });
 document.addEventListener("keyup", e=>{
   if(e.key==="w") move.f=0;
@@ -369,45 +471,84 @@ document.addEventListener("keyup", e=>{
 });
 
 //
-// =========================
-// アニメーション
-const clock = new THREE.Clock();
+// -------------------------------
+//  簡易コリジョン（C1）
+// -------------------------------
+function resolveCollision(){
+  const px = player.position.x;
+  const py = player.position.y;
+  const pz = player.position.z;
+  const r = 0.5; // プレイヤー半径
 
-function animate(){
-  const dt = clock.getDelta();
+  for(const b of positions){
+    // 近くのブロックだけ処理
+    if(Math.abs(b.x - px) > 1.5) continue;
+    if(Math.abs(b.y - py) > 1.5) continue;
+    if(Math.abs(b.z - pz) > 1.5) continue;
+
+    const bx=b.x, by=b.y, bz=b.z;
+
+    // ブロック中心との距離
+    const dx = px - bx;
+    const dy = py - by;
+    const dz = pz - bz;
+
+    // ブロック半径は 0.5、プレイヤー半径 r
+    const minDist = r + 0.5;
+    const distSq = dx*dx + dy*dy + dz*dz;
+
+    if(distSq < minDist*minDist){
+      const dist = Math.sqrt(distSq) || 0.0001;
+      const push = (minDist - dist) * 0.5;
+      player.position.x += (dx/dist) * push;
+      player.position.y += (dy/dist) * push;
+      player.position.z += (dz/dist) * push;
+    }
+  }
+}
+
+//
+// -------------------------------
+//  重力・歩行
+// -------------------------------
+let velocity = new THREE.Vector3();
+let onGround = false;
+
+const GRAVITY = 30;
+const planetCenter = new THREE.Vector3(0,0,0);
+
+function updateMovement(dt){
   const toC = planetCenter.clone().sub(player.position);
   const dist = toC.length();
   const normal = player.position.clone().normalize();
   const groundHeight = R + 0.6;
 
-  // ===== 重力 =====
-  const gravityDir = toC.normalize();
+  // 重力
+  const gdir = toC.normalize();
   if(dist < groundHeight + 3){
-    velocity.add(gravityDir.multiplyScalar(GRAVITY * dt));
+    velocity.add(gdir.multiplyScalar(GRAVITY * dt));
   }
 
-  // ===== 着地判定 =====
+  // 着地判定
   if(dist <= groundHeight){
     const target = normal.clone().multiplyScalar(groundHeight);
     player.position.copy(target);
     velocity.set(0,0,0);
     onGround = true;
-  } else {
-    onGround = false;
-  }
+  } else onGround = false;
 
+  // 自由落下
   player.position.add(velocity.clone().multiplyScalar(dt));
 
-  // ===== カメラ向き =====
+  // カメラ方向ベクトル
   camera.up.copy(normal);
   const e = new THREE.Euler(pitch,yaw,0,"YXZ");
   camera.quaternion.setFromEuler(e);
 
-  // ===== 移動（表面に沿って） =====
   const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
   const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
 
-  // 地表に沿うように正規化
+  // 地表に沿わせる
   forward.sub(normal.clone().multiplyScalar(forward.dot(normal)));
   right.sub(normal.clone().multiplyScalar(right.dot(normal)));
 
@@ -422,25 +563,62 @@ function animate(){
     player.position.add(walk.multiplyScalar(7*dt));
   }
 
-  // 宇宙での上下
+  // 宇宙空間の上下
   if(dist > groundHeight + 2){
-    if(move.up) player.position.add(normal.multiplyScalar(10*dt));
     if(move.down) player.position.sub(normal.multiplyScalar(10*dt));
   }
 
-  renderer.render(scene,camera);
+  // 衝突判定
+  resolveCollision();
+}
+
+//
+// -------------------------------
+//  ハイライト更新
+// -------------------------------
+function updateHighlight(){
+  const info = raycastBlock();
+  if(info) showHighlight(info.block.x, info.block.y, info.block.z);
+  else hideHighlight();
+}
+
+//part3
+
+//
+// -------------------------------
+//  アニメーションループ
+// -------------------------------
+const clock = new THREE.Clock();
+
+function animate(){
+  const dt = clock.getDelta();
+
+  // ハイライト更新
+  updateHighlight();
+
+  // 連続設置処理（右クリック押しっぱなし）
+  updateContinuousPlace();
+
+  // 移動処理（重力・歩行・コリジョン）
+  updateMovement(dt);
+
+  // 描画
+  renderer.render(scene, camera);
+
   requestAnimationFrame(animate);
 }
 animate();
 
 //
-// =========================
-// リサイズ
+// -------------------------------
+//  ウィンドウリサイズ
+// -------------------------------
 window.addEventListener("resize", ()=>{
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
 </script>
 </body>
 </html>

@@ -121,6 +121,7 @@
 </div>
 
 <button id="orbitBtn">Orbit: OFF</button>
+<button id="autoOrbitBtn">Auto Orbit: OFF</button>
 
 <div id="modeUI">
   <div id="digBtn" class="modeBtn selectedMode">掘削モード</div>
@@ -175,6 +176,12 @@ player.add(camera);
 let yaw = 0;
 let pitch = 0;
 
+let autoOrbit = false;
+let autoOrbitSpeedYaw = 0.002;    // 惑星を水平にゆっくり回す
+let autoOrbitSpeedPitch = 0;      // 必要なら少し上下にも回せる
+
+
+
 let isLocked = false;
 renderer.domElement.addEventListener("click", () => {
   if (!isMobile()) renderer.domElement.requestPointerLock();
@@ -182,6 +189,13 @@ renderer.domElement.addEventListener("click", () => {
 document.addEventListener("pointerlockchange", () => {
   isLocked = document.pointerLockElement === renderer.domElement;
 });
+
+document.getElementById("autoOrbitBtn").onclick = () => {
+    autoOrbit = !autoOrbit;
+    autoOrbitBtn.textContent = "Auto Orbit: " + (autoOrbit ? "ON" : "OFF");
+};
+
+
 
 /* ==========================================================
    判定：モバイルか？
@@ -476,35 +490,46 @@ class Creature {
      モデル生成（Box + Sphere）
   ------------------------------------------- */
   buildModel(type) {
-    let bodyColor, headColor, bodySize, headSize;
+  let bodyColor, headColor, bodySize, headSize;
 
-    if (type === "herb") {
-      bodyColor = 0x88cc88;
-      headColor = 0xffffff;
-      bodySize = {x:1.2, y:0.8, z:2.0};
-      headSize = 0.5;
-    } else {
-      bodyColor = 0xaa4444;
-      headColor = 0xffffff;
-      bodySize = {x:1.5, y:1.0, z:2.6};
-      headSize = 0.6;
-    }
-
-    // Body
-    const bodyGeo = new THREE.BoxGeometry(bodySize.x, bodySize.y, bodySize.z);
-    const bodyMat = new THREE.MeshStandardMaterial({color: bodyColor});
-    this.body = new THREE.Mesh(bodyGeo, bodyMat);
-    this.obj.add(this.body);
-
-    // Head
-    const headGeo = new THREE.SphereGeometry(headSize, 16, 16);
-    const headMat = new THREE.MeshStandardMaterial({color: headColor});
-    this.head = new THREE.Mesh(headGeo, headMat);
-
-    // 頭の位置（体の前側）
-    this.head.position.set(0, bodySize.y*0.3, bodySize.z*0.65);
-    this.obj.add(this.head);
+  if (type === "herb") {
+    bodyColor = 0x88cc88;
+    headColor = 0xffffff;
+    bodySize = {x:1.2, y:0.8, z:2.0};
+    headSize = 0.5;
+  } else {
+    bodyColor = 0xaa4444;
+    headColor = 0xffffff;
+    bodySize = {x:1.5, y:1.0, z:2.6};
+    headSize = 0.6;
   }
+
+  // Body
+  const bodyGeo = new THREE.BoxGeometry(bodySize.x, bodySize.y, bodySize.z);
+  const bodyMat = new THREE.MeshStandardMaterial({color: bodyColor});
+  this.body = new THREE.Mesh(bodyGeo, bodyMat);
+  this.obj.add(this.body);
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(headSize, 16, 16);
+  const headMat = new THREE.MeshStandardMaterial({color: headColor});
+  this.head = new THREE.Mesh(headGeo, headMat);
+  this.head.position.set(0, bodySize.y*0.3, bodySize.z*0.65);
+  this.obj.add(this.head);
+
+  /* --- Legs（脚） --- */
+  const legGeo = new THREE.BoxGeometry(0.3, 0.7, 0.3);
+  const legMat = new THREE.MeshStandardMaterial({color: 0x333333});
+
+  this.legL = new THREE.Mesh(legGeo, legMat);
+  this.legR = new THREE.Mesh(legGeo, legMat);
+
+  this.legL.position.set(-0.4, -bodySize.y*0.6, bodySize.z*0.2);
+  this.legR.position.set(+0.4, -bodySize.y*0.6, bodySize.z*0.2);
+
+  this.obj.add(this.legL);
+  this.obj.add(this.legR);
+}
 
   /* -------------------------------------------
      方向転換
@@ -519,37 +544,51 @@ class Creature {
      毎フレーム移動処理（AIは Part2 で更新）
   ------------------------------------------- */
   updateMovement(dt) {
-    // 目標なしなら移動しない
-    if (!this.targetPos) return;
-
-    // 現在位置
-    const pos = this.obj.position.clone();
-
-    // 方向
-    let dir = this.targetPos.clone().sub(pos);
-
-    // 近すぎたらクリア
-    if (dir.length() < 0.5) {
-      this.targetPos = null;
-      return;
-    }
-
-    // 地面に沿わせる
-    const normal = getNormal(pos);
-    dir = projectOnSurface(dir, normal);
-
-    // 回転
-    this.lookAtDirection(dir);
-
-    // 移動
-    dir.normalize();
-    this.obj.position.add(dir.multiplyScalar(this.speed * dt));
-
-    // 地面にくっつける
-    const n = getNormal(this.obj.position);
-    const target = n.multiplyScalar(R + 0.6);
-    this.obj.position.copy(target);
+  // 目標なし
+  if (!this.targetPos) {
+    this._dirLength = 0;
+    return;
   }
+
+  const pos = this.obj.position.clone();
+
+  let dir = this.targetPos.clone().sub(pos);
+
+  if (dir.length() < 0.5) {
+    this.targetPos = null;
+    this._dirLength = 0;
+    return;
+  }
+
+  const normal = getNormal(pos);
+  dir = projectOnSurface(dir, normal);
+
+  this.lookAtDirection(dir);
+
+  dir.normalize();
+  this.obj.position.add(dir.multiplyScalar(this.speed * dt));
+  this._dirLength = 1; // ←移動してる証として1を入れる（本当はdir.lengthでOK）
+
+  // 地面に合わせる
+  const n = getNormal(this.obj.position);
+  this.obj.position.copy(n.multiplyScalar(R + 0.6));
+
+  /* ===== 歩行アニメーション（ここが正しい位置） ===== */
+  if (this.walkTime === undefined) this.walkTime = 0;
+
+  const moving = this._dirLength;
+
+  if (moving > 0.05) {
+    this.walkTime += dt * this.speed * 3;
+    const swing = Math.sin(this.walkTime) * 0.6;
+
+    if (this.legL) this.legL.rotation.x = swing;
+    if (this.legR) this.legR.rotation.x = -swing;
+  } else {
+    if (this.legL) this.legL.rotation.x *= 0.8;
+    if (this.legR) this.legR.rotation.x *= 0.8;
+  }
+}
 }
 
 /* ==========================================================
@@ -560,6 +599,15 @@ class Herbivore extends Creature {
   constructor() {
     super("herb");
     this.speed = rand(2.0, 3.5);
+
+    // 性別（M / F）
+    this.gender = Math.random() < 0.5 ? "M" : "F";
+
+    // 満腹状態
+    this.full = false;
+
+    // 繁殖クールダウン
+    this.reproCooldown = 0;
   }
 }
 
@@ -570,7 +618,7 @@ class Herbivore extends Creature {
 class Predator extends Creature {
   constructor() {
     super("pred");
-    this.speed = rand(3.0, 4.0);
+    this.speed = rand(1.5, 2.5);
   }
 }
 
@@ -751,6 +799,8 @@ function updateHerbivoreAI(h, dt) {
         if (g2) g2.type = 1;
         rebuildPlanet();
 
+       
+        h.full = true;  // ★満腹になった！
         h.state = "REST";
         h.stateTime = 0;
       }
@@ -770,7 +820,61 @@ function updateHerbivoreAI(h, dt) {
       }
       break;
   }
+   // ★ 繁殖チェック（近くの herbivore を探す）
+   for (const other of herbivores) {
+     if (other === h) continue;
+     if (h.obj.position.distanceTo(other.obj.position) < 2.2) {
+       tryReproduce(h, other);
+     }
+   }
+
+
 }
+
+
+function tryReproduce(a, b) {
+  // 性別が一致 or 同性 → 無効
+  if (a.gender === b.gender) return false;
+
+  // 満腹でない → 無効
+  if (!a.full || !b.full) return false;
+
+  // クールダウン
+  if (a.reproCooldown > 0 || b.reproCooldown > 0) return false;
+
+  // 実際に繁殖成功！
+  spawnBabyHerbivore(a, b);
+  a.full = b.full = false;
+
+  // クールダウンを設定（10〜20秒）
+  a.reproCooldown = rand(10,20);
+  b.reproCooldown = rand(10,20);
+
+  return true;
+}
+
+function spawnBabyHerbivore(parentA, parentB) {
+  const baby = new Herbivore();
+
+  // 親の位置の中間あたり
+  const pA = parentA.obj.position;
+  const pB = parentB.obj.position;
+
+  const mid = new THREE.Vector3(
+    (pA.x + pB.x) / 2,
+    (pA.y + pB.y) / 2,
+    (pA.z + pB.z) / 2
+  );
+
+  // 少しランダムオフセット
+  const off = new THREE.Vector3(rand(-1,1), rand(-1,1), rand(-1,1));
+  mid.add(off);
+
+  baby.obj.position.copy(mid.normalize().multiplyScalar(R + 0.6));
+
+  herbivores.push(baby);
+}
+
 
 /* ==========================================================
    AI更新：捕食者
@@ -881,16 +985,20 @@ function updatePredatorAI(p, dt) {
 
 function updateAllCreatureAI(dt) {
 
-  // 草食動物
   for (const h of herbivores) {
     updateHerbivoreAI(h, dt);
+
+    if (h.reproCooldown > 0) {
+      h.reproCooldown -= dt;
+      if (h.reproCooldown < 0) h.reproCooldown = 0;
+    }
   }
 
-  // 捕食者
   for (const p of predators) {
     updatePredatorAI(p, dt);
   }
 }
+
 
 /* ----------------------------------------------------------
    AI処理ループ（100ms）
@@ -942,6 +1050,7 @@ function updateAllCreaturesMovement(dt) {
     p.updateMovement(dt);
   }
 }
+
 
 /* ==========================================================
    捕食で死亡した草食動物のメモリを整理する（任意）
@@ -1120,42 +1229,70 @@ orbitBtn.onclick = () => {
     // プレイヤー視点 → 観察視点へ切り替え
     const v = player.position.clone();
     orbitDistance = v.length();
-    orbitYaw = Math.atan2(v.x, v.z);
-    orbitPitch = Math.asin(v.y / orbitDistance);
+    orbitYaw = Math.atan2(v.z, v.x);       // ← swap
+    orbitPitch = Math.atan2(v.y, Math.sqrt(v.x*v.x + v.z*v.z));
+
   } else {
     // Orbitモード終了 → プレイヤー位置復元
-    const x = orbitDistance * Math.sin(orbitYaw) * Math.cos(orbitPitch);
-    const y = orbitDistance * Math.sin(orbitPitch);
-    const z = orbitDistance * Math.cos(orbitYaw) * Math.cos(orbitPitch);
-    player.position.set(x, y, z);
+// 回転の向きをユーザー操作に一致させる
+const x = orbitDistance * Math.cos(orbitPitch) * Math.sin(orbitYaw);
+const y = orbitDistance * Math.sin(orbitPitch);
+const z = orbitDistance * Math.cos(orbitPitch) * Math.cos(orbitYaw);
+
+player.position.set(x, y, z);
+camera.lookAt(0,0,0);
+
   }
 };
 
 /* ==========================================================
-   Orbit モード中：2本指で惑星回転
+   Orbitモード：1本指で回転（スマホ）
 ========================================================== */
+let orbitTouch = null;
+
+window.addEventListener("touchstart", e => {
+  if (!orbitMode) return;
+
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    orbitTouch = { id: t.identifier, x: t.clientX, y: t.clientY };
+  }
+});
 
 window.addEventListener("touchmove", e => {
   if (!orbitMode) return;
-  if (!twoTouch || e.touches.length !== 2) return;
 
-  const t1 = e.touches[0];
-  const t2 = e.touches[1];
+  // 2本指ズームは既存の処理へ
+  if (e.touches.length === 2) return;
 
-  const dx = (t1.clientX - twoTouch[0].x + t2.clientX - twoTouch[1].x) * 0.002;
-  const dy = (t1.clientY - twoTouch[0].y + t2.clientY - twoTouch[1].y) * 0.002;
+  // 1本指で回転
+  for (const t of e.touches) {
+    if (orbitTouch && t.identifier === orbitTouch.id) {
+      const dx = t.clientX - orbitTouch.x;
+      const dy = t.clientY - orbitTouch.y;
 
-  orbitYaw   -= dx;
-  orbitPitch -= dy;
+      orbitYaw   += dx * 0.004;   // 回転速度
+      orbitPitch += dy * 0.004;
 
-  orbitPitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, orbitPitch));
+      orbitPitch = Math.max(
+        -Math.PI / 2 + 0.1,
+        Math.min(Math.PI / 2 - 0.1, orbitPitch)
+      );
 
-  // 更新
-  twoTouch[0].x = t1.clientX;
-  twoTouch[0].y = t1.clientY;
-  twoTouch[1].x = t2.clientX;
-  twoTouch[1].y = t2.clientY;
+      orbitTouch.x = t.clientX;
+      orbitTouch.y = t.clientY;
+    }
+  }
 });
+
+window.addEventListener("touchend", e => {
+  for (const t of e.changedTouches) {
+    if (orbitTouch && t.identifier === orbitTouch.id) {
+      orbitTouch = null;
+    }
+  }
+});
+
 
 /* -------------------------------
    ピンチでズーム
@@ -1342,13 +1479,28 @@ function updateMovement(dt) {
 function updateOrbitCamera() {
   if (!orbitMode) return;
 
-  const x = orbitDistance * Math.sin(orbitYaw) * Math.cos(orbitPitch);
-  const y = orbitDistance * Math.sin(orbitPitch);
-  const z = orbitDistance * Math.cos(orbitYaw) * Math.cos(orbitPitch);
+  // ピッチ制限（真上・真下を避ける）
+  const maxPitch = Math.PI / 2 - 0.01;
+  orbitPitch = Math.max(-maxPitch, Math.min(maxPitch, orbitPitch));
+
+  // ① まず水平回転（Yaw）方向のベクトル
+  const cosPitch = Math.cos(orbitPitch);
+  const sinPitch = Math.sin(orbitPitch);
+
+  const cosYaw = Math.cos(orbitYaw);
+  const sinYaw = Math.sin(orbitYaw);
+
+  // ② 正しいオービット式（three.js OrbitControls と同じ）
+  const x = orbitDistance * cosPitch * sinYaw;
+  const y = orbitDistance * sinPitch;
+  const z = orbitDistance * cosPitch * cosYaw;
 
   player.position.set(x, y, z);
-  camera.lookAt(0,0,0);
+
+  // カメラは常に中心を向く
+  camera.lookAt(0, 0, 0);
 }
+
 
 
 /* ==========================================================
@@ -1367,9 +1519,22 @@ function animate() {
     updateMovement(dt);
   }
 
+  updateAllCreaturesMovement(dt);
+
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
+if (orbitMode && autoOrbit) {
+    orbitYaw += autoOrbitSpeedYaw;
+    orbitPitch += autoOrbitSpeedPitch;
+
+    // Pitch が変な角度までいかないように制限
+    const maxPitch = Math.PI/2 - 0.05;
+    orbitPitch = Math.max(-maxPitch, Math.min(maxPitch, orbitPitch));
+}
+
+
+
 animate();
 
 /* ==========================================================
@@ -1387,4 +1552,3 @@ window.addEventListener("resize", () => {
 </script>
 </body>
 </html>
-

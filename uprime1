@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Uprime α0.6 – Mobile + Orbit Mode</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+    touch-action: none; /* スマホでの勝手なスクロールを防ぐ */
+  }
+
+  /* --- HUD（左上） --- */
+  #hud {
+    position: fixed;
+    top: 10px; left: 10px;
+    color: white;
+    background: rgba(0,0,0,0.45);
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    font-family: sans-serif;
+    z-index: 20;
+  }
+
+  /* --- Orbit モードボタン（右上） --- */
+  #orbitBtn {
+    position: fixed;
+    top: 10px; right: 10px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.2);
+    color:white;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: sans-serif;
+    z-index: 30;
+    border: 1px solid rgba(255,255,255,0.4);
+  }
+
+  /* --- 掘削/設置 UI（右下） --- */
+  #modeUI {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 30;
+  }
+
+  .modeBtn {
+    padding: 12px 20px;
+    font-size: 16px;
+    font-family: sans-serif;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.4);
+    color: white;
+    text-align: center;
+  }
+
+  .selectedMode {
+    background: rgba(255,255,255,0.8);
+    color: black;
+    font-weight: bold;
+  }
+
+  /* --- Hotbar（PC用） --- */
+  #hotbar {
+    position:fixed;
+    bottom:20px; left:50%;
+    transform:translateX(-50%);
+    display:flex; gap:8px;
+    z-index:20;
+  }
+
+  #hotbar .slot {
+    padding:6px 12px;
+    background:rgba(255,255,255,0.1);
+    color:white;
+    border:1px solid rgba(255,255,255,0.3);
+    border-radius:4px;
+    font-size:14px;
+  }
+  #hotbar .selected {
+    background:rgba(255,255,255,0.6);
+    color:black;
+    font-weight:bold;
+  }
+
+  /* ---- Inventory ---- */
+  #inventoryUI {
+    position:fixed;
+    right:10px; top:60px;
+    background:rgba(0,0,0,0.5);
+    color:white;
+    padding:10px;
+    border-radius:6px;
+    font-family:sans-serif;
+    font-size:14px;
+    white-space: pre;
+    z-index:20;
+  }
+
+</style>
+</head>
+
+
+<body>
+
+<div id="hud">
+  Uprime α0.6<br>
+  PC: クリックでマウスロック<br>
+  WASD/Space/Shift、左クリック掘削、右クリック設置<br>
+  <br>
+  Mobile:<br>
+  左1本指 = 移動<br>
+  右1本指 = 視点回転<br>
+  2本指 = Orbitモード時：惑星回転<br>
+</div>
+
+<button id="orbitBtn">Orbit: OFF</button>
+
+<div id="modeUI">
+  <div id="digBtn" class="modeBtn selectedMode">掘削モード</div>
+  <div id="placeBtn" class="modeBtn">設置モード</div>
+</div>
+
+<div id="inventoryUI"></div>
+
+<!-- PC用ホットバー -->
+<div id="hotbar">
+  <div class="slot" data-type="0">Grass</div>
+  <div class="slot" data-type="1">Dirt</div>
+  <div class="slot" data-type="2">Stone</div>
+  <div class="slot" data-type="3">Iron</div>
+  <div class="slot" data-type="4">Crystal</div>
+</div>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { SimplexNoise } from "https://unpkg.com/three@0.160.0/examples/jsm/math/SimplexNoise.js";
+
+/* ==========================================================
+   Part1：基本セットアップ（Scene / Camera / Renderer）
+   ========================================================== */
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(
+  75, window.innerWidth / window.innerHeight, 0.1, 3000
+);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* ==========================================================
+   Light
+   ========================================================== */
+const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.4);
+scene.add(light);
+
+
+/* ==========================================================
+   プレイヤーオブジェクト（カメラ保持）
+   ========================================================== */
+const player = new THREE.Object3D();
+player.position.set(0, 0, 60);
+scene.add(player);
+player.add(camera);
+
+let yaw = 0;
+let pitch = 0;
+
+let isLocked = false;
+renderer.domElement.addEventListener("click", () => {
+  if (!isMobile()) renderer.domElement.requestPointerLock();
+});
+document.addEventListener("pointerlockchange", () => {
+  isLocked = document.pointerLockElement === renderer.domElement;
+});
+
+/* ==========================================================
+   判定：モバイルか？
+   ========================================================== */
+function isMobile() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+/* ==========================================================
+   ここから Part2 へ続く！
+   ========================================================== */
+
+
+/* ==========================================================
+   Part2：惑星生成・ブロック管理
+   ========================================================== */
+
+const R = 20;
+const blockSize = 1;
+
+const noise3d = new SimplexNoise();
+
+let positions = [];     // {x,y,z,type}
+let planetMesh = [];    // InstancedMesh ごとに 1 つ
+
+/* -------------------------------
+   ブロック種類
+--------------------------------*/
+const blockTypes = [
+  { color: 0x44aa44 }, // grass
+  { color: 0x7b4f25 }, // dirt
+  { color: 0xaaaaaa }, // stone
+  { color: 0xcc4444 }, // iron
+  { color: 0x66ccff }  // crystal
+];
+
+let placeType = 0;
+
+/* -------------------------------
+   惑星生成
+--------------------------------*/
+function generatePlanet() {
+  positions = [];
+
+  const baseR = R;
+  const amp = 3;
+  const freq = 0.12;
+
+  for (let x = -R - 4; x <= R + 4; x++) {
+    for (let y = -R - 4; y <= R + 4; y++) {
+      for (let z = -R - 4; z <= R + 4; z++) {
+
+        const d = Math.sqrt(x*x + y*y + z*z);
+        if (d > baseR + amp + 1) continue;
+
+        const n = noise3d.noise3d(x * freq, y * freq, z * freq);
+        const height = baseR + n * amp;
+
+        if (d <= height) {
+
+          let type = 2;
+          if (d > height - 1) type = 0;
+          else if (d > height - 2) type = 1;
+
+          if (Math.random() < 0.02) type = 3;
+          if (Math.random() < 0.005) type = 4;
+
+          positions.push({ x, y, z, type });
+        }
+      }
+    }
+  }
+
+  rebuildPlanet();
+}
+
+/* -------------------------------
+   惑星メッシュを再構築
+--------------------------------*/
+function rebuildPlanet() {
+  // 既存メッシュ削除
+  for (const m of planetMesh) {
+    if (!m) continue;
+    scene.remove(m);
+    m.geometry.dispose();
+    m.material.dispose();
+  }
+  planetMesh = [];
+
+  const dummy = new THREE.Object3D();
+  const groups = {};
+
+  for (let i = 0; i < blockTypes.length; i++) groups[i] = [];
+
+  for (const p of positions) groups[p.type].push(p);
+
+  for (let t = 0; t < blockTypes.length; t++) {
+    const arr = groups[t];
+    if (arr.length === 0) {
+      planetMesh[t] = null;
+      continue;
+    }
+
+    const geom = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+    const mat  = new THREE.MeshStandardMaterial({ color: blockTypes[t].color });
+    const mesh = new THREE.InstancedMesh(geom, mat, arr.length);
+
+    for (let i = 0; i < arr.length; i++) {
+      const p = arr[i];
+      dummy.position.set(p.x, p.y, p.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+
+    planetMesh[t] = mesh;
+    scene.add(mesh);
+  }
+}
+
+generatePlanet();
+
+/* ==========================================================
+   ブロックハイライト
+========================================================== */
+const highlightGeom = new THREE.BoxGeometry(1.01,1.01,1.01);
+const edges = new THREE.EdgesGeometry(highlightGeom);
+const highlight = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
+highlight.visible = false;
+scene.add(highlight);
+
+function showHighlight(x,y,z){
+  highlight.position.set(x,y,z);
+  highlight.visible = true;
+}
+function hideHighlight(){
+  highlight.visible = false;
+}
+
+/* ==========================================================
+   Inventory UI 更新
+========================================================== */
+let inventory = [0,0,0,0,0];
+
+function updateInventoryUI(){
+  document.getElementById("inventoryUI").innerText =
+`Inventory
+Grass:   ${inventory[0]}
+Dirt:    ${inventory[1]}
+Stone:   ${inventory[2]}
+Iron:    ${inventory[3]}
+Crystal: ${inventory[4]}`;
+}
+updateInventoryUI();
+
+/* ==========================================================
+   Raycast（中央からレイを飛ばす）
+========================================================== */
+const raycaster = new THREE.Raycaster();
+const mouseCenter = new THREE.Vector2(0,0);
+
+function raycastBlock() {
+  raycaster.setFromCamera(mouseCenter, camera);
+
+  const hits = raycaster.intersectObjects(
+    planetMesh.filter(m => m)
+  );
+  if (hits.length === 0) return null;
+
+  const hit = hits[0];
+
+  // メッシュから種類 t を判定
+  let t = -1;
+  for (let i = 0; i < planetMesh.length; i++) {
+    if (planetMesh[i] === hit.object) { t = i; break; }
+  }
+  if (t < 0) return null;
+
+  // instanceId 対応
+  const posList = positions.filter(p => p.type === t);
+  const p = posList[hit.instanceId];
+  if (!p) return null;
+
+  return {hit, type: t, block: p};
+}
+
+/* ==========================================================
+   掘削（PC 左クリック / Mobile タップ）
+========================================================== */
+function digBlock() {
+  const info = raycastBlock();
+  if (!info) return;
+
+  const { type, block } = info;
+
+  inventory[type]++;
+  updateInventoryUI();
+
+  // positions から削除
+  positions = positions.filter(p => !(p.x === block.x && p.y === block.y && p.z === block.z));
+
+  rebuildPlanet();
+}
+
+/* ==========================================================
+   設置：1ブロック
+========================================================== */
+function placeBlock() {
+  const info = raycastBlock();
+  if (!info) return;
+
+  const normal = info.hit.face.normal.clone().applyMatrix3(
+    new THREE.Matrix3().getNormalMatrix(info.hit.object.matrixWorld)
+  ).normalize();
+
+  const pos = info.hit.point.clone().add(normal.multiplyScalar(1));
+  const gx = Math.round(pos.x);
+  const gy = Math.round(pos.y);
+  const gz = Math.round(pos.z);
+
+  if (!positions.some(b => b.x === gx && b.y === gy && b.z === gz)) {
+    positions.push({x: gx, y: gy, z: gz, type: placeType});
+    rebuildPlanet();
+  }
+}
+
+/* ==========================================================
+   Uprime α0.7 – 生物AI Part1
+   ・Creature 基底クラス
+   ・Herbivore（草食動物）
+   ・Predator（捕食者）
+   ・モデル生成（Box + Sphere）
+   ========================================================== */
+
+/* ==========================================================
+   基本ユーティリティ
+========================================================== */
+
+// 惑星の法線（position を正規化）
+function getNormal(pos) {
+  return pos.clone().normalize();
+}
+
+// 移動ベクトルから法線成分を除去（球面歩行）
+function projectOnSurface(dir, normal) {
+  const nDot = dir.dot(normal);
+  return dir.clone().sub(normal.clone().multiplyScalar(nDot));
+}
+
+// 乱数
+function rand(a, b) {
+  return a + Math.random() * (b - a);
+}
+
+// 角度制御
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+/* ==========================================================
+   Creature（基底クラス）
+========================================================== */
+
+class Creature {
+  constructor(type = "herb") {
+    this.type = type;               // herb / pred
+
+    this.obj = new THREE.Group();   // モデル全体
+    scene.add(this.obj);
+
+    // 基本パラメータ
+    this.speed = 3 + Math.random()*1.5;   // 歩行速度
+    this.state = "IDLE";
+    this.stateTime = 0;
+
+    this.targetPos = null;          // 移動目標
+    this.targetCreature = null;     // 捕食者用（追跡対象）
+
+    // 惑星半径に合わせてスポーン
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.random() * Math.PI;
+    const rr = R + 0.6;
+    const x = rr * Math.sin(phi) * Math.cos(theta);
+    const y = rr * Math.cos(phi);
+    const z = rr * Math.sin(phi) * Math.sin(theta);
+    this.obj.position.set(x,y,z);
+
+    this.buildModel(type);
+  }
+
+  /* -------------------------------------------
+     モデル生成（Box + Sphere）
+  ------------------------------------------- */
+  buildModel(type) {
+    let bodyColor, headColor, bodySize, headSize;
+
+    if (type === "herb") {
+      bodyColor = 0x88cc88;
+      headColor = 0xffffff;
+      bodySize = {x:1.2, y:0.8, z:2.0};
+      headSize = 0.5;
+    } else {
+      bodyColor = 0xaa4444;
+      headColor = 0xffffff;
+      bodySize = {x:1.5, y:1.0, z:2.6};
+      headSize = 0.6;
+    }
+
+    // Body
+    const bodyGeo = new THREE.BoxGeometry(bodySize.x, bodySize.y, bodySize.z);
+    const bodyMat = new THREE.MeshStandardMaterial({color: bodyColor});
+    this.body = new THREE.Mesh(bodyGeo, bodyMat);
+    this.obj.add(this.body);
+
+    // Head
+    const headGeo = new THREE.SphereGeometry(headSize, 16, 16);
+    const headMat = new THREE.MeshStandardMaterial({color: headColor});
+    this.head = new THREE.Mesh(headGeo, headMat);
+
+    // 頭の位置（体の前側）
+    this.head.position.set(0, bodySize.y*0.3, bodySize.z*0.65);
+    this.obj.add(this.head);
+  }
+
+  /* -------------------------------------------
+     方向転換
+  ------------------------------------------- */
+  lookAtDirection(dir) {
+    const up = getNormal(this.obj.position);
+    const look = new THREE.Vector3().copy(dir).normalize();
+    this.obj.lookAt(this.obj.position.clone().add(look), up);
+  }
+
+  /* -------------------------------------------
+     毎フレーム移動処理（AIは Part2 で更新）
+  ------------------------------------------- */
+  updateMovement(dt) {
+    // 目標なしなら移動しない
+    if (!this.targetPos) return;
+
+    // 現在位置
+    const pos = this.obj.position.clone();
+
+    // 方向
+    let dir = this.targetPos.clone().sub(pos);
+
+    // 近すぎたらクリア
+    if (dir.length() < 0.5) {
+      this.targetPos = null;
+      return;
+    }
+
+    // 地面に沿わせる
+    const normal = getNormal(pos);
+    dir = projectOnSurface(dir, normal);
+
+    // 回転
+    this.lookAtDirection(dir);
+
+    // 移動
+    dir.normalize();
+    this.obj.position.add(dir.multiplyScalar(this.speed * dt));
+
+    // 地面にくっつける
+    const n = getNormal(this.obj.position);
+    const target = n.multiplyScalar(R + 0.6);
+    this.obj.position.copy(target);
+  }
+}
+
+/* ==========================================================
+   草食動物（Herbivore）
+========================================================== */
+
+class Herbivore extends Creature {
+  constructor() {
+    super("herb");
+    this.speed = rand(2.0, 3.5);
+  }
+}
+
+/* ==========================================================
+   捕食者（Predator）
+========================================================== */
+
+class Predator extends Creature {
+  constructor() {
+    super("pred");
+    this.speed = rand(3.0, 4.0);
+  }
+}
+
+/* ==========================================================
+   生物全体を保持
+========================================================== */
+
+const herbivores = [];
+const predators = [];
+
+/* ==========================================================
+   スポーン（草食6体、捕食者2体）
+========================================================== */
+
+function spawnCreatures() {
+  // 草食動物
+  for (let i = 0; i < 6; i++) {
+    herbivores.push(new Herbivore());
+  }
+  // 捕食者
+  for (let i = 0; i < 2; i++) {
+    predators.push(new Predator());
+  }
+}
+
+spawnCreatures();
+
+/* ==========================================================
+   Part2（AI状態遷移）は次のメッセージへ！
+========================================================== */
+
+/* ==========================================================
+   Uprime α0.7 – Part2
+   草食動物 & 捕食者 AI ステートマシン
+========================================================== */
+
+/* ----------------------------------------------------------
+   草ブロック（type=0）を探す
+---------------------------------------------------------- */
+function findNearestGrass(pos, maxDist = 10) {
+  let nearest = null;
+  let best = Infinity;
+
+  for (const b of positions) {
+    if (b.type !== 0) continue;
+    const dx = b.x - pos.x;
+    const dy = b.y - pos.y;
+    const dz = b.z - pos.z;
+    const d2 = dx*dx + dy*dy + dz*dz;
+    if (d2 < best && d2 < maxDist*maxDist) {
+      best = d2;
+      nearest = b;
+    }
+  }
+  return nearest;
+}
+
+/* ----------------------------------------------------------
+   草食動物を探す（捕食者用）
+---------------------------------------------------------- */
+function findNearestHerbivore(pos, maxDist = 30) {
+  let nearest = null;
+  let best = Infinity;
+
+  for (const h of herbivores) {
+    const hp = h.obj.position;
+    const d2 = hp.distanceToSquared(pos);
+    if (d2 < best && d2 < maxDist*maxDist) {
+      best = d2;
+      nearest = h;
+    }
+  }
+  return nearest;
+}
+
+/* ----------------------------------------------------------
+   捕食者の半径内にいる草食動物 → 草食動物が逃げる
+---------------------------------------------------------- */
+function getNearestPredator(pos, maxDist = 12) {
+  let nearest = null;
+  let best = Infinity;
+
+  for (const p of predators) {
+    const pp = p.obj.position;
+    const d2 = pos.distanceToSquared(pp);
+    if (d2 < best && d2 < maxDist*maxDist) {
+      best = d2;
+      nearest = p;
+    }
+  }
+  return nearest;
+}
+
+/* ==========================================================
+   AI更新：草食動物
+========================================================== */
+
+function updateHerbivoreAI(h, dt) {
+  h.stateTime += dt;
+
+  const pos = h.obj.position;
+
+  // 捕食者の接近による逃走
+  const danger = getNearestPredator(pos);
+  if (danger) {
+    const dir = pos.clone().sub(danger.obj.position);
+    dir.normalize();
+    const escapeTarget = pos.clone().add(dir.multiplyScalar(5));
+    h.targetPos = escapeTarget;
+    h.state = "RUN";
+    h.stateTime = 0;
+    return;
+  }
+
+  switch (h.state) {
+    case "IDLE":
+      if (h.stateTime > rand(1,2)) {
+        h.state = "WANDER";
+        h.stateTime = 0;
+        const n = getNormal(pos);
+        const tangent = new THREE.Vector3(1,0,0)
+          .cross(n).normalize().multiplyScalar(rand(-3,3));
+        const t2 = new THREE.Vector3(0,1,0)
+          .cross(n).normalize().multiplyScalar(rand(-3,3));
+        h.targetPos = pos.clone().add(tangent).add(t2);
+      }
+      break;
+
+    case "WANDER":
+      if (!h.targetPos || h.stateTime > 3) {
+        const g = findNearestGrass(pos);
+        if (g) {
+          h.state = "SEARCH_GRASS";
+          h.stateTime = 0;
+          return;
+        }
+        // wander 継続
+        const n = getNormal(pos);
+        const tangent = new THREE.Vector3(1,0,0)
+          .cross(n).normalize().multiplyScalar(rand(-4,4));
+        const t2 = new THREE.Vector3(0,1,0)
+          .cross(n).normalize().multiplyScalar(rand(-4,4));
+        h.targetPos = pos.clone().add(tangent).add(t2);
+        h.stateTime = 0;
+      }
+      break;
+
+    case "SEARCH_GRASS":
+      const grass = findNearestGrass(pos, 20);
+      if (!grass) {
+        h.state = "WANDER";
+        h.stateTime = 0;
+        return;
+      }
+      h.targetPos = new THREE.Vector3(grass.x, grass.y, grass.z);
+      h.state = "MOVE_TO_GRASS";
+      h.stateTime = 0;
+      break;
+
+    case "MOVE_TO_GRASS":
+      if (h.stateTime > 5) {
+        h.state = "WANDER";
+        h.stateTime = 0;
+        return;
+      }
+      // 到達
+      const gp = h.targetPos;
+      if (gp && pos.distanceTo(gp) < 1.2) {
+        h.state = "EAT";
+        h.stateTime = 0;
+      }
+      break;
+
+    case "EAT":
+      if (h.stateTime > 1) {
+        // 草ブロックを Dirt に変える
+        const g2 = findNearestGrass(pos, 1.5);
+        if (g2) g2.type = 1;
+        rebuildPlanet();
+
+        h.state = "REST";
+        h.stateTime = 0;
+      }
+      break;
+
+    case "REST":
+      if (h.stateTime > rand(1,3)) {
+        h.state = "IDLE";
+        h.stateTime = 0;
+      }
+      break;
+
+    case "RUN":
+      if (h.stateTime > 2) {
+        h.state = "IDLE";
+        h.targetPos = null;
+      }
+      break;
+  }
+}
+
+/* ==========================================================
+   AI更新：捕食者
+========================================================== */
+
+function updatePredatorAI(p, dt) {
+  p.stateTime += dt;
+
+  const pos = p.obj.position;
+
+  switch (p.state) {
+    case "IDLE":
+      if (p.stateTime > rand(1,2)) {
+        p.state = "WANDER";
+        p.stateTime = 0;
+
+        const n = getNormal(pos);
+        const tangent = new THREE.Vector3(1,0,0)
+          .cross(n).normalize().multiplyScalar(rand(-4,4));
+        const t2 = new THREE.Vector3(0,1,0)
+          .cross(n).normalize().multiplyScalar(rand(-4,4));
+        p.targetPos = pos.clone().add(tangent).add(t2);
+      }
+      break;
+
+    case "WANDER":
+      if (p.stateTime > 2) {
+        const prey = findNearestHerbivore(pos, 25);
+        if (prey) {
+          p.state = "CHASE";
+          p.targetCreature = prey;
+          p.stateTime = 0;
+          return;
+        }
+        // wander 方向変更
+        const n = getNormal(pos);
+        const tangent = new THREE.Vector3(1,0,0)
+          .cross(n).normalize().multiplyScalar(rand(-3,3));
+        const t2 = new THREE.Vector3(0,1,0)
+          .cross(n).normalize().multiplyScalar(rand(-3,3));
+        p.targetPos = pos.clone().add(tangent).add(t2);
+        p.stateTime = 0;
+      }
+      break;
+
+    case "CHASE":
+      if (!p.targetCreature) {
+        p.state = "WANDER";
+        return;
+      }
+
+      const preyPos = p.targetCreature.obj.position.clone();
+      p.targetPos = preyPos;
+
+      // 捕食成功判定
+      if (pos.distanceTo(preyPos) < 1.8) {
+        p.state = "ATTACK";
+        p.stateTime = 0;
+      }
+      break;
+
+    case "ATTACK":
+      if (p.stateTime > 0.5) {
+        // 草食動物を消す
+        const prey = p.targetCreature;
+        if (prey) {
+          scene.remove(prey.obj);
+          const idx = herbivores.indexOf(prey);
+          if (idx >= 0) herbivores.splice(idx, 1);
+        }
+
+        p.state = "EAT";
+        p.stateTime = 0;
+      }
+      break;
+
+    case "EAT":
+      if (p.stateTime > 1.5) {
+        p.state = "REST";
+        p.stateTime = 0;
+      }
+      break;
+
+    case "REST":
+      if (p.stateTime > rand(1,3)) {
+        p.state = "IDLE";
+        p.stateTime = 0;
+      }
+      break;
+  }
+}
+
+/* ==========================================================
+   Part3（生物更新をメインループへ統合）へ続く！
+========================================================== */
+
+
+/* ==========================================================
+   Uprime α0.7 – Part3
+   ・AI更新ループ（100msごと）
+   ・移動処理の統合
+   ・死亡した草食動物の整理（捕食された場合）
+   ========================================================== */
+
+/* ----------------------------------------------------------
+   生物 AI 更新（100ms / 回）
+---------------------------------------------------------- */
+
+function updateAllCreatureAI(dt) {
+
+  // 草食動物
+  for (const h of herbivores) {
+    updateHerbivoreAI(h, dt);
+  }
+
+  // 捕食者
+  for (const p of predators) {
+    updatePredatorAI(p, dt);
+  }
+}
+
+/* ----------------------------------------------------------
+   AI処理ループ（100ms）
+---------------------------------------------------------- */
+
+let lastAITime = performance.now();
+
+function aiLoop() {
+  const now = performance.now();
+  const dt = (now - lastAITime) / 1000;  // 秒に変換
+  lastAITime = now;
+
+  updateAllCreatureAI(dt);
+
+  setTimeout(aiLoop, 100); // 100msごとに回す
+}
+aiLoop();
+
+/* ==========================================================
+   animate() に生物移動処理を追加
+========================================================== */
+
+// animate() の末尾に以下を追記してください
+// （既存の animate() を消さず、内部に追記）
+
+// 例：
+// function animate() {
+//   const dt = clock.getDelta();
+//
+//   updateHighlight();
+//   updateContinuousPlace();
+//   updateMovement(dt);
+//
+//   // ★ ここに生物の移動処理を追加する
+//   updateAllCreaturesMovement(dt);
+//
+//   renderer.render(scene, camera);
+//   requestAnimationFrame(animate);
+// }
+
+function updateAllCreaturesMovement(dt) {
+  // 草食動物
+  for (const h of herbivores) {
+    h.updateMovement(dt);
+  }
+
+  // 捕食者
+  for (const p of predators) {
+    p.updateMovement(dt);
+  }
+}
+
+/* ==========================================================
+   捕食で死亡した草食動物のメモリを整理する（任意）
+========================================================== */
+
+function cleanupDeadCreatures() {
+  for (let i = herbivores.length - 1; i >= 0; i--) {
+    const h = herbivores[i];
+    if (!scene.children.includes(h.obj)) {
+      herbivores.splice(i, 1);
+    }
+  }
+}
+setInterval(cleanupDeadCreatures, 2000);
+
+
+
+
+
+/* ==========================================================
+   PCマウスボタン動作
+========================================================== */
+
+window.addEventListener("mousedown", e => {
+  if (isMobile()) return;
+
+  if (!isLocked) return;
+
+  if (e.button === 0) digBlock();
+  if (e.button === 2) placeBlock();
+});
+window.addEventListener("contextmenu", e => e.preventDefault());
+
+
+/* ==========================================================
+   スマホ用タッチ制御（1本指移動・1本指視点）
+========================================================== */
+
+let leftTouch = null;     // 左半分 → 移動
+let rightTouch = null;    // 右半分 → 視点
+let twoTouch = null;      // 2本指 → Orbit回転
+
+let moveVec = {x:0, y:0};
+let lookVec = {x:0, y:0};
+
+function isLeftSide(x) {
+  return x < window.innerWidth * 0.45;
+}
+
+/* -------------------------------
+   touchstart
+--------------------------------*/
+window.addEventListener("touchstart", e => {
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+
+    if (isLeftSide(t.clientX)) {
+      leftTouch = {id: t.identifier, sx: t.clientX, sy: t.clientY};
+    } else {
+      rightTouch = {id: t.identifier, sx: t.clientX, sy: t.clientY};
+    }
+  } else if (e.touches.length === 2) {
+    // Orbitモード時に使う
+    twoTouch = [
+      {id: e.touches[0].identifier, x: e.touches[0].clientX, y: e.touches[0].clientY},
+      {id: e.touches[1].identifier, x: e.touches[1].clientX, y: e.touches[1].clientY}
+    ];
+  }
+});
+
+/* -------------------------------
+   touchmove
+--------------------------------*/
+window.addEventListener("touchmove", e => {
+  if (orbitMode && e.touches.length === 2) {
+    // Orbit のときの操作は Part3 で処理
+    return;
+  }
+
+  for (const t of e.touches) {
+    // 左：移動
+    if (leftTouch && t.identifier === leftTouch.id) {
+      const dx = t.clientX - leftTouch.sx;
+      const dy = t.clientY - leftTouch.sy;
+      moveVec.x = dx * 0.01;
+      moveVec.y = dy * 0.01;
+    }
+
+    // 右：視点回転
+    if (rightTouch && t.identifier === rightTouch.id) {
+      const dx = t.clientX - rightTouch.sx;
+      const dy = t.clientY - rightTouch.sy;
+      lookVec.x = dx * 0.002;
+      lookVec.y = dy * 0.002;
+    }
+  }
+});
+
+/* -------------------------------
+   touchend
+--------------------------------*/
+window.addEventListener("touchend", e => {
+  for (const t of e.changedTouches) {
+    if (leftTouch && t.identifier === leftTouch.id) {
+      leftTouch = null;
+      moveVec.x = moveVec.y = 0;
+    }
+    if (rightTouch && t.identifier === rightTouch.id) {
+      rightTouch = null;
+      lookVec.x = lookVec.y = 0;
+    }
+  }
+
+  if (e.touches.length < 2) twoTouch = null;
+});
+
+
+/* ==========================================================
+   ここから Part3 へ続く！
+========================================================== */
+
+/* ==========================================================
+   Part3：Orbitモード + プレイヤー移動 + メインループ
+   ========================================================== */
+
+/* ==========================================================
+   掘削・設置モードのUI
+========================================================== */
+let mode = "dig"; // "dig" or "place"
+
+const digBtn = document.getElementById("digBtn");
+const placeBtn = document.getElementById("placeBtn");
+
+digBtn.onclick = () => {
+  mode = "dig";
+  digBtn.classList.add("selectedMode");
+  placeBtn.classList.remove("selectedMode");
+};
+placeBtn.onclick = () => {
+  mode = "place";
+  placeBtn.classList.add("selectedMode");
+  digBtn.classList.remove("selectedMode");
+};
+
+/* ==========================================================
+   スマホ：画面タップで掘削 / 設置
+========================================================== */
+window.addEventListener("touchstart", e => {
+  if (e.touches.length === 1 && !orbitMode) {
+    const t = e.touches[0];
+    // UIボタン押下は無視
+    const target = document.elementFromPoint(t.clientX, t.clientY);
+    if (target === digBtn || target === placeBtn) return;
+
+    // 掘削 or 設置
+    if (mode === "dig") digBlock();
+    else placeBlock();
+  }
+});
+
+/* ==========================================================
+   Orbit モード
+========================================================== */
+let orbitMode = false;
+let orbitYaw = 0;
+let orbitPitch = 0;
+let orbitDistance = 80;
+
+const orbitBtn = document.getElementById("orbitBtn");
+
+orbitBtn.onclick = () => {
+  orbitMode = !orbitMode;
+  orbitBtn.innerText = "Orbit: " + (orbitMode ? "ON" : "OFF");
+
+  if (orbitMode) {
+    // プレイヤー視点 → 観察視点へ切り替え
+    const v = player.position.clone();
+    orbitDistance = v.length();
+    orbitYaw = Math.atan2(v.x, v.z);
+    orbitPitch = Math.asin(v.y / orbitDistance);
+  } else {
+    // Orbitモード終了 → プレイヤー位置復元
+    const x = orbitDistance * Math.sin(orbitYaw) * Math.cos(orbitPitch);
+    const y = orbitDistance * Math.sin(orbitPitch);
+    const z = orbitDistance * Math.cos(orbitYaw) * Math.cos(orbitPitch);
+    player.position.set(x, y, z);
+  }
+};
+
+/* ==========================================================
+   Orbit モード中：2本指で惑星回転
+========================================================== */
+
+window.addEventListener("touchmove", e => {
+  if (!orbitMode) return;
+  if (!twoTouch || e.touches.length !== 2) return;
+
+  const t1 = e.touches[0];
+  const t2 = e.touches[1];
+
+  const dx = (t1.clientX - twoTouch[0].x + t2.clientX - twoTouch[1].x) * 0.002;
+  const dy = (t1.clientY - twoTouch[0].y + t2.clientY - twoTouch[1].y) * 0.002;
+
+  orbitYaw   -= dx;
+  orbitPitch -= dy;
+
+  orbitPitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, orbitPitch));
+
+  // 更新
+  twoTouch[0].x = t1.clientX;
+  twoTouch[0].y = t1.clientY;
+  twoTouch[1].x = t2.clientX;
+  twoTouch[1].y = t2.clientY;
+});
+
+/* -------------------------------
+   ピンチでズーム
+--------------------------------*/
+let lastPinch = null;
+
+window.addEventListener("touchmove", e => {
+  if (!orbitMode) return;
+  if (e.touches.length !== 2) return;
+
+  const t1 = e.touches[0];
+  const t2 = e.touches[1];
+
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+
+  if (lastPinch != null) {
+    const delta = (dist - lastPinch) * 0.1;
+    orbitDistance -= delta;
+    orbitDistance = Math.max(30, Math.min(200, orbitDistance));
+  }
+
+  lastPinch = dist;
+});
+
+window.addEventListener("touchend", () => {
+  lastPinch = null;
+});
+
+/* ==========================================================
+   プレイヤー移動（PC + スマホ両対応）
+========================================================== */
+let movePC = {f:0,b:0,l:0,r:0,down:0};
+let velocity = new THREE.Vector3();
+let onGround = false;
+
+const planetCenter = new THREE.Vector3(0,0,0);
+const GRAVITY = 30;
+
+/* -------------------------------
+   PC キー入力
+--------------------------------*/
+document.addEventListener("keydown", e => {
+  if (orbitMode) return; // Orbit中は操作しない
+
+  if (e.key === "w") movePC.f = 1;
+  if (e.key === "s") movePC.b = 1;
+  if (e.key === "a") movePC.l = 1;
+  if (e.key === "d") movePC.r = 1;
+  if (e.key === "Shift") movePC.down = 1;
+  if (e.key === " ") {
+    if (onGround) {
+      const n = player.position.clone().normalize();
+      velocity.add(n.multiplyScalar(12));
+      onGround = false;
+    }
+  }
+});
+document.addEventListener("keyup", e => {
+  if (e.key === "w") movePC.f = 0;
+  if (e.key === "s") movePC.b = 0;
+  if (e.key === "a") movePC.l = 0;
+  if (e.key === "d") movePC.r = 0;
+  if (e.key === "Shift") movePC.down = 0;
+});
+
+/* ==========================================================
+   衝突判定
+========================================================== */
+function resolveCollision(){
+  const px = player.position.x;
+  const py = player.position.y;
+  const pz = player.position.z;
+
+  const r = 0.5;
+  for(const b of positions){
+    if(Math.abs(b.x - px) > 1.5) continue;
+    if(Math.abs(b.y - py) > 1.5) continue;
+    if(Math.abs(b.z - pz) > 1.5) continue;
+
+    const dx = px - b.x;
+    const dy = py - b.y;
+    const dz = pz - b.z;
+
+    const minDist = r + 0.5;
+    const distSq = dx*dx + dy*dy + dz*dz;
+
+    if(distSq < minDist*minDist){
+      const dist = Math.sqrt(distSq) || 0.001;
+      const push = (minDist - dist) * 0.5;
+      player.position.x += (dx/dist) * push;
+      player.position.y += (dy/dist) * push;
+      player.position.z += (dz/dist) * push;
+    }
+  }
+}
+
+/* ==========================================================
+   ハイライト更新
+========================================================== */
+function updateHighlight() {
+  if (orbitMode) {
+    hideHighlight();
+    return;
+  }
+  const info = raycastBlock();
+  if (info) showHighlight(info.block.x, info.block.y, info.block.z);
+  else hideHighlight();
+}
+
+
+/* ==========================================================
+   プレイヤー移動更新（スマホ + PC）
+========================================================== */
+function updateMovement(dt) {
+  if (orbitMode) return;
+
+  /* --- 視点（スマホ右スワイプ / マウス） --- */
+  yaw   -= lookVec.x;
+  pitch -= lookVec.y;
+  pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
+
+  camera.up.copy(player.position.clone().normalize());
+  const e = new THREE.Euler(pitch, yaw, 0, "YXZ");
+  camera.quaternion.setFromEuler(e);
+
+  /* --- 重力・着地判定 --- */
+  const toC = planetCenter.clone().sub(player.position);
+  const dist = toC.length();
+  const groundHeight = R + 0.6;
+
+  const normal = player.position.clone().normalize();
+
+  // 重力
+  if (dist < groundHeight + 3) {
+    const gdir = toC.normalize();
+    velocity.add(gdir.multiplyScalar(GRAVITY * dt));
+  }
+
+  // 着地
+  if (dist <= groundHeight) {
+    const target = normal.clone().multiplyScalar(groundHeight);
+    player.position.copy(target);
+    velocity.set(0,0,0);
+    onGround = true;
+  } else {
+    onGround = false;
+  }
+
+  // 自由落下
+  player.position.add(velocity.clone().multiplyScalar(dt));
+
+  /* --- 移動（PC + スマホ） --- */
+  const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+  const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+
+  forward.sub(normal.clone().multiplyScalar(forward.dot(normal)));
+  right.sub(normal.clone().multiplyScalar(right.dot(normal)));
+
+  const walk = new THREE.Vector3();
+
+  // PC
+  if (movePC.f) walk.add(forward);
+  if (movePC.b) walk.sub(forward);
+  if (movePC.l) walk.sub(right);
+  if (movePC.r) walk.add(right);
+
+  // Mobile
+  walk.add(forward.clone().multiplyScalar(-moveVec.y));
+  walk.add(right.clone().multiplyScalar(moveVec.x));
+
+  if (walk.lengthSq() > 0) {
+    walk.normalize();
+    player.position.add(walk.multiplyScalar(7 * dt));
+  }
+
+  resolveCollision();
+}
+
+/* ==========================================================
+   Orbit モード時のカメラ更新
+========================================================== */
+function updateOrbitCamera() {
+  if (!orbitMode) return;
+
+  const x = orbitDistance * Math.sin(orbitYaw) * Math.cos(orbitPitch);
+  const y = orbitDistance * Math.sin(orbitPitch);
+  const z = orbitDistance * Math.cos(orbitYaw) * Math.cos(orbitPitch);
+
+  player.position.set(x, y, z);
+  camera.lookAt(0,0,0);
+}
+
+
+/* ==========================================================
+   メインループ
+========================================================== */
+const clock = new THREE.Clock();
+
+function animate() {
+  const dt = clock.getDelta();
+
+  updateHighlight();
+
+  if (orbitMode) {
+    updateOrbitCamera();
+  } else {
+    updateMovement(dt);
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+/* ==========================================================
+   Resize
+========================================================== */
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ==========================================================
+   ここまでで Part1〜3 完成！
+========================================================== */
+</script>
+</body>
+</html>
+

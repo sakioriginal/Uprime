@@ -2,119 +2,116 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>MindCanvas MR (Quest 3)</title>
 <style>
-  body { margin:0; overflow:hidden; background:#000; }
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;}
+  #hud{
+    position:fixed; left:12px; top:12px; z-index:9999;
+    color:#fff; font:12px/1.4 system-ui,-apple-system;
+    background:rgba(0,0,0,.45); padding:8px 10px; border-radius:10px;
+    max-width:min(92vw,520px);
+  }
+  #hud b{font-size:13px}
   #mcFrame{
     position:absolute;
-    left:-99999px;
-    top:-99999px;
-    width:1280px;
-    height:720px;
+    left:-99999px; top:-99999px;
+    width:1280px; height:720px;
     border:0;
-  }
-  #hint{
-    position:fixed;
-    top:10px;
-    left:10px;
-    z-index:10;
-    color:#fff;
-    background:rgba(0,0,0,.5);
-    padding:8px 10px;
-    border-radius:8px;
-    font-size:12px;
-    font-family:system-ui;
   }
 </style>
 </head>
 <body>
 
-<div id="hint">
-Quest3 MR MindCanvas<br>
-トリガー：クリック / ドラッグ<br>
-A/B：サイズ調整
+<div id="hud">
+  <b>MindCanvas MR (Quest3 / WebXR)</b><br>
+  ・MR開始：右下の「Enter AR」<br>
+  ・今は「表示」優先（リンク線canvasを転写）<br>
+  ・次でレーザー入力（クリック/ドラッグ）を足せる
 </div>
 
-<!-- MindCanvas をそのまま読み込む -->
-<iframe id="mcFrame" src="./mindcanvas.html"></iframe>
+<!-- ★重要：MindCanvas本体を“別ファイル”で読む（壊れない） -->
+<iframe id="mcFrame" src="./brainmap.html"></iframe>
 
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 import { XRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/XRButton.js";
 
-let scene, camera, renderer;
-let panel, panelCanvas, panelCtx, panelTex;
-let controller0, controller1;
+const W = 1280, H = 720;
+const CAPTURE_FPS = 15;
 
-const W = 1280;
-const H = 720;
+let scene, camera, renderer;
+let panel, tex, capCanvas, capCtx;
+let lastCap = 0;
 
 init();
 
 function init(){
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 20);
+  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 30);
 
-  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
   renderer.setSize(innerWidth, innerHeight);
   renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
 
+  // Quest3のOculus BrowserでMR（パススルー）を狙う
   document.body.appendChild(
-    XRButton.createButton(renderer,{
-      requiredFeatures:["local-floor"],
-      optionalFeatures:["passthrough"],
-      mode:"immersive-ar"
+    XRButton.createButton(renderer, {
+      requiredFeatures: ["local-floor"],
+      optionalFeatures: ["passthrough"],
+      mode: "immersive-ar"
     })
   );
 
-  // MRパネル用Canvas
-  panelCanvas = document.createElement("canvas");
-  panelCanvas.width = W;
-  panelCanvas.height = H;
-  panelCtx = panelCanvas.getContext("2d");
+  // 転写用キャンバス
+  capCanvas = document.createElement("canvas");
+  capCanvas.width = W; capCanvas.height = H;
+  capCtx = capCanvas.getContext("2d");
 
-  panelTex = new THREE.CanvasTexture(panelCanvas);
-  const geo = new THREE.PlaneGeometry(1.4, 1.4*H/W);
-  const mat = new THREE.MeshBasicMaterial({ map: panelTex, transparent:true });
-  panel = new THREE.Mesh(geo, mat);
-  panel.position.set(0,1.4,-1.2);
+  tex = new THREE.CanvasTexture(capCanvas);
+
+  // パネル（実寸）
+  const panelW = 1.35;
+  const panelH = panelW * (H / W);
+  panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(panelW, panelH),
+    new THREE.MeshBasicMaterial({map: tex, transparent:true})
+  );
+  panel.position.set(0, 1.35, -1.2);
   scene.add(panel);
 
-  // controllers
-  controller0 = renderer.xr.getController(0);
-  controller1 = renderer.xr.getController(1);
-  scene.add(controller0);
-  scene.add(controller1);
-
   renderer.setAnimationLoop(loop);
+
+  addEventListener("resize", ()=>{
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+  }, {passive:true});
 }
 
-function loop(){
-  captureMindCanvas();
-  renderer.render(scene,camera);
+function loop(t){
+  capture(t);
+  renderer.render(scene, camera);
 }
 
-function captureMindCanvas(){
+function capture(t){
+  if(t - lastCap < (1000/CAPTURE_FPS)) return;
+  lastCap = t;
+
   const iframe = document.getElementById("mcFrame");
   const doc = iframe.contentDocument;
   if(!doc) return;
 
-  const src = doc.getElementById("layer"); // MindCanvas の canvas
-  if(!src) return;
+  // MindCanvasの“リンク線・グリッド”はこのcanvasに描かれている（あなたの実装）
+  const srcCanvas = doc.getElementById("layer");
+  if(!srcCanvas) return;
 
-  panelCtx.clearRect(0,0,W,H);
-  panelCtx.drawImage(src,0,0,W,H);
+  capCtx.clearRect(0,0,W,H);
+  capCtx.drawImage(srcCanvas, 0,0, W,H);
 
-  panelTex.needsUpdate = true;
+  tex.needsUpdate = true;
 }
-
-window.addEventListener("resize",()=>{
-  renderer.setSize(innerWidth,innerHeight);
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-});
 </script>
 </body>
 </html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MindCanvas MR (Quest 3)</title>
+<style>
+  body { margin:0; overflow:hidden; background:#000; }
+  #mcFrame{
+    position:absolute;
+    left:-99999px;
+    top:-99999px;
+    width:1280px;
+    height:720px;
+    border:0;
+  }
+  #hint{
+    position:fixed;
+    top:10px;
+    left:10px;
+    z-index:10;
+    color:#fff;
+    background:rgba(0,0,0,.5);
+    padding:8px 10px;
+    border-radius:8px;
+    font-size:12px;
+    font-family:system-ui;
+  }
+</style>
+</head>
+<body>
+
+<div id="hint">
+Quest3 MR MindCanvas<br>
+トリガー：クリック / ドラッグ<br>
+A/B：サイズ調整
+</div>
+
+<!-- MindCanvas をそのまま読み込む -->
+<iframe id="mcFrame" src="./mindcanvas.html"></iframe>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { XRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/XRButton.js";
+
+let scene, camera, renderer;
+let panel, panelCanvas, panelCtx, panelTex;
+let controller0, controller1;
+
+const W = 1280;
+const H = 720;
+
+init();
+
+function init(){
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 20);
+
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  document.body.appendChild(
+    XRButton.createButton(renderer,{
+      requiredFeatures:["local-floor"],
+      optionalFeatures:["passthrough"],
+      mode:"immersive-ar"
+    })
+  );
+
+  // MRパネル用Canvas
+  panelCanvas = document.createElement("canvas");
+  panelCanvas.width = W;
+  panelCanvas.height = H;
+  panelCtx = panelCanvas.getContext("2d");
+
+  panelTex = new THREE.CanvasTexture(panelCanvas);
+  const geo = new THREE.PlaneGeometry(1.4, 1.4*H/W);
+  const mat = new THREE.MeshBasicMaterial({ map: panelTex, transparent:true });
+  panel = new THREE.Mesh(geo, mat);
+  panel.position.set(0,1.4,-1.2);
+  scene.add(panel);
+
+  // controllers
+  controller0 = renderer.xr.getController(0);
+  controller1 = renderer.xr.getController(1);
+  scene.add(controller0);
+  scene.add(controller1);
+
+  renderer.setAnimationLoop(loop);
+}
+
+function loop(){
+  captureMindCanvas();
+  renderer.render(scene,camera);
+}
+
+function captureMindCanvas(){
+  const iframe = document.getElementById("mcFrame");
+  const doc = iframe.contentDocument;
+  if(!doc) return;
+
+  const src = doc.getElementById("layer"); // MindCanvas の canvas
+  if(!src) return;
+
+  panelCtx.clearRect(0,0,W,H);
+  panelCtx.drawImage(src,0,0,W,H);
+
+  panelTex.needsUpdate = true;
+}
+
+window.addEventListener("resize",()=>{
+  renderer.setSize(innerWidth,innerHeight);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+});
+</script>
+</body>
+</html>

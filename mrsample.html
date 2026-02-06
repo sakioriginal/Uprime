@@ -3,115 +3,267 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>MindCanvas MR Input (Quest 3)</title>
+<title>MindCanvas MR Pro (Grab + Keyboard + 3D)</title>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#000;}
+
   #hud{
     position:fixed; left:12px; top:12px; z-index:9999;
     color:#fff; font:12px/1.4 system-ui,-apple-system;
-    background:rgba(0,0,0,.45); padding:8px 10px; border-radius:10px;
+    background:rgba(0,0,0,.45); padding:10px 12px; border-radius:12px;
+    max-width:min(92vw,620px);
   }
+  #hud b{font-size:13px}
+  #hud .row{margin-top:6px; opacity:.95}
+  #hud button{
+    appearance:none;border:1px solid rgba(255,255,255,.25);
+    background:rgba(0,0,0,.35); color:#fff;
+    border-radius:10px; padding:6px 10px; margin-right:6px;
+  }
+
+  /* MindCanvas iframe（オフスクリーン） */
   #mcFrame{
-    position:absolute;
-    left:-99999px; top:-99999px;
-    width:1280px; height:720px;
-    border:0;
+    position:absolute; left:-99999px; top:-99999px;
+    width:1280px; height:720px; border:0;
   }
+
+  /* DOM Overlay (MR中に表示されるUI) */
+  #domOverlayRoot{
+    position:fixed; inset:0;
+    pointer-events:none;
+  }
+  #kb{
+    position:absolute;
+    left:12px;
+    bottom:12px;
+    width:min(560px,92vw);
+    background:rgba(10,14,22,.82);
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:16px;
+    padding:10px;
+    pointer-events:auto;
+    display:none;
+    backdrop-filter: blur(8px);
+  }
+  #kb.show{display:block;}
+  #kbTop{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+  #kbTop b{color:#fff; font:13px system-ui;}
+  #kbTop .sp{flex:1}
+  #kb textarea{
+    width:100%;
+    min-height:70px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.18);
+    background:rgba(0,0,0,.35);
+    color:#fff;
+    padding:10px;
+    font:13px/1.4 system-ui;
+    outline:none;
+    resize:vertical;
+  }
+  #kbActions{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  #kbActions button{
+    appearance:none;border:1px solid rgba(255,255,255,.22);
+    background:rgba(0,0,0,.35); color:#fff;
+    border-radius:12px; padding:8px 10px;
+    font:13px system-ui;
+  }
+  #keys{
+    margin-top:10px;
+    display:grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap:6px;
+  }
+  #keys button{
+    appearance:none;
+    border:1px solid rgba(255,255,255,.18);
+    background:rgba(0,0,0,.28);
+    color:#fff;
+    border-radius:10px;
+    padding:8px 0;
+    font:13px system-ui;
+  }
+  #keys button.w2{grid-column: span 2;}
+  #keys button.w3{grid-column: span 3;}
 </style>
 </head>
 <body>
 
 <div id="hud">
-<b>MindCanvas MR（入力対応）</b><br>
-トリガー：クリック / ドラッグ<br>
-現状：ノード移動・パン可能
+  <b>MindCanvas MR Pro</b>
+  <div class="row">
+    トリガー：掴む/ドラッグ（距離固定） / A:キーボード / B:3D切替
+  </div>
+  <div class="row">
+    <button id="btnKb">キーボード</button>
+    <button id="btn3d">3D BrainMap</button>
+    <button id="btnFit">全体(2D)</button>
+  </div>
+  <div class="row" id="status">status: boot...</div>
 </div>
 
-<!-- MindCanvas 本体 -->
 <iframe id="mcFrame" src="./brainmap.html"></iframe>
+
+<!-- DOM Overlay root -->
+<div id="domOverlayRoot">
+  <div id="kb">
+    <div id="kbTop">
+      <b>仮想キーボード（選択ノードへ送信）</b>
+      <span class="sp"></span>
+      <button id="kbClose">閉</button>
+    </div>
+    <textarea id="kbText" placeholder="ここに入力 → [Textへ] or [Codeへ]"></textarea>
+
+    <div id="kbActions">
+      <button id="toText">Textへ反映</button>
+      <button id="toCode">Codeへ反映</button>
+      <button id="clear">クリア</button>
+      <button id="backsp">⌫</button>
+      <button id="space">Space</button>
+      <button id="enter">Enter</button>
+    </div>
+
+    <div id="keys"></div>
+  </div>
+</div>
 
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 import { XRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/XRButton.js";
 
-const W=1280,H=720,FPS=15;
+const $ = (id)=>document.getElementById(id);
 
-let scene,camera,renderer;
-let panel,tex,capCanvas,capCtx;
-let controller;
+const W=1280, H=720;            // iframe表示サイズ
+const CAPTURE_FPS = 18;
+
+let scene, camera, renderer;
+let panel, panelMat, tex, capCanvas, capCtx;
+let controller, controllerGrip;
 let raycaster = new THREE.Raycaster();
-let dragging=false;
-let lastUV=null;
+
 let lastCap=0;
+let inXR=false;
+
+let mode3D=false;
+
+// --- “掴む感覚”用 ---
+let grabActive=false;
+let grabInfo=null;
+// grabInfo = { hitUV, hitPointWorld, ctrlStartPos, panelBasisU, panelBasisV, panelW, panelH }
+
+// --- 2D入力注入 ---
+let lastHitUV=null;
+
+// --- 3D nodes ---
+const nodeGroup = new THREE.Group();
+const linkGroup = new THREE.Group();
+scene?.add?.(nodeGroup);
+
+const nodeMeshes = new Map(); // id -> mesh
+let nodeDrag = null; // {id, startCtrlPos, startNode2D:{x,y}, started:boolean}
+
+// UI
+const statusEl = $("status");
+const kb = $("kb");
+const kbText = $("kbText");
+
+$("btnKb").onclick = ()=>toggleKb();
+$("btn3d").onclick = ()=>toggle3D();
+$("btnFit").onclick = ()=>callMindCanvasFit();
+
+$("kbClose").onclick = ()=>kb.classList.remove("show");
+$("toText").onclick = ()=>applyToSelected("text");
+$("toCode").onclick = ()=>applyToSelected("code");
+$("clear").onclick = ()=>{ kbText.value=""; };
+$("backsp").onclick = ()=>{ kbText.value = kbText.value.slice(0,-1); };
+$("space").onclick = ()=>{ kbText.value += " "; };
+$("enter").onclick = ()=>{ kbText.value += "\n"; };
+
+buildKeys();
 
 init();
 
-function init(){
-  scene=new THREE.Scene();
-  camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.01,30);
+function setStatus(s){ statusEl.textContent = "status: " + s; }
 
-  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
-  renderer.setSize(innerWidth,innerHeight);
+function init(){
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 40);
+
+  renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+  renderer.setSize(innerWidth, innerHeight);
   renderer.xr.enabled=true;
   document.body.appendChild(renderer.domElement);
+
+  // DOM Overlay（キーボードUIをMR内表示）
+  const domOverlay = { root: $("domOverlayRoot") };
 
   document.body.appendChild(
     XRButton.createButton(renderer,{
       requiredFeatures:["local-floor"],
-      optionalFeatures:["passthrough"],
+      optionalFeatures:["passthrough","dom-overlay"],
+      domOverlay,
       mode:"immersive-ar"
     })
   );
 
+  // panel texture
   capCanvas=document.createElement("canvas");
   capCanvas.width=W; capCanvas.height=H;
   capCtx=capCanvas.getContext("2d");
   tex=new THREE.CanvasTexture(capCanvas);
 
   const pw=1.35, ph=pw*(H/W);
-  panel=new THREE.Mesh(
-    new THREE.PlaneGeometry(pw,ph),
-    new THREE.MeshBasicMaterial({map:tex,transparent:true})
-  );
-  panel.position.set(0,1.35,-1.2);
+  panelMat = new THREE.MeshBasicMaterial({map:tex, transparent:true, opacity:1.0});
+  panel = new THREE.Mesh(new THREE.PlaneGeometry(pw,ph), panelMat);
+  panel.position.set(0, 1.35, -1.2);
   scene.add(panel);
 
-  controller=renderer.xr.getController(0);
-  controller.addEventListener("selectstart",onDown);
-  controller.addEventListener("selectend",onUp);
+  scene.add(nodeGroup);
+  scene.add(linkGroup);
+
+  controller = renderer.xr.getController(0);
+  controller.addEventListener("selectstart", onSelectStart);
+  controller.addEventListener("selectend", onSelectEnd);
   scene.add(controller);
+
+  renderer.xr.addEventListener("sessionstart", ()=>{ inXR=true; setStatus("XR session started"); });
+  renderer.xr.addEventListener("sessionend", ()=>{ inXR=false; setStatus("XR session ended"); });
 
   renderer.setAnimationLoop(loop);
 
   addEventListener("resize",()=>{
-    renderer.setSize(innerWidth,innerHeight);
+    renderer.setSize(innerWidth, innerHeight);
     camera.aspect=innerWidth/innerHeight;
     camera.updateProjectionMatrix();
   },{passive:true});
+
+  // キーボード：A/Bボタン相当（Gamepad）
+  setInterval(pollGamepad, 80);
+
+  setStatus("ready");
 }
 
 function loop(t){
   capture(t);
-  if(dragging) injectMove();
+
+  // 2Dモード：掴むドラッグを“手の移動量”で追従
+  if(!mode3D && grabActive) {
+    applyGrabDrag();
+  }
+
+  // 3Dモード：ノード更新＆ドラッグ
+  if(mode3D){
+    update3DFromMindCanvas();
+    if(nodeDrag) apply3DNodeDrag();
+  }
+
   renderer.render(scene,camera);
 }
 
-/* ---------- MR → MindCanvas 転写 ---------- */
-function capture(t){
-  if(t-lastCap<1000/FPS) return;
-  lastCap=t;
-
-  const doc=mcFrame.contentDocument;
-  const src=doc?.getElementById("layer");
-  if(!src) return;
-
-  capCtx.clearRect(0,0,W,H);
-  capCtx.drawImage(src,0,0,W,H);
-  tex.needsUpdate=true;
-}
-
-/* ---------- レーザー入力 ---------- */
-function rayHit(){
+/* =========================
+   レイヒット（パネル）
+========================= */
+function rayHitPanel(){
   const m=new THREE.Matrix4().extractRotation(controller.matrixWorld);
   raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
   raycaster.ray.direction.set(0,0,-1).applyMatrix4(m);
@@ -119,46 +271,574 @@ function rayHit(){
   return hit||null;
 }
 
-function onDown(){
-  const hit=rayHit();
-  if(!hit) return;
-  dragging=true;
-  lastUV=hit.uv;
-  inject("pointerdown",hit.uv);
-}
-
-function onUp(){
-  if(!dragging) return;
-  inject("pointerup",lastUV);
-  inject("click",lastUV);
-  dragging=false;
-  lastUV=null;
-}
-
-function injectMove(){
-  const hit=rayHit();
-  if(!hit) return;
-  lastUV=hit.uv;
-  inject("pointermove",hit.uv);
-}
-
-function inject(type,uv){
+/* =========================
+   2Dへ Pointer 注入
+========================= */
+function injectPointer(type, uv, buttons=0){
   if(!uv) return;
   const x=Math.round(uv.x*W);
   const y=Math.round((1-uv.y)*H);
 
-  const doc=mcFrame.contentDocument;
-  const el=doc.elementFromPoint(x,y) || doc.body;
+  const iframe = $("mcFrame");
+  const doc = iframe.contentDocument;
+  if(!doc) return;
 
-  const ev=new PointerEvent(type,{
+  const el = doc.elementFromPoint(x,y) || doc.body;
+
+  const ev = new PointerEvent(type,{
     bubbles:true,
-    clientX:x,
-    clientY:y,
+    clientX:x, clientY:y,
     pointerId:1,
     pointerType:"mouse",
-    buttons:(type==="pointerdown"||type==="pointermove")?1:0
+    buttons
   });
   el.dispatchEvent(ev);
+}
+
+function injectClick(uv){
+  injectPointer("pointerdown", uv, 1);
+  injectPointer("pointerup", uv, 0);
+  // clickイベントも欲しい実装があるので念のため
+  const x=Math.round(uv.x*W);
+  const y=Math.round((1-uv.y)*H);
+  const doc = $("mcFrame").contentDocument;
+  const el = doc?.elementFromPoint(x,y) || doc?.body;
+  if(el){
+    el.dispatchEvent(new MouseEvent("click",{bubbles:true, clientX:x, clientY:y}));
+  }
+}
+
+/* =========================
+   “掴む”ドラッグ（距離固定・追従）
+   - レイのUVではなく
+   - 手の移動量をパネル面(u,v)へ投影
+========================= */
+function onSelectStart(){
+  const hit = rayHitPanel();
+  if(!hit) return;
+
+  // 直近UVを保持（キーボード反映にも使う）
+  lastHitUV = hit.uv;
+
+  if(mode3D){
+    // 3Dでノード掴み判定
+    const picked = pick3DNode();
+    if(picked){
+      nodeDrag = {
+        id: picked.userData.id,
+        startCtrlPos: getCtrlPos(),
+        startNode2D: getNode2DCenterById(picked.userData.id),
+        started:true
+      };
+      return;
+    }
+    return;
+  }
+
+  // 2D掴み開始
+  grabActive=true;
+
+  // パネルローカル基底（u方向=右、v方向=上）をワールドで作る
+  const panelRight = new THREE.Vector3(1,0,0).applyQuaternion(panel.quaternion);
+  const panelUp    = new THREE.Vector3(0,1,0).applyQuaternion(panel.quaternion);
+
+  grabInfo = {
+    hitUV: {x: hit.uv.x, y: hit.uv.y},
+    hitPointWorld: hit.point.clone(),
+    ctrlStartPos: getCtrlPos(),
+    panelBasisU: panelRight,
+    panelBasisV: panelUp,
+    panelW: panel.geometry.parameters.width,
+    panelH: panel.geometry.parameters.height
+  };
+
+  // まず“掴んだ”点で pointerdown
+  injectPointer("pointerdown", grabInfo.hitUV, 1);
+  setStatus("grab: down");
+}
+
+function onSelectEnd(){
+  if(mode3D){
+    if(nodeDrag){
+      // ドラッグ終了：2Dへ pointerup を送って確定
+      const uv = uvFrom2DPoint(nodeDrag.startNode2D);
+      if(uv) injectPointer("pointerup", uv, 0);
+      nodeDrag=null;
+      setStatus("3D drag: end");
+    }
+    return;
+  }
+
+  if(!grabActive) return;
+  injectPointer("pointerup", grabInfo?.hitUV, 0);
+  grabActive=false;
+  grabInfo=null;
+  setStatus("grab: up");
+}
+
+function getCtrlPos(){
+  const v = new THREE.Vector3();
+  v.setFromMatrixPosition(controller.matrixWorld);
+  return v;
+}
+
+function applyGrabDrag(){
+  if(!grabInfo) return;
+
+  const ctrlNow = getCtrlPos();
+  const delta = ctrlNow.clone().sub(grabInfo.ctrlStartPos);
+
+  // 手の移動量をパネル基底(u,v)へ投影
+  const duWorld = delta.dot(grabInfo.panelBasisU);
+  const dvWorld = delta.dot(grabInfo.panelBasisV);
+
+  // パネル実寸 → UVへ（中心基準）
+  // u: +right, v: +up
+  const duUV = duWorld / grabInfo.panelW;
+  const dvUV = dvWorld / grabInfo.panelH;
+
+  // UVは [0..1] なので、移動はそのまま足す（vは上が+）
+  const uv = {
+    x: clamp(grabInfo.hitUV.x + duUV, 0, 1),
+    y: clamp(grabInfo.hitUV.y + dvUV, 0, 1)
+  };
+
+  lastHitUV = uv;
+  injectPointer("pointermove", uv, 1);
+}
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+/* =========================
+   キャプチャ（MindCanvas canvas を転写）
+========================= */
+function capture(t){
+  if(t-lastCap<1000/CAPTURE_FPS) return;
+  lastCap=t;
+
+  const doc = $("mcFrame").contentDocument;
+  const src = doc?.getElementById("layer");
+  if(!src) return;
+
+  capCtx.clearRect(0,0,W,H);
+  capCtx.drawImage(src,0,0,W,H);
+  tex.needsUpdate=true;
+}
+
+/* =========================
+   キーボード（DOM Overlay）
+   - 選択ノード（最後に当てたUV付近）をダブルタップで props open
+   - pText/pCode を書き換え → propsSave クリック
+========================= */
+function toggleKb(){
+  kb.classList.toggle("show");
+  setStatus("keyboard: " + (kb.classList.contains("show") ? "open" : "close"));
+}
+
+async function applyToSelected(kind){
+  // kind: "text" or "code"
+  if(!lastHitUV){
+    setStatus("keyboard: no target (tap node once)");
+    return;
+  }
+
+  const doc = $("mcFrame").contentDocument;
+  if(!doc){ setStatus("keyboard: iframe not ready"); return; }
+
+  // 1) propsが開いてなければ、対象位置で“ダブルタップ相当”を注入
+  if(!doc.getElementById("propsBackdrop")?.classList?.contains("show")){
+    // double tap: pointerup 2回 + click 2回（あなたの実装は pointerup で判定）
+    injectClick(lastHitUV);
+    await sleep(110);
+    // 2回目
+    injectClick(lastHitUV);
+    await sleep(220);
+  }
+
+  const backdrop = doc.getElementById("propsBackdrop");
+  if(!backdrop || !backdrop.classList.contains("show")){
+    setStatus("keyboard: props open failed (double tap node)");
+    return;
+  }
+
+  const val = kbText.value;
+
+  if(kind==="text"){
+    const pText = doc.getElementById("pText");
+    if(pText) pText.value = val;
+  }else{
+    const pCode = doc.getElementById("pCode");
+    if(pCode) pCode.value = val;
+  }
+
+  // 保存
+  const saveBtn = doc.getElementById("propsSave");
+  if(saveBtn) saveBtn.click();
+
+  setStatus(`keyboard: applied to ${kind}`);
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* =========================
+   Gamepad（A/Bでトグル）
+========================= */
+let lastA=false, lastB=false;
+function pollGamepad(){
+  if(!inXR) return;
+  const session = renderer.xr.getSession();
+  if(!session) return;
+
+  // controller(0) の inputSource を探す
+  const src = session.inputSources?.[0];
+  const gp = src?.gamepad;
+  if(!gp || !gp.buttons) return;
+
+  // Quest: A=button[4], B=button[5] になりがち（環境で違うので保険で複数見る）
+  const A = !!(gp.buttons[4]?.pressed || gp.buttons[0]?.pressed); // 0=trigger兼の可能性もあるので“押しっぱ”判定は避けたいが簡易で
+  const B = !!(gp.buttons[5]?.pressed || gp.buttons[1]?.pressed);
+
+  if(A && !lastA) toggleKb();
+  if(B && !lastB) toggle3D();
+
+  lastA=A; lastB=B;
+}
+
+/* =========================
+   2Dの「全体」呼び出し
+========================= */
+function callMindCanvasFit(){
+  const doc = $("mcFrame").contentDocument;
+  const btn = doc?.getElementById("btnFit");
+  if(btn) btn.click();
+  setStatus("2D: fit");
+}
+
+/* =========================
+   3D BrainMap
+   - iframe内 .node のDOM位置から3Dカード化
+   - リンクはcanvasから取れないので、簡易に「近いノード同士」線 or
+     portsのDOMを使うと複雑になるため、まずは“ID順の接続”で雰囲気を出す
+   - ただし “掴んで動かす” は 2D注入で同期
+========================= */
+function toggle3D(){
+  mode3D = !mode3D;
+
+  // panel薄くする（3Dが見やすい）
+  panelMat.opacity = mode3D ? 0.18 : 1.0;
+
+  // グループ表示切替
+  nodeGroup.visible = mode3D;
+  linkGroup.visible = mode3D;
+
+  setStatus("3D: " + (mode3D ? "ON" : "OFF"));
+
+  if(mode3D){
+    update3DFromMindCanvas(true);
+  }else{
+    clear3D();
+  }
+}
+
+function clear3D(){
+  for(const m of nodeMeshes.values()){
+    nodeGroup.remove(m);
+    m.geometry.dispose();
+    m.material.map?.dispose?.();
+    m.material.dispose();
+  }
+  nodeMeshes.clear();
+
+  // links
+  while(linkGroup.children.length){
+    const o = linkGroup.children.pop();
+    o.geometry?.dispose?.();
+    o.material?.dispose?.();
+  }
+}
+
+function update3DFromMindCanvas(force=false){
+  const doc = $("mcFrame").contentDocument;
+  const nodesLayer = doc?.getElementById("nodesLayer");
+  if(!nodesLayer) return;
+
+  const nodes = [...nodesLayer.querySelectorAll(".node")];
+  if(nodes.length===0) return;
+
+  // panel local basis
+  const panelRight = new THREE.Vector3(1,0,0).applyQuaternion(panel.quaternion);
+  const panelUp    = new THREE.Vector3(0,1,0).applyQuaternion(panel.quaternion);
+  const panelFwd   = new THREE.Vector3(0,0,1).applyQuaternion(panel.quaternion);
+
+  const pw = panel.geometry.parameters.width;
+  const ph = panel.geometry.parameters.height;
+
+  // nodes
+  const idsNow = new Set();
+  for(let i=0;i<nodes.length;i++){
+    const el = nodes[i];
+    const id = el.dataset?.id || ("node"+i);
+    idsNow.add(id);
+
+    // DOMの中心座標（iframe内）
+    const r = el.getBoundingClientRect();
+    // iframeはW,Hの固定サイズなので、left/topがそのまま対応する前提
+    const cx = r.left + r.width/2;
+    const cy = r.top  + r.height/2;
+
+    // 2D (0..W, 0..H) -> panel local (-pw/2..pw/2, -ph/2..ph/2)
+    const lx = (cx / W - 0.5) * pw;
+    const ly = (0.5 - cy / H) * ph;
+
+    // “空間分離”：奥行きは index と type で軽く段差
+    const depth = ((i % 8) * 0.02) + 0.02;
+
+    const worldPos = panel.position.clone()
+      .add(panelRight.clone().multiplyScalar(lx))
+      .add(panelUp.clone().multiplyScalar(ly))
+      .add(panelFwd.clone().multiplyScalar(depth));
+
+    let mesh = nodeMeshes.get(id);
+    if(!mesh){
+      mesh = makeNodeCard(id, el);
+      nodeMeshes.set(id, mesh);
+      nodeGroup.add(mesh);
+    }else if(force){
+      // テキスト更新
+      updateNodeCardTexture(mesh, el);
+    }
+
+    mesh.position.copy(worldPos);
+    mesh.quaternion.copy(panel.quaternion);
+
+    // 3Dカードサイズ（DOMサイズを反映）
+    const ww = clamp(r.width / W * pw, 0.10, 0.46);
+    const hh = clamp(r.height/ H * ph, 0.06, 0.30);
+    mesh.scale.set(ww, hh, 1);
+
+    mesh.userData.node2D = {x: cx, y: cy};
+  }
+
+  // remove old
+  for(const [id, mesh] of nodeMeshes){
+    if(!idsNow.has(id)){
+      nodeGroup.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.map?.dispose?.();
+      mesh.material.dispose();
+      nodeMeshes.delete(id);
+    }
+  }
+
+  // links（簡易：ID順で近接線。雰囲気用。必要なら次で“本当のlinks”を取る）
+  buildLinksSimple();
+}
+
+function makeNodeCard(id, el){
+  const geo = new THREE.PlaneGeometry(1,1);
+  const tex = renderNodeToTexture(el, 512, 256);
+  const mat = new THREE.MeshBasicMaterial({map:tex, transparent:true});
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.userData.id = id;
+  return mesh;
+}
+
+function updateNodeCardTexture(mesh, el){
+  const old = mesh.material.map;
+  const tex = renderNodeToTexture(el, 512, 256);
+  mesh.material.map = tex;
+  mesh.material.needsUpdate = true;
+  old?.dispose?.();
+}
+
+function renderNodeToTexture(el, w, h){
+  const c = document.createElement("canvas");
+  c.width=w; c.height=h;
+  const g = c.getContext("2d");
+
+  // 背景
+  g.clearRect(0,0,w,h);
+  g.fillStyle = "rgba(20,25,39,0.92)";
+  roundRect(g, 0,0,w,h, 18);
+  g.fill();
+
+  // 枠
+  g.strokeStyle = "rgba(255,255,255,0.18)";
+  g.lineWidth = 2;
+  roundRect(g, 1,1,w-2,h-2, 18);
+  g.stroke();
+
+  // タイトル（DOMから取得）
+  const t = (el.querySelector(".title")?.innerText || el.innerText || "").trim();
+  g.fillStyle = "rgba(255,255,255,0.92)";
+  g.font = "bold 22px system-ui";
+  g.fillText(trunc(t, 34), 18, 44);
+
+  // メタ
+  const meta = (el.querySelector(".meta")?.innerText || "").replace(/\s+/g," ").trim();
+  g.fillStyle = "rgba(200,210,230,0.80)";
+  g.font = "16px system-ui";
+  g.fillText(trunc(meta, 46), 18, 78);
+
+  // id
+  g.fillStyle = "rgba(140,160,190,0.75)";
+  g.font = "14px system-ui";
+  g.fillText(id, 18, h-18);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 2;
+  return tex;
+}
+
+function trunc(s,n){ return s.length>n ? s.slice(0,n-1)+"…" : s; }
+
+function roundRect(g,x,y,w,h,r){
+  g.beginPath();
+  g.moveTo(x+r,y);
+  g.arcTo(x+w,y,x+w,y+h,r);
+  g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r);
+  g.arcTo(x,y,x+w,y,r);
+  g.closePath();
+}
+
+function buildLinksSimple(){
+  // 既存をクリア
+  while(linkGroup.children.length){
+    const o = linkGroup.children.pop();
+    o.geometry?.dispose?.();
+    o.material?.dispose?.();
+  }
+
+  const arr = [...nodeMeshes.values()];
+  if(arr.length < 2) return;
+
+  // “近い順”で少数の線を引く（雰囲気）
+  const mat = new THREE.LineBasicMaterial({transparent:true, opacity:0.55});
+
+  for(let i=0;i<arr.length;i++){
+    // 最近傍1本
+    let best=null, bestD=Infinity;
+    for(let j=0;j<arr.length;j++){
+      if(i===j) continue;
+      const d = arr[i].position.distanceTo(arr[j].position);
+      if(d < bestD){ bestD=d; best=arr[j]; }
+    }
+    if(best && bestD < 0.40){
+      const pts = [arr[i].position.clone(), best.position.clone()];
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const line = new THREE.Line(geo, mat);
+      linkGroup.add(line);
+    }
+  }
+}
+
+/* =========================
+   3Dノード掴み→2Dへ同期
+========================= */
+function pick3DNode(){
+  // controller ray
+  const m=new THREE.Matrix4().extractRotation(controller.matrixWorld);
+  raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  raycaster.ray.direction.set(0,0,-1).applyMatrix4(m);
+
+  const objs = [...nodeMeshes.values()];
+  const hit = raycaster.intersectObjects(objs,false)[0];
+  return hit?.object || null;
+}
+
+function getNode2DCenterById(id){
+  const m = nodeMeshes.get(id);
+  if(m?.userData?.node2D) return m.userData.node2D;
+  // fallback: 真ん中
+  return {x: W/2, y: H/2};
+}
+
+function uvFrom2DPoint(p){
+  if(!p) return null;
+  return { x: clamp(p.x / W, 0,1), y: clamp(1 - p.y / H, 0,1) };
+}
+
+function apply3DNodeDrag(){
+  const id = nodeDrag.id;
+
+  // controller移動量をパネル面へ投影して 2D座標更新
+  const panelRight = new THREE.Vector3(1,0,0).applyQuaternion(panel.quaternion);
+  const panelUp    = new THREE.Vector3(0,1,0).applyQuaternion(panel.quaternion);
+  const pw = panel.geometry.parameters.width;
+  const ph = panel.geometry.parameters.height;
+
+  const ctrlNow = getCtrlPos();
+  const delta = ctrlNow.clone().sub(nodeDrag.startCtrlPos);
+
+  const duWorld = delta.dot(panelRight);
+  const dvWorld = delta.dot(panelUp);
+
+  const dxPx = duWorld / pw * W;
+  const dyPx = -dvWorld / ph * H;
+
+  const target2D = {
+    x: nodeDrag.startNode2D.x + dxPx,
+    y: nodeDrag.startNode2D.y + dyPx
+  };
+
+  const uv = uvFrom2DPoint(target2D);
+  if(!uv) return;
+
+  lastHitUV = uv;
+
+  // 2D側へ「そのノード中心でドラッグ」を注入
+  // 1回目で掴み、以降 move
+  injectPointer("pointerdown", uv, 1);
+  injectPointer("pointermove", uv, 1);
+}
+
+/* =========================
+   Keyboard keys
+========================= */
+function buildKeys(){
+  const keys = $("keys");
+  const chars = [
+    "1","2","3","4","5","6","7","8","9","0",
+    "q","w","e","r","t","y","u","i","o","p",
+    "a","s","d","f","g","h","j","k","l","-",
+    "z","x","c","v","b","n","m",".",",","/"
+  ];
+  for(const ch of chars){
+    const b = document.createElement("button");
+    b.textContent = ch;
+    b.onclick = ()=>{ kbText.value += ch; };
+    keys.appendChild(b);
+  }
+  const b1 = document.createElement("button");
+  b1.textContent = "TAB";
+  b1.className="w2";
+  b1.onclick=()=>{ kbText.value += "\t"; };
+  keys.appendChild(b1);
+
+  const b2 = document.createElement("button");
+  b2.textContent = "{ }";
+  b2.className="w2";
+  b2.onclick=()=>{ kbText.value += "{}"; placeCaret(-1); };
+  keys.appendChild(b2);
+
+  const b3 = document.createElement("button");
+  b3.textContent = "( )";
+  b3.className="w2";
+  b3.onclick=()=>{ kbText.value += "()"; placeCaret(-1); };
+  keys.appendChild(b3);
+
+  const b4 = document.createElement("button");
+  b4.textContent = "=>";
+  b4.className="w2";
+  b4.onclick=()=>{ kbText.value += "=>"; };
+  keys.appendChild(b4);
+}
+
+function placeCaret(back){
+  kbText.focus();
+  const pos = kbText.value.length + (back||0);
+  kbText.setSelectionRange(pos,pos);
 }
 </script>
 </body>

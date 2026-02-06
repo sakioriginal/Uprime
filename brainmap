@@ -1,0 +1,1872 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>MindCanvas iPhone – BrainMap Coder (Full Integrated)</title>
+<style>
+  :root{
+    --bg:#0f1115;
+    --panel:#171a21cc;
+    --text:#e9eef8;
+    --muted:#a9b4c7;
+    --accent:#66a3ff;
+    --danger:#ff5c7a;
+    --line:#7d879a;
+    --grid:#2b3140;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    overflow:hidden;
+  }
+
+  /* ---------- Topbar ---------- */
+  #topbar{
+    position:fixed;
+    top:0; left:0; right:0;
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-bottom: 8px;
+    background: linear-gradient(to bottom, #0f1115ee, #0f111500);
+    z-index:1000;
+    pointer-events:none;
+  }
+  #controls{
+    pointer-events:auto;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    background: var(--panel);
+    border: 1px solid #2b3140;
+    border-radius: var(--radius);
+    padding:8px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+  button{
+    appearance:none;
+    border:1px solid #2b3140;
+    background:#131722;
+    color:var(--text);
+    border-radius:12px;
+    padding:8px 12px;
+    font-size:13px;
+    line-height:1;
+    touch-action:auto;
+  }
+  button.primary{border-color:#355ea8; background:#173055;}
+  button.danger{border-color:#7b2b3a; background:#32141b;}
+  button.on{outline:2px solid var(--accent); outline-offset:2px;}
+  #hint{
+    margin-left:auto;
+    font-size:11px;
+    color:var(--muted);
+    white-space:nowrap;
+    max-width: 55vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  /* ---------- Canvas layers ---------- */
+  #wrap{ position:fixed; inset:0; overflow:hidden; }
+  canvas{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    display:block;
+    background: radial-gradient(1200px 800px at 20% 10%, #1a1f2b, #0f1115 60%);
+  }
+  #nodesLayer{
+    position:absolute; inset:0;
+    touch-action:none;
+  }
+
+  /* ---------- Nodes ---------- */
+  .node{
+    position:absolute;
+    min-width:140px; max-width:320px;
+    padding:10px 12px;
+    border:1px solid rgba(255,255,255,.22);
+    box-shadow: 0 8px 18px rgba(0,0,0,.35);
+    user-select:none; -webkit-user-select:none;
+    touch-action:none;
+    border-radius:14px;
+  }
+  .node.selected{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+  .node.running{
+    outline:3px solid #ffd66a;
+    outline-offset:3px;
+    filter: saturate(1.1) brightness(1.05);
+  }
+  .node .title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    line-height:1.25;
+    word-break:break-word;
+  }
+  .badge{
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    background:#00000033;
+    border:1px solid #ffffff22;
+    color:#fff;
+    opacity:.95;
+    flex:0 0 auto;
+  }
+  .node .meta{
+    margin-top:8px;
+    font-size:11px;
+    color:rgba(255,255,255,.85);
+    opacity:.85;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .kv{
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid #ffffff22;
+    background:#00000022;
+  }
+
+  /* Shapes */
+  .shape-rect{ border-radius:14px; }
+  .shape-circle{ border-radius:999px; padding:12px 14px; }
+  .shape-diamond{
+    border-radius:12px;
+    /* diamond is visual only (keep layout stable) */
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  }
+
+  /* ---------- Ports ---------- */
+  .ports{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+  .port{
+    position:absolute;
+    width:26px; height:26px;
+    border-radius:999px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px;
+    color:#fff;
+    background:#0c0f17cc;
+    border:1px solid #ffffff33;
+    box-shadow: 0 6px 12px rgba(0,0,0,.25);
+    pointer-events:auto;
+    touch-action:none;
+    user-select:none;
+  }
+  .port.in{ left:-13px; top:50%; transform: translateY(-50%); }
+  .port.out{ right:-13px; top:50%; transform: translateY(-50%); }
+  .port.branch1{ right:-13px; top:22%; transform: translateY(-50%); }
+  .port.branch2{ right:-13px; top:78%; transform: translateY(-50%); }
+
+  .port.sel{
+    outline:3px solid var(--accent);
+    outline-offset:2px;
+  }
+  .port.hot{
+    outline:3px solid #7dffb0;
+    outline-offset:2px;
+  }
+  .port.running{
+    outline:3px solid #ffd66a;
+    outline-offset:2px;
+  }
+
+  /* ---------- Media ---------- */
+  .media{
+    margin-top:10px;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid #ffffff22;
+    background:#00000022;
+  }
+  .media img, .media video{
+    width:100%;
+    display:block;
+    max-height: 200px;
+    object-fit: cover;
+  }
+
+  /* ---------- Toast ---------- */
+  #toast{
+    position:fixed;
+    left:50%;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    background:#141927dd;
+    border:1px solid #2b3140;
+    padding:10px 12px;
+    border-radius:999px;
+    font-size:13px;
+    opacity:0;
+    transition: opacity .2s ease;
+    pointer-events:none;
+    z-index:2000;
+    max-width:92vw;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #toast.show{opacity:1;}
+
+  /* ---------- Radial ---------- */
+  #radial{
+    position:fixed;
+    left:0; top:0;
+    width:0; height:0;
+    z-index:3000;
+    pointer-events:none;
+  }
+  .rbtn{
+    position:absolute;
+    transform: translate(-50%,-50%);
+    border-radius:999px;
+    padding:10px 12px;
+    font-size:13px;
+    border:1px solid #2b3140;
+    background:#131722ee;
+    color:var(--text);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    pointer-events:auto;
+    touch-action:none;
+    user-select:none;
+    white-space:nowrap;
+  }
+  .rbtn.primary{ border-color:#355ea8; background:#173055ee; }
+  .rbtn.danger{ border-color:#7b2b3a; background:#32141bee; }
+  .rbtn.small{ padding:8px 10px; font-size:12px; }
+
+  /* ---------- Property modal ---------- */
+  #propsBackdrop{
+    position:fixed; inset:0;
+    background: rgba(0,0,0,.45);
+    z-index:4000;
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  #propsBackdrop.show{ display:flex; }
+
+  #propsPanel{
+    width:min(720px, 96vw);
+    background:#141927ee;
+    border:1px solid #2b3140;
+    border-radius:18px;
+    box-shadow: var(--shadow);
+    padding:12px;
+    backdrop-filter: blur(10px);
+  }
+  #propsPanel h3{
+    margin: 0 0 8px;
+    font-size:14px;
+    color: var(--text);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  #propsPanel .grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .field label{
+    font-size:11px;
+    color: var(--muted);
+  }
+  input, textarea, select{
+    width:100%;
+    border-radius:12px;
+    border:1px solid #2b3140;
+    background:#0f1320;
+    color: var(--text);
+    padding:10px 10px;
+    font-size:13px;
+    outline:none;
+  }
+  textarea{ min-height: 110px; resize: vertical; }
+  #propsActions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+    justify-content:flex-end;
+  }
+
+#gearBtn{
+  position:fixed;
+  right:14px;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  background:#1f2a3a;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+  z-index:6000;
+  touch-action:auto;
+}
+
+
+
+
+
+
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="controls">
+    <button id="btnAdd" class="primary">＋追加</button>
+    <button id="btnFit">🔍全体</button>
+
+    <button id="btnModeText" class="on">文</button>
+    <button id="btnModeCode">&lt;&gt;</button>
+
+    <button id="btnGrid">▦グリッド</button>
+    <button id="btnSnap">🧲スナップ</button>
+
+    <button id="btnRun" class="primary">▶ 実行</button>
+    <button id="btnStop" class="danger">■ 停止</button>
+
+    <button id="btnExport">⬇JSON</button>
+    <button id="btnImport">⬆JSON</button>
+    <button id="btnHelp">？</button>
+　　
+
+    <div id="hint">背景ドラッグ=パン / ピンチ=ズーム / 空白タップ=ラジアル追加 / 空白長押し=画像/動画 / ノードダブルタップ=プロパティ / ポートで接続 / 線タップ削除</div>
+  </div>
+</div>
+
+<div id="gearBtn">⚙️</div>
+
+<div id="wrap">
+  <canvas id="layer"></canvas>
+  <div id="nodesLayer"></div>
+</div>
+
+<div id="radial"></div>
+<div id="toast"></div>
+
+<div id="propsBackdrop">
+  <div id="propsPanel">
+    <h3>
+      <span id="propsTitle">Node Props</span>
+      <button id="propsClose">閉じる</button>
+    </h3>
+
+    <div class="grid">
+      <div class="field">
+        <label>type</label>
+        <select id="pType">
+          <option value="text">text</option>
+          <option value="code">code</option>
+          <option value="const">const</option>
+          <option value="let">let</option>
+          <option value="set">var:set</option>
+          <option value="get">var:get</option>
+          <option value="if">if</option>
+          <option value="while">while</option>
+          <option value="return">return</option>
+          <option value="image">image</option>
+          <option value="video">video</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>actor（並列レーン用：文字列）</label>
+        <input id="pActor" placeholder="例: miner / builder / A" />
+      </div>
+
+      <div class="field" style="grid-column: 1 / span 2;">
+        <label>text（表示ラベル）</label>
+        <input id="pText" placeholder="ノードの表示テキスト" />
+      </div>
+
+      <div class="field" style="grid-column: 1 / span 2;">
+        <label>code / expr（式やコード。if/while条件もここ）</label>
+        <textarea id="pCode" placeholder="例: x=1;  /  1+2*3  /  x>10"></textarea>
+      </div>
+
+      <div class="field">
+        <label>runtime.value（実行結果 / デバッグ表示）</label>
+        <input id="pValue" placeholder="(自動)" disabled />
+      </div>
+      <div class="field">
+        <label>shape</label>
+        <select id="pShape">
+          <option value="rect">rect</option>
+          <option value="circle">circle</option>
+          <option value="diamond">diamond</option>
+        </select>
+      </div>
+
+      <!-- xyz are intentionally at the end -->
+      <div class="field">
+        <label>x（最後に表示）</label>
+        <input id="pX" />
+      </div>
+      <div class="field">
+        <label>y（最後に表示）</label>
+        <input id="pY" />
+      </div>
+      <div class="field" style="grid-column: 1 / span 2;">
+        <label>z（最後に表示：任意）</label>
+        <input id="pZ" placeholder="0" />
+      </div>
+    </div>
+
+    <div id="propsActions">
+      <button id="propsDelete" class="danger">削除</button>
+      <button id="propsSave" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id)=>document.getElementById(id);
+  const canvas = $("layer");
+  const ctx = canvas.getContext("2d");
+  const nodesLayer = $("nodesLayer");
+  const toast = $("toast");
+  const radial = $("radial");
+
+  const propsBackdrop = $("propsBackdrop");
+  const propsTitle = $("propsTitle");
+  const propsClose = $("propsClose");
+  const propsSave = $("propsSave");
+  const propsDelete = $("propsDelete");
+  const pType = $("pType");
+  const pActor = $("pActor");
+  const pText = $("pText");
+  const pCode = $("pCode");
+  const pValue = $("pValue");
+  const pShape = $("pShape");
+  const pX = $("pX");
+  const pY = $("pY");
+  const pZ = $("pZ");
+
+  const btnAdd = $("btnAdd");
+  const btnFit = $("btnFit");
+  const btnModeText = $("btnModeText");
+  const btnModeCode = $("btnModeCode");
+  const btnGrid = $("btnGrid");
+  const btnSnap = $("btnSnap");
+  const btnRun = $("btnRun");
+  const btnStop = $("btnStop");
+  const btnExport = $("btnExport");
+  const btnImport = $("btnImport");
+  const btnHelp = $("btnHelp");
+
+  const COLORS = [
+    "#2f3c5a","#1f4f3a","#5a2f2f","#5a4c2f",
+    "#3a2f5a","#2f5a58","#3b3f46","#1f2a3a",
+    "#2d4a7f","#2d7f4a","#7f2d4a","#7f6a2d"
+  ];
+
+  const state = {
+    nodes: [], // {id,x,y,z, text, type, code, actor, color, shape, media:{src, mime}, runtime:{value}, ui:{w,h}}
+    links: [], // {from:{id,port}, to:{id,port}} port: "in" | "out" | "true" | "false" | "exit"
+    selectedId: null,
+
+    // view
+    panX: 0,
+    panY: 0,
+    scale: 1,
+
+    grid: true,
+    snap: true,
+    gridSize: 40,
+
+    // pointer
+    pointers: new Map(), // id -> {x,y}
+    pinch: null,
+    draggingNodeId: null,
+    dragOffset: {x:0,y:0},
+    panning: false,
+    moved: false,
+    downPos: null,
+    lpTimer: null,
+
+    // modes
+    createMode: "text", // "text" | "code"
+
+    // port connection
+    selPort: null, // {nodeId, portName} portName: "out" | "true" | "false" | "exit"
+    hoverPort: null, // {nodeId, portName}
+
+    // delete-line mode via tap
+    // (always enabled: tap near line to delete)
+    // eval
+    running: false,
+    runToken: 0,
+    globals: {},
+
+    resizedOnce: false
+  };
+
+  const uid = ()=>Math.random().toString(36).slice(2,10);
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove("show"), 1200);
+  }
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function worldToScreen(wx, wy){
+    return { x: wx*state.scale + state.panX, y: wy*state.scale + state.panY };
+  }
+  function screenToWorld(sx, sy){
+    return { x: (sx - state.panX)/state.scale, y: (sy - state.panY)/state.scale };
+  }
+
+  function getNode(id){ return state.nodes.find(n=>n.id===id) || null; }
+
+  function snapVal(v){
+    const g = state.gridSize;
+    return Math.round(v/g)*g;
+  }
+  function applySnap(n){
+    if(!state.snap) return;
+    n.x = snapVal(n.x);
+    n.y = snapVal(n.y);
+  }
+
+  function clearLongPress(){
+    if(state.lpTimer){ clearTimeout(state.lpTimer); state.lpTimer=null; }
+  }
+
+  function fileToBase64(file){
+    return new Promise((resolve,reject)=>{
+      const r = new FileReader();
+      r.onload = ()=>resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  // ---------- Drawing (grid, links) ----------
+  function drawGrid(){
+    if(!state.grid) return;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const gWorld = state.gridSize;
+    const gPx = gWorld * state.scale;
+    if(gPx < 12) return;
+
+    ctx.save();
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--grid").trim() || "#2b3140";
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 1;
+
+    const tl = screenToWorld(0,0);
+    const br = screenToWorld(w,h);
+    const x0 = Math.floor(tl.x/gWorld)*gWorld;
+    const y0 = Math.floor(tl.y/gWorld)*gWorld;
+    const x1 = Math.ceil(br.x/gWorld)*gWorld;
+    const y1 = Math.ceil(br.y/gWorld)*gWorld;
+
+    for(let x=x0; x<=x1; x+=gWorld){
+      const sx = worldToScreen(x, 0).x;
+      ctx.beginPath();
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx, h);
+      ctx.stroke();
+    }
+    for(let y=y0; y<=y1; y+=gWorld){
+      const sy = worldToScreen(0, y).y;
+      ctx.beginPath();
+      ctx.moveTo(0, sy);
+      ctx.lineTo(w, sy);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function portWorldPos(nodeId, port){
+    // DOMの見た目に近い位置を世界座標で返す（ノードの中心基準）
+    const n = getNode(nodeId);
+    if(!n) return null;
+    const w = (n.ui?.w || 180);
+    const h = (n.ui?.h || 90);
+
+    const px = (() => {
+      if(port==="in") return -w/2;
+      // outs
+      return w/2;
+    })();
+
+    const py = (() => {
+      if(port==="in") return 0;
+      if(port==="out") return 0;
+      if(port==="true") return -h*0.28;
+      if(port==="false") return h*0.28;
+      if(port==="exit") return h*0.28;
+      return 0;
+    })();
+
+    return { x: n.x + px, y: n.y + py };
+  }
+
+  function drawLinks(){
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.95;
+
+    for(const l of state.links){
+      const a = portWorldPos(l.from.id, l.from.port);
+      const b = portWorldPos(l.to.id, l.to.port);
+      if(!a || !b) continue;
+
+      const sa = worldToScreen(a.x, a.y);
+      const sb = worldToScreen(b.x, b.y);
+
+      // style by branch
+      const kind = l.from.port;
+      if(kind==="true") ctx.strokeStyle = "#6dffb6";
+      else if(kind==="false" || kind==="exit") ctx.strokeStyle = "#ff7a8c";
+      else ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--line").trim() || "#7d879a";
+
+      ctx.beginPath();
+      ctx.moveTo(sa.x, sa.y);
+      ctx.lineTo(sb.x, sb.y);
+      ctx.stroke();
+    }
+
+    // preview line while selecting output port
+    if(state.selPort && state.pointers.size===1){
+      const p = [...state.pointers.values()][0];
+      const a = portWorldPos(state.selPort.nodeId, state.selPort.portName);
+      if(a){
+        const sa = worldToScreen(a.x, a.y);
+        ctx.setLineDash([8,6]);
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#66a3ff";
+        ctx.beginPath();
+        ctx.moveTo(sa.x, sa.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // ---------- Node DOM ----------
+  function nodeTypeBadge(t){
+    const map = {
+      text:"文", code:"<>", const:"const", let:"let",
+      set:"set", get:"get", if:"if", while:"while", return:"return",
+      image:"IMG", video:"VID"
+    };
+    return map[t] || t;
+  }
+
+  function evalMeta(n){
+    const parts = [];
+    if(n.actor) parts.push("actor:"+n.actor);
+    if(n.type==="code" || n.type==="const" || n.type==="let" || n.type==="set" || n.type==="get" || n.type==="if" || n.type==="while" || n.type==="return"){
+      const v = (n.runtime?.value ?? "");
+      if(String(v).length) parts.push("val:"+String(v));
+    }
+    // xyz is in props; show small
+    parts.push("x:"+Math.round(n.x)+" y:"+Math.round(n.y));
+    return parts;
+  }
+
+  function makePortsForNode(n, el){
+    const portsWrap = document.createElement("div");
+    portsWrap.className = "ports";
+    el.appendChild(portsWrap);
+
+    // in port always
+    const pin = document.createElement("div");
+    pin.className = "port in";
+    pin.textContent = "◀︎";
+    pin.dataset.nodeId = n.id;
+    pin.dataset.port = "in";
+    portsWrap.appendChild(pin);
+
+    // out ports depend on type
+    const addOut = (portName, label, cls) => {
+      const p = document.createElement("div");
+      p.className = "port out " + (cls||"");
+      p.textContent = label;
+      p.dataset.nodeId = n.id;
+      p.dataset.port = portName;
+      portsWrap.appendChild(p);
+      return p;
+    };
+
+    if(n.type==="if"){
+      const t = document.createElement("div");
+      t.className = "port branch1";
+      t.textContent = "▲"; // true
+      t.dataset.nodeId = n.id;
+      t.dataset.port = "true";
+      portsWrap.appendChild(t);
+
+      const f = document.createElement("div");
+      f.className = "port branch2";
+      f.textContent = "▼"; // false
+      f.dataset.nodeId = n.id;
+      f.dataset.port = "false";
+      portsWrap.appendChild(f);
+    }else if(n.type==="while"){
+      const loop = document.createElement("div");
+      loop.className = "port branch1";
+      loop.textContent = "▲"; // loop
+      loop.dataset.nodeId = n.id;
+      loop.dataset.port = "true"; // treat as loop
+      portsWrap.appendChild(loop);
+
+      const exit = document.createElement("div");
+      exit.className = "port branch2";
+      exit.textContent = "▶"; // exit
+      exit.dataset.nodeId = n.id;
+      exit.dataset.port = "exit";
+      portsWrap.appendChild(exit);
+    }else{
+      addOut("out","▶︎");
+    }
+
+    // port selection highlight
+    const allPorts = portsWrap.querySelectorAll(".port");
+    allPorts.forEach(p=>{
+      const pid = p.dataset.nodeId;
+      const prt = p.dataset.port;
+      if(state.selPort && state.selPort.nodeId===pid && state.selPort.portName===prt){
+        p.classList.add("sel");
+      }
+      if(state.hoverPort && state.hoverPort.nodeId===pid && state.hoverPort.portName===prt){
+        p.classList.add("hot");
+      }
+      // running highlights
+      if(state.running && state._runningPort &&
+         state._runningPort.nodeId===pid && state._runningPort.portName===prt){
+        p.classList.add("running");
+      }
+    });
+
+    // port click handlers
+    portsWrap.querySelectorAll(".port").forEach(p=>{
+      p.addEventListener("pointerdown", (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+
+        const nodeId = p.dataset.nodeId;
+        const port = p.dataset.port;
+
+        if(port==="in"){
+          // connect if out selected
+          if(state.selPort){
+            connectPorts(state.selPort.nodeId, state.selPort.portName, nodeId, "in");
+            state.selPort = null;
+            state.hoverPort = null;
+            draw();
+          }else{
+            showToast("先に出力ポートを選択");
+          }
+          return;
+        }
+
+        // selecting an output port
+        if(state.selPort && state.selPort.nodeId===nodeId && state.selPort.portName===port){
+          state.selPort = null;
+          state.hoverPort = null;
+          showToast("ポート選択解除");
+          draw();
+          return;
+        }
+        state.selPort = {nodeId, portName: port};
+        state.hoverPort = null;
+        showToast("接続先(in)ポートへ。近づけて離すと吸着もOK");
+        draw();
+      }, {passive:false});
+    });
+  }
+
+  function syncNodesDOM(){
+    nodesLayer.innerHTML = "";
+
+    for(const n of state.nodes){
+      const el = document.createElement("div");
+      el.className = "node shape-" + (n.shape||"rect");
+      if(n.id===state.selectedId) el.classList.add("selected");
+      if(state.running && state._runningNodeId===n.id) el.classList.add("running");
+      el.dataset.id = n.id;
+      el.style.background = n.color || COLORS[0];
+
+      // title line
+      const title = document.createElement("div");
+      title.className = "title";
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = nodeTypeBadge(n.type||"text");
+      const t = document.createElement("span");
+      t.textContent = n.text || "（空）";
+      title.appendChild(badge);
+      title.appendChild(t);
+      el.appendChild(title);
+
+      // meta line
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      for(const s of evalMeta(n)){
+        const kv = document.createElement("span");
+        kv.className = "kv";
+        kv.textContent = s;
+        meta.appendChild(kv);
+      }
+      el.appendChild(meta);
+
+      // media
+      if((n.type==="image" || n.type==="video") && n.media?.src){
+        const wrap = document.createElement("div");
+        wrap.className = "media";
+        if(n.type==="image"){
+          const img = document.createElement("img");
+          img.src = n.media.src;
+          wrap.appendChild(img);
+        }else{
+          const v = document.createElement("video");
+          v.src = n.media.src;
+          v.controls = true;
+          v.playsInline = true;
+          wrap.appendChild(v);
+        }
+        el.appendChild(wrap);
+      }
+
+      // position (center-based)
+      const s = worldToScreen(n.x, n.y);
+      nodesLayer.appendChild(el);
+
+      // after append: measure
+      requestAnimationFrame(()=>{
+        // measure once
+        const rect = el.getBoundingClientRect();
+        n.ui = n.ui || {};
+        n.ui.w = rect.width / state.scale;
+        n.ui.h = rect.height / state.scale;
+
+        // set left/top so that center aligns
+        el.style.left = (s.x - rect.width/2) + "px";
+        el.style.top  = (s.y - rect.height/2) + "px";
+      });
+
+      // ports
+      makePortsForNode(n, el);
+
+      // node interactions
+      el.addEventListener("pointerdown", (e)=>{
+        // avoid starting drag from port (handled above)
+        if(e.target.closest(".port")) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        state.selectedId = n.id;
+
+        nodesLayer.setPointerCapture(e.pointerId);
+        state.pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+        state.downPos = {x:e.clientX, y:e.clientY};
+        state.moved = false;
+        clearLongPress();
+
+        // compute drag offset in screen
+        const s0 = worldToScreen(n.x, n.y);
+        state.dragOffset.x = s0.x - e.clientX;
+        state.dragOffset.y = s0.y - e.clientY;
+        state.draggingNodeId = n.id;
+        state.panning = false;
+
+        // long press: open radial command for node
+        state.lpTimer = setTimeout(()=>{
+          if(state.moved) return;
+          openRadialForNode(n.id, e.clientX, e.clientY);
+        }, 520);
+
+        draw();
+      }, {passive:false});
+
+      // double tap => properties
+      el.addEventListener("pointerup", (e)=>{
+        if(e.target.closest(".port")) return;
+        // detect double tap on same node
+        const now = performance.now();
+        const id = n.id;
+        if(!state._lastTap) state._lastTap = {t:0,id:null};
+        const dbl = (now - state._lastTap.t) < 320 && state._lastTap.id === id;
+        state._lastTap = {t: now, id};
+        if(dbl){
+          openProps(id);
+        }
+      }, {passive:true});
+    }
+  }
+
+  function draw(){
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    drawGrid();
+    drawLinks();
+    syncNodesDOM();
+  }
+
+  // ---------- Resize ----------
+  function resizeCanvas(){
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    const centerWorld = state.resizedOnce ? screenToWorld(w/2, h/2) : {x:0,y:0};
+
+    canvas.width  = Math.floor(w*dpr);
+    canvas.height = Math.floor(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
+    if(!state.resizedOnce){
+      state.panX = w/2;
+      state.panY = h/2;
+      state.resizedOnce = true;
+    }else{
+      state.panX = w/2 - centerWorld.x * state.scale;
+      state.panY = h/2 - centerWorld.y * state.scale;
+    }
+    draw();
+  }
+  window.addEventListener("resize", resizeCanvas, {passive:true});
+
+  // ---------- CRUD ----------
+  function addNodeAtWorld(x,y, createType){
+    const type = createType || (state.createMode==="code" ? "code" : "text");
+    const n = {
+      id: uid(),
+      x, y, z: 0,
+      text: type==="code" ? "code" : "text",
+      type,
+      code: "",
+      actor: "",
+      color: COLORS[0],
+      shape: "rect",
+      media: null,
+      runtime: {value:""},
+      ui: {w:180,h:90}
+    };
+    if(state.snap) applySnap(n);
+    state.nodes.push(n);
+    state.selectedId = n.id;
+    draw();
+    return n.id;
+  }
+
+  function deleteNode(id){
+    state.nodes = state.nodes.filter(n=>n.id!==id);
+    state.links = state.links.filter(l => l.from.id!==id && l.to.id!==id);
+    if(state.selectedId===id) state.selectedId = null;
+    if(state.selPort && state.selPort.nodeId===id) state.selPort = null;
+    draw();
+  }
+
+  // ---------- Fit ----------
+  function fitView(){
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if(state.nodes.length===0){
+      state.scale = 1;
+      state.panX = w/2;
+      state.panY = h/2;
+      draw();
+      return;
+    }
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    for(const n of state.nodes){
+      minX = Math.min(minX, n.x);
+      minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x);
+      maxY = Math.max(maxY, n.y);
+    }
+    const pad = 280;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+    const ww = Math.max(1, maxX-minX);
+    const hh = Math.max(1, maxY-minY);
+    const sx = w/ww;
+    const sy = h/hh;
+
+    state.scale = clamp(Math.min(sx,sy), 0.06, 4.0); // ✅ズームアウト自由度を高く
+    const cx = (minX+maxX)/2;
+    const cy = (minY+maxY)/2;
+
+    state.panX = w/2 - cx*state.scale;
+    state.panY = h/2 - cy*state.scale;
+    draw();
+  }
+
+  // ---------- Links & line delete ----------
+  function connectPorts(fromId, fromPort, toId, toPort){
+    // avoid duplicates
+    state.links = state.links.filter(l => !(l.from.id===fromId && l.from.port===fromPort && l.to.id===toId && l.to.port===toPort));
+    state.links.push({from:{id:fromId, port:fromPort}, to:{id:toId, port:toPort}});
+    showToast("接続しました");
+  }
+
+  function distPointToSeg(px,py, x1,y1, x2,y2){
+    const vx = x2-x1, vy = y2-y1;
+    const wx = px-x1, wy = py-y1;
+    const c1 = vx*wx + vy*wy;
+    if(c1 <= 0) return Math.hypot(px-x1, py-y1);
+    const c2 = vx*vx + vy*vy;
+    if(c2 <= c1) return Math.hypot(px-x2, py-y2);
+    const t = c1 / c2;
+    const bx = x1 + t*vx;
+    const by = y1 + t*vy;
+    return Math.hypot(px-bx, py-by);
+  }
+
+  function deleteNearestLinkAtScreen(sx,sy){
+    const thresh = 18;
+    let best = {i:-1, d:Infinity};
+    for(let i=0;i<state.links.length;i++){
+      const l = state.links[i];
+      const aW = portWorldPos(l.from.id, l.from.port);
+      const bW = portWorldPos(l.to.id, l.to.port);
+      if(!aW || !bW) continue;
+
+      const a = worldToScreen(aW.x, aW.y);
+      const b = worldToScreen(bW.x, bW.y);
+
+      const d = distPointToSeg(sx,sy, a.x,a.y,b.x,b.y);
+      if(d < best.d) best = {i,d};
+    }
+    if(best.i>=0 && best.d<=thresh){
+      state.links.splice(best.i,1);
+      showToast("線を削除");
+      draw();
+      return true;
+    }
+    return false;
+  }
+
+  // ---------- Radial ----------
+  function clearRadial(){ radial.innerHTML=""; radial.style.width="0"; radial.style.height="0"; }
+
+  function addRadialButton(x,y,label, cls, fn){
+    const b = document.createElement("button");
+    b.className = "rbtn " + (cls||"");
+    b.textContent = label;
+    b.addEventListener("pointerdown", (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      fn?.();
+      clearRadial();
+    }, {passive:false});
+    b.style.left = x+"px";
+    b.style.top  = y+"px";
+    radial.appendChild(b);
+  }
+
+  function openRadialAt(sx,sy, items){
+    clearRadial();
+    radial.style.left = "0px";
+    radial.style.top = "0px";
+    radial.style.width = "100vw";
+    radial.style.height = "100vh";
+
+    const r = 88;
+    const step = (Math.PI*2) / Math.max(1, items.length);
+    items.forEach((it, i)=>{
+      const ang = -Math.PI/2 + i*step;
+      addRadialButton(
+        sx + Math.cos(ang)*r,
+        sy + Math.sin(ang)*r,
+        it.label,
+        it.cls,
+        it.onClick
+      );
+    });
+  }
+
+  function openRadialForBackgroundTap(sx,sy){
+    // 空白タップ: 追加ラジアル（文/<>に応じて）
+    const items = [
+      {label:"文ノード", cls:"primary", onClick: ()=>{
+        const w = screenToWorld(sx,sy);
+        const id = addNodeAtWorld(w.x,w.y,"text");
+        getNode(id).text = "テキスト";
+        draw();
+      }},
+      {label:"<>ノード", cls:"primary", onClick: ()=>{
+        const w = screenToWorld(sx,sy);
+        const id = addNodeAtWorld(w.x,w.y,"code");
+        const n = getNode(id);
+        n.text = "code";
+        n.code = "";
+        draw();
+      }},
+      {label:"if", cls:"", onClick: ()=>{
+        const w = screenToWorld(sx,sy);
+        const id = addNodeAtWorld(w.x,w.y,"if");
+        const n = getNode(id);
+        n.text="if";
+        n.code="x>0";
+        draw();
+      }},
+      {label:"while", cls:"", onClick: ()=>{
+        const w = screenToWorld(sx,sy);
+        const id = addNodeAtWorld(w.x,w.y,"while");
+        const n = getNode(id);
+        n.text="while";
+        n.code="i<3";
+        draw();
+      }},
+      {label:"return", cls:"", onClick: ()=>{
+        const w = screenToWorld(sx,sy);
+        const id = addNodeAtWorld(w.x,w.y,"return");
+        const n = getNode(id);
+        n.text="return";
+        n.code="x";
+        draw();
+      }},
+      {label:"キャンセル", cls:"danger", onClick: ()=>{}}
+    ];
+    openRadialAt(sx,sy,items);
+  }
+
+  function openRadialForBackgroundLongPress(sx,sy){
+    // 空白長押し: メディアラジアル（Base64）
+    const items = [
+      {label:"画像挿入", cls:"primary", onClick: ()=>pickMedia("image", sx, sy)},
+      {label:"動画挿入", cls:"primary", onClick: ()=>pickMedia("video", sx, sy)},
+      {label:"キャンセル", cls:"danger", onClick: ()=>{}}
+    ];
+    openRadialAt(sx,sy,items);
+  }
+
+  function openRadialForNode(nodeId, sx, sy){
+    const n = getNode(nodeId);
+    if(!n) return;
+
+    const items = [];
+
+    // quick inserts (coding radial)
+    items.push({label:"プロパティ", cls:"primary", onClick: ()=>openProps(nodeId)});
+    items.push({label:"色変更", cls:"", onClick: ()=>{
+      const idx = prompt("色番号 0-"+(COLORS.length-1), "0");
+      if(idx===null) return;
+      const i = Number(idx);
+      if(Number.isInteger(i) && COLORS[i]){ n.color = COLORS[i]; draw(); }
+    }});
+    items.push({label:"形:rect", cls:"small", onClick: ()=>{ n.shape="rect"; draw(); }});
+    items.push({label:"形:circle", cls:"small", onClick: ()=>{ n.shape="circle"; draw(); }});
+    items.push({label:"形:diamond", cls:"small", onClick: ()=>{ n.shape="diamond"; draw(); }});
+
+    // coding helpers
+    items.push({label:"const", cls:"", onClick: ()=>{
+      n.type="const"; n.text="const"; n.code = n.code || "x=1";
+      draw();
+    }});
+    items.push({label:"let", cls:"", onClick: ()=>{
+      n.type="let"; n.text="let"; n.code = n.code || "x=0";
+      draw();
+    }});
+    items.push({label:"return", cls:"", onClick: ()=>{
+      n.type="return"; n.text="return"; n.code = n.code || "x";
+      draw();
+    }});
+    items.push({label:"削除", cls:"danger", onClick: ()=>deleteNode(nodeId)});
+    items.push({label:"キャンセル", cls:"danger", onClick: ()=>{}});
+    openRadialAt(sx,sy,items);
+  }
+
+  async function pickMedia(kind, sx, sy){
+    const input = document.createElement("input");
+    input.type="file";
+    input.accept = kind==="image" ? "image/*" : "video/*";
+    input.onchange = async ()=>{
+      const file = input.files?.[0];
+      if(!file) return;
+      try{
+        const base64 = await fileToBase64(file);
+        const w = screenToWorld(sx,sy);
+        const id = addNodeAtWorld(w.x,w.y, kind);
+        const n = getNode(id);
+        n.type = kind;
+        n.text = file.name || kind;
+        n.media = { src: base64, mime: file.type || "" };
+        draw();
+        showToast(kind==="image" ? "画像挿入OK" : "動画挿入OK");
+      }catch{
+        showToast("読み込み失敗");
+      }
+    };
+    input.click();
+  }
+
+  // ---------- Property modal ----------
+  function openProps(nodeId){
+    const n = getNode(nodeId);
+    if(!n) return;
+
+    state.selectedId = nodeId;
+    propsTitle.textContent = "Node Props: " + nodeId;
+
+    pType.value = n.type || "text";
+    pActor.value = n.actor || "";
+    pText.value = n.text || "";
+    pCode.value = n.code || "";
+    pValue.value = String(n.runtime?.value ?? "");
+    pShape.value = n.shape || "rect";
+    pX.value = String(n.x ?? 0);
+    pY.value = String(n.y ?? 0);
+    pZ.value = String(n.z ?? 0);
+
+    propsBackdrop.classList.add("show");
+  }
+
+  function closeProps(){
+    propsBackdrop.classList.remove("show");
+  }
+
+  propsClose.addEventListener("click", closeProps);
+  propsBackdrop.addEventListener("pointerdown", (e)=>{
+    if(e.target===propsBackdrop) closeProps();
+  });
+
+  propsSave.addEventListener("click", ()=>{
+    const n = getNode(state.selectedId);
+    if(!n) return;
+
+    n.type = pType.value;
+    n.actor = pActor.value.trim();
+    n.text = pText.value;
+    n.code = pCode.value;
+    n.shape = pShape.value;
+
+    const nx = Number(pX.value);
+    const ny = Number(pY.value);
+    const nz = Number(pZ.value);
+
+    if(Number.isFinite(nx)) n.x = nx;
+    if(Number.isFinite(ny)) n.y = ny;
+    if(Number.isFinite(nz)) n.z = nz;
+
+    if(state.snap) applySnap(n);
+
+    closeProps();
+    draw();
+    showToast("保存しました");
+  });
+
+  propsDelete.addEventListener("click", ()=>{
+    const id = state.selectedId;
+    if(!id) return;
+    closeProps();
+    deleteNode(id);
+    showToast("削除しました");
+  });
+
+  // ---------- Background interactions ----------
+  nodesLayer.addEventListener("pointerdown", (e)=>{
+    if(e.target.closest("#topbar")) return;
+    // if target is node, handled in node handler
+    if(e.target.closest(".node")) return;
+
+    e.preventDefault();
+    nodesLayer.setPointerCapture(e.pointerId);
+
+    state.pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    state.downPos = {x:e.clientX, y:e.clientY};
+    state.moved = false;
+    clearLongPress();
+
+    // long press background => media radial
+    state.lpTimer = setTimeout(()=>{
+      if(state.moved) return;
+      openRadialForBackgroundLongPress(e.clientX, e.clientY);
+    }, 520);
+
+    // start panning if not pinching
+    state.draggingNodeId = null;
+    state.panning = true;
+
+    // selection clear
+    state.selectedId = null;
+
+    draw();
+  }, {passive:false});
+
+  nodesLayer.addEventListener("pointermove", (e)=>{
+    if(!state.pointers.has(e.pointerId)) return;
+    e.preventDefault();
+
+    const prev = state.pointers.get(e.pointerId);
+    state.pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+    // cancel long press if moved
+    if(state.downPos){
+      const dx = e.clientX - state.downPos.x;
+      const dy = e.clientY - state.downPos.y;
+      if(Math.hypot(dx,dy) > 6){
+        state.moved = true;
+        clearLongPress();
+      }
+    }
+
+    // pinch zoom
+    if(state.pointers.size >= 2){
+      state.draggingNodeId = null;
+      state.panning = false;
+
+      const pts = [...state.pointers.values()];
+      const p0 = pts[0], p1 = pts[1];
+      const mid = {x:(p0.x+p1.x)/2, y:(p0.y+p1.y)/2};
+      const dist = Math.hypot(p1.x-p0.x, p1.y-p0.y);
+
+      if(!state.pinch){
+        state.pinch = {mid, dist};
+        return;
+      }
+
+      state.panX += (mid.x - state.pinch.mid.x);
+      state.panY += (mid.y - state.pinch.mid.y);
+
+      const factor = dist / (state.pinch.dist || dist);
+      const before = screenToWorld(mid.x, mid.y);
+      state.scale = clamp(state.scale * factor, 0.04, 6.0); // ✅ズームアウト強化
+      const after  = screenToWorld(mid.x, mid.y);
+
+      state.panX += (after.x - before.x) * state.scale;
+      state.panY += (after.y - before.y) * state.scale;
+
+      state.pinch = {mid, dist};
+      draw();
+      return;
+    }else{
+      state.pinch = null;
+    }
+
+    // dragging node?
+    if(state.draggingNodeId){
+      const n = getNode(state.draggingNodeId);
+      if(!n) return;
+
+      const sx = e.clientX + state.dragOffset.x;
+      const sy = e.clientY + state.dragOffset.y;
+      const wpt = screenToWorld(sx, sy);
+
+      n.x = wpt.x;
+      n.y = wpt.y;
+      if(state.snap) applySnap(n);
+
+      // port snap hover when out selected
+      if(state.selPort){
+        state.hoverPort = findNearestInPort(e.clientX, e.clientY, 28);
+      }
+
+      draw();
+      return;
+    }
+
+    // panning
+    if(state.panning && prev){
+      state.panX += (e.clientX - prev.x);
+      state.panY += (e.clientY - prev.y);
+
+      // port snap hover while previewing
+      if(state.selPort){
+        state.hoverPort = findNearestInPort(e.clientX, e.clientY, 28);
+      }
+
+      draw();
+      return;
+    }
+
+    // hover in-port while previewing
+    if(state.selPort){
+      state.hoverPort = findNearestInPort(e.clientX, e.clientY, 28);
+      draw();
+    }
+  }, {passive:false});
+
+  function endPointer(e){
+    if(!state.pointers.has(e.pointerId)) return;
+    e.preventDefault();
+
+    // if out selected and near in port => auto connect (吸着)
+    if(state.selPort){
+      const hp = findNearestInPort(e.clientX, e.clientY, 28);
+      if(hp){
+        connectPorts(state.selPort.nodeId, state.selPort.portName, hp.nodeId, "in");
+        state.selPort = null;
+        state.hoverPort = null;
+      }
+    }
+
+    state.pointers.delete(e.pointerId);
+    state.draggingNodeId = null;
+    state.panning = false;
+    state.pinch = null;
+    state.downPos = null;
+    clearLongPress();
+    draw();
+  }
+  nodesLayer.addEventListener("pointerup", endPointer, {passive:false});
+  nodesLayer.addEventListener("pointercancel", endPointer, {passive:false});
+
+  nodesLayer.addEventListener("contextmenu", (e)=>e.preventDefault());
+
+  // tap handling: background tap => radial, line tap => delete
+  nodesLayer.addEventListener("click", (e)=>{
+    if(e.target.closest("#topbar")) return;
+
+    // if clicked line area (not node/port), try delete
+    const onNode = !!e.target.closest(".node");
+    const onPort = !!e.target.closest(".port");
+    if(!onNode && !onPort){
+      // try delete a nearby line first
+      const deleted = deleteNearestLinkAtScreen(e.clientX, e.clientY);
+      if(deleted) return;
+
+      // else open add radial
+      if(!state.moved){
+        openRadialForBackgroundTap(e.clientX, e.clientY);
+      }
+    }
+  });
+
+  function findNearestInPort(sx, sy, threshPx){
+    // find closest in-port among nodes (except same node)
+    let best = null;
+    let bestD = Infinity;
+    for(const n of state.nodes){
+      if(state.selPort && n.id===state.selPort.nodeId) continue;
+      const pW = portWorldPos(n.id, "in");
+      if(!pW) continue;
+      const pS = worldToScreen(pW.x, pW.y);
+      const d = Math.hypot(pS.x - sx, pS.y - sy);
+      if(d < bestD){
+        bestD = d;
+        best = {nodeId:n.id, portName:"in"};
+      }
+    }
+    if(best && bestD <= (threshPx||28)) return best;
+    return null;
+  }
+
+  // ---------- Buttons ----------
+  function setOn(btn, on){ btn.classList.toggle("on", !!on); }
+
+  function refreshToggles(){
+    setOn(btnGrid, state.grid);
+    setOn(btnSnap, state.snap);
+    setOn(btnModeText, state.createMode==="text");
+    setOn(btnModeCode, state.createMode==="code");
+  }
+
+  btnAdd.addEventListener("click", ()=>{
+    const w = screenToWorld(canvas.clientWidth/2, canvas.clientHeight/2);
+    addNodeAtWorld(w.x, w.y, state.createMode==="code" ? "code" : "text");
+    showToast("ノード追加");
+  });
+
+  btnFit.addEventListener("click", ()=>{
+    fitView();
+    showToast("全体表示");
+  });
+
+  btnModeText.addEventListener("click", ()=>{
+    state.createMode = "text";
+    refreshToggles();
+    showToast("作成モード: 文");
+  });
+  btnModeCode.addEventListener("click", ()=>{
+    state.createMode = "code";
+    refreshToggles();
+    showToast("作成モード: <>");
+  });
+
+  btnGrid.addEventListener("click", ()=>{
+    state.grid = !state.grid;
+    refreshToggles();
+    draw();
+  });
+  btnSnap.addEventListener("click", ()=>{
+    state.snap = !state.snap;
+    refreshToggles();
+    showToast(state.snap ? "スナップON" : "スナップOFF");
+  });
+
+  btnExport.addEventListener("click", ()=>{
+    const data = {
+      version: 3,
+      view: {panX: state.panX, panY: state.panY, scale: state.scale},
+      modes: {grid: state.grid, snap: state.snap, createMode: state.createMode},
+      gridSize: state.gridSize,
+      nodes: state.nodes,
+      links: state.links
+    };
+    const text = JSON.stringify(data, null, 2);
+    try{
+      navigator.clipboard.writeText(text);
+      showToast("JSONをコピーしました");
+    }catch{
+      prompt("JSON（コピーして保存）", text);
+    }
+  });
+
+  btnImport.addEventListener("click", ()=>{
+    const raw = prompt("JSONを貼り付けて読込");
+    if(raw===null) return;
+    try{
+      const obj = JSON.parse(raw);
+      if(!obj || !Array.isArray(obj.nodes) || !Array.isArray(obj.links)) throw new Error("format");
+
+      state.nodes = obj.nodes.map(n=>({
+        id: String(n.id || uid()),
+        x: Number(n.x||0),
+        y: Number(n.y||0),
+        z: Number(n.z||0),
+        text: String(n.text ?? ""),
+        type: String(n.type ?? "text"),
+        code: String(n.code ?? ""),
+        actor: String(n.actor ?? ""),
+        color: String(n.color || COLORS[0]),
+        shape: (["rect","circle","diamond"].includes(n.shape)) ? n.shape : "rect",
+        media: n.media ? {src:String(n.media.src||""), mime:String(n.media.mime||"")} : null,
+        runtime: {value: String(n.runtime?.value ?? "")},
+        ui: n.ui && typeof n.ui==="object" ? n.ui : {w:180,h:90}
+      }));
+
+      const ids = new Set(state.nodes.map(n=>n.id));
+      state.links = obj.links
+        .filter(l=>l && l.from && l.to)
+        .map(l=>({
+          from:{id:String(l.from.id), port:String(l.from.port)},
+          to:{id:String(l.to.id), port:String(l.to.port)}
+        }))
+        .filter(l=>ids.has(l.from.id) && ids.has(l.to.id));
+
+      if(obj.view){
+        state.panX = Number(obj.view.panX ?? state.panX);
+        state.panY = Number(obj.view.panY ?? state.panY);
+        state.scale = Number(obj.view.scale ?? state.scale);
+      }
+      if(obj.modes){
+        state.grid = !!obj.modes.grid;
+        state.snap = !!obj.modes.snap;
+        state.createMode = obj.modes.createMode==="code" ? "code" : "text";
+      }
+      if(obj.gridSize) state.gridSize = Number(obj.gridSize) || state.gridSize;
+
+      state.selectedId = state.nodes[0]?.id ?? null;
+      state.selPort = null;
+      state.hoverPort = null;
+      refreshToggles();
+      draw();
+      showToast("読み込みOK");
+    }catch(err){
+      console.error(err);
+      showToast("JSONが不正かも");
+    }
+  });
+
+  btnHelp.addEventListener("click", ()=>{
+    alert(
+`操作まとめ
+・背景ドラッグ(1本指)：パン
+・ピンチ(2本指)：ズーム（in/out）
+・空白タップ：追加ラジアル
+・空白長押し：画像/動画挿入ラジアル（Base64で保存）
+・ノードドラッグ：移動（✅修正済み）
+・ノード長押し：ノード用ラジアル（const/return等）
+・ノードダブルタップ：プロパティ表示（ポップアップ）
+・ポートで接続：出力ポートを選択→入力(◀︎)へ or 近づけて離すと吸着
+・線の近くをタップ：線削除
+・▶実行：ノードが順に光る（if/while分岐あり）`
+    );
+  });
+
+  // ---------- Eval Engine (simple but usable) ----------
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+  function safeExpr(expr, vars){
+    // allow: numbers, identifiers, operators, parentheses, quotes basic
+    // This is a lightweight engine: it evaluates in a restricted Function scope.
+    // NOTE: For personal tooling. Avoid pasting untrusted code.
+    const src = String(expr||"").trim();
+    if(!src) return undefined;
+
+    // ban some obvious dangerous tokens
+    const banned = /(window|document|Function|eval|localStorage|sessionStorage|fetch|XMLHttpRequest|constructor|__proto__)/i;
+    if(banned.test(src)) throw new Error("banned token");
+
+    // eslint-disable-next-line no-new-func
+    const f = new Function("vars", `
+      "use strict";
+      const {${Object.keys(vars).map(k=>k.replace(/[^a-zA-Z0-9_]/g,"_")).join(",")}} = vars;
+      return (${src});
+    `);
+    return f(vars);
+  }
+
+  function successors(nodeId, outPort){
+    return state.links
+      .filter(l=>l.from.id===nodeId && l.from.port===outPort)
+      .map(l=>l.to.id);
+  }
+
+  function incomingStartNodes(){
+    const hasIn = new Set(state.links.map(l=>l.to.id));
+    return state.nodes.filter(n=>!hasIn.has(n.id)).map(n=>n.id);
+  }
+
+  async function runGraph(){
+    if(state.running) return;
+    state.running = true;
+    state.runToken++;
+    const token = state.runToken;
+
+    // reset runtime
+    for(const n of state.nodes){
+      n.runtime = n.runtime || {};
+      n.runtime.value = "";
+    }
+    state.globals = {};
+
+    showToast("実行開始");
+    draw();
+
+    const queue = incomingStartNodes();
+    const visited = new Set();
+
+    while(queue.length && state.running && token===state.runToken){
+      const id = queue.shift();
+      if(!getNode(id)) continue;
+
+      // allow revisits for while loops: don't hard block, but keep a soft cap
+      const key = id + ":" + (visited.has(id) ? "r" : "f");
+      // no-op, we keep visited for debug only
+      visited.add(id);
+
+      state._runningNodeId = id;
+      state._runningPort = null;
+      draw();
+      await sleep(160);
+
+      const n = getNode(id);
+      if(!n) continue;
+
+      try{
+        let next = [];
+
+        // execute
+        if(n.type==="text" || n.type==="image" || n.type==="video"){
+          n.runtime.value = "";
+          next = successors(id, "out");
+        }
+        else if(n.type==="code"){
+          // expression evaluation
+          const v = safeExpr(n.code, state.globals);
+          n.runtime.value = (v===undefined ? "" : String(v));
+          next = successors(id, "out");
+        }
+        else if(n.type==="const" || n.type==="let" || n.type==="set"){
+          // formats: x=1   or  x = 1+2
+          const m = String(n.code||"").match(/^\s*([a-zA-Z_]\w*)\s*=\s*(.+)\s*$/);
+          if(!m) throw new Error("format: x=expr");
+          const name = m[1];
+          const expr = m[2];
+          const v = safeExpr(expr, state.globals);
+          state.globals[name] = v;
+          n.runtime.value = `${name}=${v}`;
+          next = successors(id, "out");
+        }
+        else if(n.type==="get"){
+          // code = var name
+          const name = String(n.code||"").trim();
+          n.runtime.value = String(state.globals[name] ?? "");
+          next = successors(id, "out");
+        }
+        else if(n.type==="if"){
+          const cond = !!safeExpr(n.code, state.globals);
+          n.runtime.value = cond ? "true" : "false";
+
+          state._runningPort = {nodeId:id, portName: cond ? "true" : "false"};
+          draw();
+          await sleep(120);
+
+          next = successors(id, cond ? "true" : "false");
+        }
+        else if(n.type==="while"){
+          // true => loop, exit => out
+          const cond = !!safeExpr(n.code, state.globals);
+          n.runtime.value = cond ? "loop" : "exit";
+
+          state._runningPort = {nodeId:id, portName: cond ? "true" : "exit"};
+          draw();
+          await sleep(120);
+
+          next = successors(id, cond ? "true" : "exit");
+
+          // guard to avoid infinite loops that lock UI
+          state._loopCount = (state._loopCount || 0) + (cond ? 1 : 0);
+          if(state._loopCount > 300){
+            throw new Error("loop guard > 300");
+          }
+        }
+        else if(n.type==="return"){
+          const v = safeExpr(n.code, state.globals);
+          n.runtime.value = String(v);
+          // map return into globals.__return__
+          state.globals.__return__ = v;
+          next = successors(id, "out");
+        }
+        else{
+          next = successors(id, "out");
+        }
+
+        state._runningPort = null;
+        draw();
+
+        // enqueue
+        for(const nx of next){
+          if(getNode(nx)) queue.push(nx);
+        }
+
+      }catch(err){
+        n.runtime.value = "ERR";
+        console.warn(err);
+        showToast("実行エラー: " + (err?.message || "ERR"));
+        draw();
+        await sleep(300);
+      }
+    }
+
+    state._runningNodeId = null;
+    state._runningPort = null;
+    state.running = false;
+    draw();
+    showToast("実行終了");
+  }
+
+  function stopRun(){
+    if(!state.running) return;
+    state.running = false;
+    state.runToken++;
+    state._runningNodeId = null;
+    state._runningPort = null;
+    showToast("停止しました");
+    draw();
+  }
+
+  btnRun.addEventListener("click", runGraph);
+  btnStop.addEventListener("click", stopRun);
+
+ const topbar = document.getElementById("topbar");
+  const gearBtn = document.getElementById("gearBtn");
+  
+
+  /* ===============================
+     ⚙️ ギア：コマンドパレット復帰
+  =============================== */
+  gearBtn.addEventListener("pointerdown", (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    topbar.style.display =
+      (topbar.style.display === "none") ? "" : "none";
+  }, {passive:false});
+
+  /* ===============================
+     背景ダブルタップ検出
+     - ノード / ポート / topbar 除外
+  =============================== */
+  let lastBgTapTime = 0;
+
+  nodesLayer.addEventListener("pointerup", (e)=>{
+    if(
+      e.target.closest(".node") ||
+      e.target.closest(".port") ||
+      e.target.closest("#topbar")
+    ) return;
+
+    const now = performance.now();
+    if(now - lastBgTapTime < 320){
+      // ダブルタップ成立
+      topbar.style.display =
+        (topbar.style.display === "none") ? "" : "none";
+      lastBgTapTime = 0;
+    }else{
+      lastBgTapTime = now;
+    }
+  });
+
+
+
+
+
+
+  // ---------- Init ----------
+  function init(){
+    resizeCanvas();
+    refreshToggles();
+
+    // starter mini graph:
+    const a = addNodeAtWorld(-220, -40, "const");
+    const b = addNodeAtWorld(   0, -40, "if");
+    const c = addNodeAtWorld( 220, -120, "return");
+    const d = addNodeAtWorld( 220,  40, "return");
+
+    const na = getNode(a); na.text="const"; na.code="x=2";
+    const nb = getNode(b); nb.text="if"; nb.code="x>0";
+    const nc = getNode(c); nc.text="return"; nc.code="x";
+    const nd = getNode(d); nd.text="return"; nd.code="0";
+
+    connectPorts(a, "out", b, "in");
+    connectPorts(b, "true", c, "in");
+    connectPorts(b, "false", d, "in");
+
+    // clear "connected" toast spam on init
+    toast.classList.remove("show");
+
+    fitView();
+    draw();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

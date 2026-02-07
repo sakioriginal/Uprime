@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MR BrainMap XR – Laser/Highlight/Sync/IfExec</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;}
+  #hud{
+    position:fixed;left:12px;top:12px;z-index:10;
+    color:#fff;font:13px system-ui;
+    background:rgba(0,0,0,.62);
+    padding:10px 14px;border-radius:12px;
+    max-width:min(520px,92vw);
+    line-height:1.35;
+  }
+  #bar{
+    position:fixed;left:12px;top:calc(12px + 110px);z-index:10;
+    display:flex;gap:8px;flex-wrap:wrap;
+  }
+  #bar button{
+    appearance:none;border:1px solid rgba(255,255,255,.2);
+    background:rgba(20,26,40,.75);color:#fff;
+    border-radius:12px;padding:8px 10px;font:13px system-ui;
+  }
+  #bar button.primary{border-color:rgba(120,170,255,.5);background:rgba(30,60,120,.75);}
+  #bar button.danger{border-color:rgba(255,120,140,.5);background:rgba(80,20,30,.75);}
+
+  /* 2D map panel */
+  #mapWrap{
+    position:fixed;right:12px;top:12px;z-index:10;
+    width:min(420px,42vw);
+    height:min(300px,28vh);
+    background:rgba(0,0,0,.35);
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:14px;
+    overflow:hidden;
+    backdrop-filter: blur(10px);
+  }
+  #mapTitle{
+    padding:8px 10px;
+    font:12px system-ui;color:#fff;
+    background:rgba(0,0,0,.35);
+    border-bottom:1px solid rgba(255,255,255,.12);
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  #mapTitle a{color:#9ec3ff;text-decoration:none;}
+  #mapFrame{width:100%;height:calc(100% - 34px);border:0;display:block;background:#111;}
+
+  /* Editor overlay (MR内入力UIは“2Dオーバーレイ”で実現) */
+  #editor{
+    position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+    width:min(560px,92vw);
+    background:rgba(18,22,35,.92);
+    border:1px solid rgba(255,255,255,.15);
+    border-radius:14px;padding:10px;
+    display:none;z-index:20;
+  }
+  #editor .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+  #editor label{color:#cfd8ff;font:12px system-ui;opacity:.9;}
+  #editor select, #editor input, #editor textarea{
+    background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.16);
+    border-radius:10px;padding:8px;font:14px system-ui;outline:none;
+  }
+  #editor textarea{width:100%;height:84px;resize:vertical;}
+  #editor .btns{display:flex;gap:8px;justify-content:flex-end;}
+  #editor button{
+    appearance:none;border:1px solid rgba(255,255,255,.18);
+    background:rgba(30,35,55,.8);color:#fff;border-radius:12px;padding:8px 10px;
+    font:13px system-ui;
+  }
+  #editor button.primary{border-color:rgba(120,170,255,.5);background:rgba(30,60,120,.8);}
+  #editor button.danger{border-color:rgba(255,120,140,.5);background:rgba(80,20,30,.8);}
+</style>
+</head>
+<body>
+
+<div id="hud">
+<b>MR BrainMap XR</b><br>
+🖐️ 右Grip：掴む（距離固定追従） / 右Trigger：ポート接続<br>
+🅰️ A：選択ノード編集 / B：実行 / Y：停止 / X：ノード追加<br>
+🟩 Laser：当たり判定を可視化（緑=ヒット / 白=空）<br>
+</div>
+
+<div id="bar">
+  <button id="btnAdd" class="primary">＋追加（X）</button>
+  <button id="btnRun" class="primary">▶実行（B）</button>
+  <button id="btnStop" class="danger">■停止（Y）</button>
+  <button id="btnSync" class="">↔ 地図へ送信</button>
+</div>
+
+<div id="mapWrap">
+  <div id="mapTitle">
+    <span>2D地図（MindCanvas Map）</span>
+    <a id="mapOpen" href="#" target="_blank" rel="noopener">別タブ</a>
+  </div>
+  <iframe id="mapFrame"></iframe>
+</div>
+
+<div id="editor">
+  <div class="row">
+    <label>type</label>
+    <select id="eType">
+      <option value="text">text</option>
+      <option value="code">code</option>
+      <option value="set">set (x=expr)</option>
+      <option value="if">if (cond)</option>
+      <option value="return">return</option>
+    </select>
+
+    <label>label</label>
+    <input id="eLabel" placeholder="表示名" style="min-width:180px;flex:1;">
+
+    <label>actor</label>
+    <input id="eActor" placeholder="任意" style="min-width:120px;">
+  </div>
+
+  <div class="row">
+    <label>code / expr</label>
+  </div>
+  <textarea id="eCode" placeholder="例: x=2 / x>0 / x+1 など"></textarea>
+
+  <div class="btns">
+    <button id="eDel" class="danger">削除</button>
+    <button id="eClose">閉じる</button>
+    <button id="eSave" class="primary">保存</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { XRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/XRButton.js";
+
+let scene, camera, renderer;
+let rightCtrl, leftCtrl;
+
+const nodes = [];  // Group
+const links = [];  // {from:{nodeId,port}, to:{nodeId,port}, line}
+const state = {
+  selectedId: null,
+  grabbing: null,      // {node, offset}
+  connecting: null,    // {fromId, fromPort}
+  running: false,
+  runToken: 0,
+  globals: {},
+  lastBtn: new Map(),  // edge detect
+};
+
+const editor = document.getElementById("editor");
+const eType  = document.getElementById("eType");
+const eLabel = document.getElementById("eLabel");
+const eActor = document.getElementById("eActor");
+const eCode  = document.getElementById("eCode");
+const eSave  = document.getElementById("eSave");
+const eDel   = document.getElementById("eDel");
+const eClose = document.getElementById("eClose");
+
+const btnAdd  = document.getElementById("btnAdd");
+const btnRun  = document.getElementById("btnRun");
+const btnStop = document.getElementById("btnStop");
+const btnSync = document.getElementById("btnSync");
+
+const mapFrame = document.getElementById("mapFrame");
+const mapOpen  = document.getElementById("mapOpen");
+
+// ここをあなたの配置に合わせる（同一ディレクトリならこれでOK）
+const MAP_URL = "./mindcanvas_map.html";
+mapFrame.src = MAP_URL;
+mapOpen.href = MAP_URL;
+
+init();
+animate();
+
+/* =========================
+   Init
+========================= */
+function init(){
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 50);
+
+  renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  document.body.appendChild(
+    XRButton.createButton(renderer,{
+      requiredFeatures:["local-floor"],
+      optionalFeatures:["passthrough"]
+    })
+  );
+
+  scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.2));
+  scene.add(new THREE.GridHelper(10,10,0x444444,0x222222));
+
+  // controllers
+  rightCtrl = renderer.xr.getController(0);
+  leftCtrl  = renderer.xr.getController(1);
+  scene.add(rightCtrl);
+  scene.add(leftCtrl);
+
+  // Laser (right)
+  makeLaser(rightCtrl);
+
+  // sample graph
+  const a = addNode(new THREE.Vector3(-0.35, 1.4, -1.0), "set", "set", "x=2");
+  const b = addNode(new THREE.Vector3( 0.00, 1.4, -1.0), "if",  "if",  "x>0");
+  const c = addNode(new THREE.Vector3( 0.35, 1.55, -1.0), "return", "return", "x");
+  const d = addNode(new THREE.Vector3( 0.35, 1.25, -1.0), "return", "return", "0");
+
+  connect(a, "out",  b, "in");
+  connect(b, "true", c, "in");
+  connect(b, "false",d, "in");
+
+  window.addEventListener("resize", ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  // UI buttons
+  btnAdd.onclick = ()=>addNodeInFront();
+  btnRun.onclick = ()=>runGraph();
+  btnStop.onclick= ()=>stopRun();
+  btnSync.onclick= ()=>syncToMap();
+}
+
+/* =========================
+   Node / Ports / Visual
+========================= */
+function uid(){ return crypto.randomUUID(); }
+
+function makeNodeTexture(label, type, code, actor, selected=false, running=false){
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 256;
+  const g = c.getContext("2d");
+
+  // background
+  g.fillStyle = "rgba(25,35,55,.92)";
+  g.fillRect(0,0,c.width,c.height);
+
+  // header strip
+  g.fillStyle = selected ? "rgba(80,140,255,.35)" : (running ? "rgba(255,200,90,.28)" : "rgba(0,0,0,.18)");
+  g.fillRect(0,0,c.width,64);
+
+  // border
+  g.lineWidth = 6;
+  g.strokeStyle = selected ? "rgba(120,190,255,.85)" : (running ? "rgba(255,210,120,.85)" : "rgba(255,255,255,.18)");
+  g.strokeRect(6,6,c.width-12,c.height-12);
+
+  // badge
+  g.fillStyle = "rgba(255,255,255,.12)";
+  g.fillRect(16,14,110,38);
+  g.fillStyle="#fff";
+  g.font="bold 20px system-ui";
+  g.fillText(type.toUpperCase(), 26, 40);
+
+  // label
+  g.font="bold 34px system-ui";
+  g.fillText(label || "(no label)", 140, 44);
+
+  // actor
+  g.font="16px system-ui";
+  g.fillStyle="rgba(210,225,255,.9)";
+  g.fillText(actor ? `actor: ${actor}` : "", 18, 92);
+
+  // code preview
+  g.fillStyle="rgba(255,255,255,.9)";
+  g.font="18px ui-monospace, SFMono-Regular, Menlo, monospace";
+  const preview = (code||"").replace(/\s+/g," ").slice(0, 70);
+  g.fillText(preview, 18, 132);
+
+  return new THREE.CanvasTexture(c);
+}
+
+function makePortMesh(kind){
+  // in: blue, out/true: green, false: red-ish
+  let color = 0x66ff99;
+  if(kind==="in") color = 0x66aaff;
+  if(kind==="false") color = 0xff6b7a;
+  if(kind==="true") color = 0x6dffb6;
+
+  const m = new THREE.Mesh(
+    new THREE.CircleGeometry(0.026, 18),
+    new THREE.MeshBasicMaterial({color})
+  );
+  m.userData = { isPort:true, port:kind };
+  return m;
+}
+
+function addNode(pos, label="Node", type="text", code="", actor=""){
+  const id = uid();
+  const group = new THREE.Group();
+  group.userData = {
+    id, label, type, code, actor,
+    runtime:{ value:"" }
+  };
+
+  const body = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.34, 0.19),
+    new THREE.MeshBasicMaterial({map:makeNodeTexture(label,type,code,actor,false,false), transparent:true})
+  );
+  body.userData = { isBody:true };
+  group.add(body);
+
+  // ports
+  const pIn = makePortMesh("in");    pIn.position.set(-0.20,  0.00, 0.01);
+  group.add(pIn);
+
+  if(type==="if"){
+    const pT = makePortMesh("true");  pT.position.set( 0.20,  0.06, 0.01);
+    const pF = makePortMesh("false"); pF.position.set( 0.20, -0.06, 0.01);
+    group.add(pT); group.add(pF);
+  }else{
+    const pOut = makePortMesh("out"); pOut.position.set( 0.20,  0.00, 0.01);
+    group.add(pOut);
+  }
+
+  group.position.copy(pos);
+  scene.add(group);
+  nodes.push(group);
+
+  refreshNodeTexture(id);
+  syncToMap(); // 自動同期（重すぎたら外してOK）
+  return id;
+}
+
+function getNodeById(id){ return nodes.find(n=>n.userData.id===id) || null; }
+
+function refreshNodeTexture(id, running=false){
+  const n = getNodeById(id);
+  if(!n) return;
+  const sel = (state.selectedId===id);
+  const body = n.children.find(ch=>ch.userData?.isBody);
+  body.material.map = makeNodeTexture(n.userData.label, n.userData.type, n.userData.code, n.userData.actor, sel, running);
+  body.material.needsUpdate = true;
+}
+
+function setSelected(id){
+  if(state.selectedId===id) return;
+  const prev = state.selectedId;
+  state.selectedId = id;
+  if(prev) refreshNodeTexture(prev, false);
+  if(id) refreshNodeTexture(id, false);
+}
+
+function deleteNode(id){
+  const n = getNodeById(id);
+  if(!n) return;
+
+  // remove links
+  for(let i=links.length-1;i>=0;i--){
+    const l = links[i];
+    if(l.from.nodeId===id || l.to.nodeId===id){
+      scene.remove(l.line);
+      links.splice(i,1);
+    }
+  }
+
+  scene.remove(n);
+  const idx = nodes.indexOf(n);
+  if(idx>=0) nodes.splice(idx,1);
+
+  if(state.selectedId===id) state.selectedId=null;
+  syncToMap();
+}
+
+function connect(fromId, fromPort, toId, toPort){
+  // dedupe
+  for(let i=links.length-1;i>=0;i--){
+    const l=links[i];
+    if(l.from.nodeId===fromId && l.from.port===fromPort && l.to.nodeId===toId && l.to.port===toPort){
+      return;
+    }
+  }
+  const a = getNodeById(fromId), b=getNodeById(toId);
+  if(!a||!b) return;
+
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([a.position.clone(), b.position.clone()]),
+    new THREE.LineBasicMaterial({color:0xffffff})
+  );
+  scene.add(line);
+  links.push({from:{nodeId:fromId,port:fromPort}, to:{nodeId:toId,port:toPort}, line});
+  syncToMap();
+}
+
+/* =========================
+   Laser (ray + hit)
+========================= */
+function makeLaser(ctrl){
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1)]);
+  const mat = new THREE.LineBasicMaterial({color:0xffffff});
+  const line = new THREE.Line(geo, mat);
+  line.name = "laser";
+  line.scale.z = 3.0;
+  ctrl.add(line);
+
+  // small dot
+  const dot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.01, 12, 12),
+    new THREE.MeshBasicMaterial({color:0xffffff})
+  );
+  dot.name = "laserDot";
+  dot.position.set(0,0,-1);
+  dot.visible = false;
+  ctrl.add(dot);
+}
+
+function updateLaser(hit){
+  const line = rightCtrl.getObjectByName("laser");
+  const dot  = rightCtrl.getObjectByName("laserDot");
+  if(!line||!dot) return;
+
+  if(hit){
+    const d = hit.distance;
+    line.scale.z = d;
+    line.material.color.setHex(0x66ff99);
+    dot.visible = true;
+    dot.position.set(0,0,-d);
+    dot.material.color.setHex(0x66ff99);
+  }else{
+    line.scale.z = 3.0;
+    line.material.color.setHex(0xffffff);
+    dot.visible = false;
+  }
+}
+
+/* =========================
+   Picking (right controller)
+========================= */
+function ctrlPos(ctrl){
+  const v = new THREE.Vector3();
+  v.setFromMatrixPosition(ctrl.matrixWorld);
+  return v;
+}
+
+function rayDir(ctrl){
+  return new THREE.Vector3(0,0,-1).applyQuaternion(ctrl.quaternion);
+}
+
+function pickRight(maxDist=3.0){
+  const ray = new THREE.Raycaster();
+  ray.set(ctrlPos(rightCtrl), rayDir(rightCtrl));
+  ray.far = maxDist;
+  const hits = ray.intersectObjects(scene.children, true);
+  return hits[0] || null;
+}
+
+function isPortHit(hit){ return !!hit?.object?.userData?.isPort; }
+
+/* =========================
+   Gamepad (right hand)
+========================= */
+function getGamepads(){
+  const session = renderer.xr.getSession();
+  if(!session) return {right:null,left:null};
+
+  let right=null,left=null;
+  for(const s of session.inputSources){
+    if(!s.gamepad) continue;
+    if(s.handedness==="right") right=s;
+    if(s.handedness==="left")  left=s;
+  }
+  return {right:left?right:right, left}; // right優先
+}
+
+function btnEdge(gp, idx, key){
+  const prev = state.lastBtn.get(key) || false;
+  const now = !!gp.buttons[idx]?.pressed;
+  state.lastBtn.set(key, now);
+  return now && !prev;
+}
+
+function handleInput(){
+  const src = getGamepads().right;
+  if(!src?.gamepad) return;
+  const gp = src.gamepad;
+
+  // pick for laser
+  const hit = pickRight(3.0);
+  updateLaser(hit);
+
+  // Grip (button[1]) hold = grab node body
+  const grip = !!gp.buttons[1]?.pressed;
+  if(grip && !state.grabbing){
+    if(hit && !isPortHit(hit)){
+      const nodeGroup = findNodeGroup(hit.object);
+      if(nodeGroup){
+        setSelected(nodeGroup.userData.id);
+        state.grabbing = {
+          node: nodeGroup,
+          offset: nodeGroup.position.clone().sub(ctrlPos(rightCtrl))
+        };
+      }
+    }
+  }
+  if(!grip){
+    state.grabbing = null;
+  }
+
+  // Trigger connect: press on OUT/TRUE/FALSE, release on IN
+  const trigDown = btnEdge(gp, 0, "trig");
+  const trigUp   = (!gp.buttons[0]?.pressed) && (state.lastBtn.get("trig_hold")===true);
+  state.lastBtn.set("trig_hold", !!gp.buttons[0]?.pressed);
+
+  if(trigDown){
+    if(hit && isPortHit(hit)){
+      const port = hit.object.userData.port;
+      if(port==="out" || port==="true" || port==="false"){
+        const group = hit.object.parent;
+        state.connecting = { fromId: group.userData.id, fromPort: port };
+      }else{
+        // in を押しただけなら選択
+        const group = hit.object.parent;
+        setSelected(group.userData.id);
+      }
+    }else if(hit){
+      const group = findNodeGroup(hit.object);
+      if(group) setSelected(group.userData.id);
+    }
+  }
+
+  if(trigUp && state.connecting){
+    if(hit && isPortHit(hit) && hit.object.userData.port==="in"){
+      const toGroup = hit.object.parent;
+      connect(state.connecting.fromId, state.connecting.fromPort, toGroup.userData.id, "in");
+    }
+    state.connecting = null;
+  }
+
+  // Buttons mapping (Quest): A=buttons[4], B=[5], X=[4] on left, Y=[5] on left depending
+  // 右手: A=4, B=5 が多い
+  if(btnEdge(gp, 4, "A") && state.selectedId){
+    openEditor(state.selectedId);
+  }
+  if(btnEdge(gp, 5, "B")){
+    runGraph();
+  }
+
+  // 追加（X相当）: 右手にない場合があるので、UIボタンも用意
+  // ここは「スティック押し込み」(3) でも足せるようにする
+  if(btnEdge(gp, 3, "StickPress")){
+    addNodeInFront();
+  }
+
+  // 掴み更新
+  if(state.grabbing){
+    state.grabbing.node.position.copy(ctrlPos(rightCtrl).add(state.grabbing.offset));
+    syncToMap(); // 動かすたび更新（重いなら intervalに）
+  }
+}
+
+function findNodeGroup(obj){
+  let o = obj;
+  while(o){
+    if(o.userData?.id) return o;
+    o = o.parent;
+  }
+  return null;
+}
+
+/* =========================
+   Editor
+========================= */
+function openEditor(id){
+  const n = getNodeById(id);
+  if(!n) return;
+  editor.style.display = "block";
+  eType.value  = n.userData.type;
+  eLabel.value = n.userData.label;
+  eActor.value = n.userData.actor || "";
+  eCode.value  = n.userData.code || "";
+}
+
+function closeEditor(){ editor.style.display="none"; }
+
+eClose.onclick = closeEditor;
+
+eSave.onclick = ()=>{
+  const id = state.selectedId;
+  const n = getNodeById(id);
+  if(!n) return;
+
+  // type change => ports rebuild
+  const newType = eType.value;
+  n.userData.type = newType;
+  n.userData.label = eLabel.value.trim() || n.userData.label;
+  n.userData.actor = eActor.value.trim();
+  n.userData.code  = eCode.value;
+
+  rebuildPorts(n);
+  refreshNodeTexture(id,false);
+  syncToMap();
+  closeEditor();
+};
+
+eDel.onclick = ()=>{
+  if(!state.selectedId) return;
+  closeEditor();
+  deleteNode(state.selectedId);
+};
+
+function rebuildPorts(group){
+  // remove all ports (children that are isPort)
+  for(let i=group.children.length-1;i>=0;i--){
+    const ch = group.children[i];
+    if(ch.userData?.isPort) group.remove(ch);
+  }
+
+  // rebuild based on type
+  const type = group.userData.type;
+  const pIn = makePortMesh("in"); pIn.position.set(-0.20,0,0.01);
+  group.add(pIn);
+
+  if(type==="if"){
+    const pT = makePortMesh("true");  pT.position.set(0.20, 0.06,0.01);
+    const pF = makePortMesh("false"); pF.position.set(0.20,-0.06,0.01);
+    group.add(pT); group.add(pF);
+  }else{
+    const pO = makePortMesh("out"); pO.position.set(0.20,0,0.01);
+    group.add(pO);
+  }
+
+  // links cleanup: if old ports invalid, keep semantics by name.
+  // (ここでは単純に残す。必要なら if->out 変換等のルール追加)
+}
+
+/* =========================
+   Add node in front
+========================= */
+function addNodeInFront(){
+  const p = ctrlPos(rightCtrl);
+  const d = rayDir(rightCtrl);
+  const pos = p.clone().add(d.multiplyScalar(1.0));
+  const id = addNode(pos, "text", "text", "");
+  setSelected(id);
+}
+
+btnAdd.onclick = addNodeInFront;
+
+/* =========================
+   Exec engine (if/true/false)
+========================= */
+function safeExpr(expr, vars){
+  const src = String(expr||"").trim();
+  if(!src) return undefined;
+
+  const banned = /(window|document|Function|eval|localStorage|sessionStorage|fetch|XMLHttpRequest|constructor|__proto__)/i;
+  if(banned.test(src)) throw new Error("banned token");
+
+  const keys = Object.keys(vars).map(k=>k.replace(/[^a-zA-Z0-9_]/g,"_"));
+  const f = new Function("vars", `
+    "use strict";
+    const {${keys.join(",")}} = vars;
+    return (${src});
+  `);
+  return f(vars);
+}
+
+function successors(nodeId, outPort){
+  return links
+    .filter(l=>l.from.nodeId===nodeId && l.from.port===outPort)
+    .map(l=>l.to.nodeId);
+}
+
+function startNodes(){
+  const hasIn = new Set(links.map(l=>l.to.nodeId));
+  return nodes.filter(n=>!hasIn.has(n.userData.id)).map(n=>n.userData.id);
+}
+
+async function runGraph(){
+  if(state.running) return;
+  state.running = true;
+  state.runToken++;
+  const token = state.runToken;
+  state.globals = {};
+  btnRun.disabled = true;
+
+  // reset textures
+  for(const n of nodes){
+    n.userData.runtime.value = "";
+    refreshNodeTexture(n.userData.id,false);
+  }
+
+  const q = startNodes();
+  const loopGuard = new Map(); // id->count
+
+  while(q.length && state.running && token===state.runToken){
+    const id = q.shift();
+    const n = getNodeById(id);
+    if(!n) continue;
+
+    // highlight running
+    refreshNodeTexture(id,true);
+    await sleep(140);
+
+    try{
+      const type = n.userData.type;
+      let next = [];
+
+      if(type==="text"){
+        next = successors(id,"out");
+      }else if(type==="code"){
+        const v = safeExpr(n.userData.code, state.globals);
+        n.userData.runtime.value = (v===undefined?"":String(v));
+        next = successors(id,"out");
+      }else if(type==="set"){
+        // format: x=expr
+        const m = String(n.userData.code||"").match(/^\s*([a-zA-Z_]\w*)\s*=\s*(.+)\s*$/);
+        if(!m) throw new Error("set format: x=expr");
+        const name=m[1], expr=m[2];
+        const v = safeExpr(expr, state.globals);
+        state.globals[name]=v;
+        n.userData.runtime.value = `${name}=${v}`;
+        next = successors(id,"out");
+      }else if(type==="if"){
+        const cond = !!safeExpr(n.userData.code, state.globals);
+        n.userData.runtime.value = cond ? "true" : "false";
+        next = successors(id, cond ? "true" : "false");
+
+        // loop guard (if chains can loop too)
+        const c = (loopGuard.get(id)||0) + 1;
+        loopGuard.set(id,c);
+        if(c>400) throw new Error("loop guard > 400");
+      }else if(type==="return"){
+        const v = safeExpr(n.userData.code, state.globals);
+        state.globals.__return__ = v;
+        n.userData.runtime.value = String(v);
+        next = successors(id,"out");
+      }else{
+        next = successors(id,"out");
+      }
+
+      // update texture (selected state preserved)
+      refreshNodeTexture(id,false);
+
+      // enqueue
+      for(const nx of next){
+        if(getNodeById(nx)) q.push(nx);
+      }
+
+    }catch(e){
+      n.userData.runtime.value = "ERR";
+      refreshNodeTexture(id,false);
+      // stop on error
+      stopRun();
+      break;
+    }
+
+    await sleep(60);
+  }
+
+  state.running = false;
+  btnRun.disabled = false;
+}
+
+function stopRun(){
+  state.running = false;
+  state.runToken++;
+  btnRun.disabled = false;
+  // remove running highlights
+  for(const n of nodes) refreshNodeTexture(n.userData.id,false);
+}
+
+btnRun.onclick = runGraph;
+btnStop.onclick = stopRun;
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* =========================
+   Sync to 2D Map (MindCanvas as “map”)
+========================= */
+function exportGraph(){
+  return {
+    version: 1,
+    nodes: nodes.map(n=>({
+      id: n.userData.id,
+      label: n.userData.label,
+      type: n.userData.type,
+      code: n.userData.code,
+      actor: n.userData.actor,
+      // 3D -> 2D
+      x: n.position.x,
+      y: n.position.y,
+      z: n.position.z
+    })),
+    links: links.map(l=>({
+      from: l.from,
+      to: l.to
+    })),
+    selectedId: state.selectedId
+  };
+}
+
+function syncToMap(){
+  const win = mapFrame.contentWindow;
+  if(!win) return;
+  win.postMessage({type:"MR_BRAINMAP_SYNC", payload: exportGraph()}, "*");
+}
+
+btnSync.onclick = syncToMap;
+
+/* =========================
+   Render loop
+========================= */
+function animate(){
+  renderer.setAnimationLoop(()=>{
+    // face camera
+    for(const n of nodes) n.lookAt(camera.position);
+
+    // update link lines
+    for(const l of links){
+      const a = getNodeById(l.from.nodeId);
+      const b = getNodeById(l.to.nodeId);
+      if(a&&b){
+        l.line.geometry.setFromPoints([a.position.clone(), b.position.clone()]);
+      }
+    }
+
+    // handle input
+    handleInput();
+
+    renderer.render(scene,camera);
+  });
+}
+</script>
+</body>
+</html>

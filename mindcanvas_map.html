@@ -1,1 +1,117 @@
 
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MindCanvas Map – MR Sync</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0e14;overflow:hidden;}
+  canvas{width:100%;height:100%;display:block;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let G = {nodes:[], links:[], selectedId:null};
+
+function resize(){
+  const dpr = Math.max(1, Math.min(3, devicePixelRatio||1));
+  canvas.width = Math.floor(canvas.clientWidth*dpr);
+  canvas.height= Math.floor(canvas.clientHeight*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw();
+}
+addEventListener("resize", resize, {passive:true});
+
+addEventListener("message", (e)=>{
+  if(!e.data || e.data.type!=="MR_BRAINMAP_SYNC") return;
+  const p = e.data.payload;
+  if(!p || !Array.isArray(p.nodes) || !Array.isArray(p.links)) return;
+  G = {nodes:p.nodes, links:p.links, selectedId:p.selectedId||null};
+  draw();
+});
+
+function bounds(nodes){
+  if(nodes.length===0) return {minX:-1,maxX:1,minZ:-1,maxZ:1};
+  let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
+  for(const n of nodes){
+    minX=Math.min(minX,n.x); maxX=Math.max(maxX,n.x);
+    minZ=Math.min(minZ,n.z); maxZ=Math.max(maxZ,n.z);
+  }
+  const pad=0.2;
+  return {minX:minX-pad,maxX:maxX+pad,minZ:minZ-pad,maxZ:maxZ+pad};
+}
+
+function worldToScreen(x,z, b, w,h){
+  const sx = (x - b.minX) / Math.max(1e-6,(b.maxX-b.minX));
+  const sz = (z - b.minZ) / Math.max(1e-6,(b.maxZ-b.minZ));
+  return { X: 16 + sx*(w-32), Y: 16 + (1-sz)*(h-32) };
+}
+
+function draw(){
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.clearRect(0,0,w,h);
+
+  // bg
+  ctx.fillStyle="#0b0e14";
+  ctx.fillRect(0,0,w,h);
+
+  // grid
+  ctx.globalAlpha=0.18;
+  ctx.strokeStyle="#2a3243";
+  for(let x=0;x<w;x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for(let y=0;y<h;y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.globalAlpha=1;
+
+  const b = bounds(G.nodes);
+
+  // links
+  ctx.lineWidth=2;
+  ctx.strokeStyle="#7d879a";
+  for(const l of G.links){
+    const a = G.nodes.find(n=>n.id===l.from.nodeId);
+    const c = G.nodes.find(n=>n.id===l.to.nodeId);
+    if(!a||!c) continue;
+    const A = worldToScreen(a.x,a.z,b,w,h);
+    const B = worldToScreen(c.x,c.z,b,w,h);
+
+    // color by port
+    if(l.from.port==="true") ctx.strokeStyle="#6dffb6";
+    else if(l.from.port==="false") ctx.strokeStyle="#ff7a8c";
+    else ctx.strokeStyle="#7d879a";
+
+    ctx.beginPath();
+    ctx.moveTo(A.X,A.Y);
+    ctx.lineTo(B.X,B.Y);
+    ctx.stroke();
+  }
+
+  // nodes
+  for(const n of G.nodes){
+    const P = worldToScreen(n.x,n.z,b,w,h);
+    const r = 10;
+
+    const selected = (n.id===G.selectedId);
+    ctx.fillStyle = selected ? "#66a3ff" : "#cfd8ff";
+    ctx.globalAlpha = selected ? 0.95 : 0.75;
+    ctx.beginPath();
+    ctx.arc(P.X,P.Y,r,0,Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // label
+    ctx.fillStyle="rgba(255,255,255,.85)";
+    ctx.font="12px system-ui";
+    ctx.fillText((n.label||"").slice(0,14), P.X+14, P.Y+4);
+  }
+}
+
+resize();
+</script>
+</body>
+</html>

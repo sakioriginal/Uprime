@@ -3,47 +3,73 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MR BrainMap – Native Nodes</title>
+<title>MR BrainMap Pro</title>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#000;}
   #hud{
     position:fixed;left:12px;top:12px;z-index:10;
     color:#fff;font:13px system-ui;
-    background:rgba(0,0,0,.5);
+    background:rgba(0,0,0,.55);
     padding:10px 14px;border-radius:12px;
+  }
+  #kb{
+    position:fixed;
+    left:50%; bottom:16px;
+    transform:translateX(-50%);
+    width:min(520px,92vw);
+    background:rgba(15,20,35,.85);
+    border-radius:14px;
+    padding:10px;
+    display:none;
+  }
+  #kb textarea{
+    width:100%;height:80px;
+    background:rgba(0,0,0,.4);
+    color:#fff;border:none;
+    border-radius:10px;
+    padding:8px;
+    font:14px system-ui;
   }
 </style>
 </head>
 <body>
+
 <div id="hud">
-  🎈 MR BrainMap<br>
-  Trigger: 掴む / A: ノード追加
+  🧠 MR BrainMap Pro<br>
+  Trigger：掴む / ポート接続<br>
+  A：キーボード
+</div>
+
+<div id="kb">
+  <textarea id="kbText" placeholder="ノード内容を入力…"></textarea>
 </div>
 
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 import { XRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/XRButton.js";
 
-let scene, camera, renderer;
+let scene,camera,renderer;
 let controller;
-let nodes = [];
-let links = [];
+let nodes=[], links=[];
+let grabbing=null, connecting=null;
+let selectedNode=null;
 
-let grabbing = null;
-
-init();
-animate();
+const kb=document.getElementById("kb");
+const kbText=document.getElementById("kbText");
 
 /* =========================
    初期化
 ========================= */
-function init(){
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 50);
+init();
+animate();
 
-  renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
-  renderer.setSize(innerWidth, innerHeight);
-  renderer.xr.enabled = true;
+function init(){
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.01,50);
+
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.xr.enabled=true;
   document.body.appendChild(renderer.domElement);
 
   document.body.appendChild(
@@ -53,109 +79,170 @@ function init(){
     })
   );
 
-  // 環境光
   scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.2));
+  scene.add(new THREE.GridHelper(10,10,0x444444,0x222222));
 
-  // グリッド（床）
-  const grid = new THREE.GridHelper(10,10,0x444444,0x222222);
-  scene.add(grid);
-
-  // コントローラ
-  controller = renderer.xr.getController(0);
-  controller.addEventListener("selectstart", onGrabStart);
-  controller.addEventListener("selectend", onGrabEnd);
+  controller=renderer.xr.getController(0);
+  controller.addEventListener("selectstart",onSelectStart);
+  controller.addEventListener("selectend",onSelectEnd);
   scene.add(controller);
 
   // サンプルノード
-  addNode(new THREE.Vector3(0,1.4,-1));
-  addNode(new THREE.Vector3(0.4,1.4,-1));
+  addNode(new THREE.Vector3(-0.3,1.4,-1),"A");
+  addNode(new THREE.Vector3( 0.3,1.4,-1),"B");
 }
 
 /* =========================
-   ノード生成
+   ノード
 ========================= */
-function addNode(pos){
-  const geo = new THREE.PlaneGeometry(0.3,0.16);
-  const tex = makeNodeTexture("Node "+(nodes.length+1));
-  const mat = new THREE.MeshBasicMaterial({map:tex,transparent:true});
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.copy(pos);
-  mesh.lookAt(camera.position);
-  mesh.userData = { id: crypto.randomUUID() };
-  scene.add(mesh);
-  nodes.push(mesh);
+function addNode(pos,label){
+  const group=new THREE.Group();
+
+  const body=new THREE.Mesh(
+    new THREE.PlaneGeometry(0.32,0.18),
+    new THREE.MeshBasicMaterial({map:makeNodeTexture(label),transparent:true})
+  );
+  group.add(body);
+
+  const inPort = makePort(-0.18,0,"in");
+  const outPort= makePort( 0.18,0,"out");
+  group.add(inPort,outPort);
+
+  group.position.copy(pos);
+  group.userData={id:crypto.randomUUID(),text:label,inPort,outPort};
+
+  scene.add(group);
+  nodes.push(group);
 }
 
-/* =========================
-   ノードテクスチャ
-========================= */
+function makePort(x,y,type){
+  const m=new THREE.Mesh(
+    new THREE.CircleGeometry(0.025,16),
+    new THREE.MeshBasicMaterial({color:type==="in"?0x66aaff:0x66ff99})
+  );
+  m.position.set(x,y,0.01);
+  m.userData={port:type};
+  return m;
+}
+
 function makeNodeTexture(text){
-  const c = document.createElement("canvas");
+  const c=document.createElement("canvas");
   c.width=512;c.height=256;
   const g=c.getContext("2d");
-
-  g.fillStyle="rgba(20,30,50,.9)";
+  g.fillStyle="rgba(25,35,55,.9)";
   g.fillRect(0,0,512,256);
-
-  g.strokeStyle="rgba(255,255,255,.2)";
-  g.lineWidth=4;
-  g.strokeRect(4,4,504,248);
-
+  g.strokeStyle="rgba(255,255,255,.25)";
+  g.lineWidth=4; g.strokeRect(4,4,504,248);
   g.fillStyle="#fff";
   g.font="bold 36px system-ui";
-  g.fillText(text,24,64);
-
+  g.fillText(text,24,72);
   return new THREE.CanvasTexture(c);
 }
 
 /* =========================
-   掴む処理
+   掴む / 接続
 ========================= */
-function onGrabStart(){
-  const hit = pickNode();
+function onSelectStart(){
+  const hit=pick();
   if(!hit) return;
 
-  grabbing = {
-    node: hit,
-    offset: hit.position.clone().sub(getCtrlPos())
+  // ポート？
+  if(hit.object.userData.port){
+    connecting={ from: hit.object.parent };
+    return;
+  }
+
+  // ノード掴み
+  const node=hit.object.parent;
+  selectedNode=node;
+  grabbing={
+    node,
+    offset: node.position.clone().sub(ctrlPos())
   };
 }
 
-function onGrabEnd(){
-  grabbing = null;
+function onSelectEnd(){
+  // 接続完了
+  if(connecting){
+    const hit=pick();
+    if(hit && hit.object.userData.port==="in"){
+      makeLink(connecting.from, hit.object.parent);
+    }
+    connecting=null;
+  }
+  grabbing=null;
 }
 
 /* =========================
-   ノード選択
+   接続線
 ========================= */
-function pickNode(){
-  const ray = new THREE.Raycaster();
-  const dir = new THREE.Vector3(0,0,-1)
-    .applyQuaternion(controller.quaternion);
-  ray.set(getCtrlPos(), dir);
-
-  const hit = ray.intersectObjects(nodes,false)[0];
-  return hit?.object || null;
+function makeLink(a,b){
+  const geo=new THREE.BufferGeometry().setFromPoints([
+    a.position.clone(),
+    b.position.clone()
+  ]);
+  const line=new THREE.Line(
+    geo,
+    new THREE.LineBasicMaterial({color:0xffffff})
+  );
+  scene.add(line);
+  links.push({a,b,line});
 }
 
-function getCtrlPos(){
-  const v = new THREE.Vector3();
+/* =========================
+   キーボード
+========================= */
+window.addEventListener("keydown",(e)=>{
+  if(e.key==="a" && selectedNode){
+    kb.style.display="block";
+    kbText.value=selectedNode.userData.text;
+  }
+  if(e.key==="Enter" && kb.style.display==="block"){
+    selectedNode.userData.text=kbText.value;
+    selectedNode.children[0].material.map =
+      makeNodeTexture(kbText.value);
+    kb.style.display="none";
+  }
+});
+
+/* =========================
+   ピック
+========================= */
+function pick(){
+  const ray=new THREE.Raycaster();
+  const dir=new THREE.Vector3(0,0,-1).applyQuaternion(controller.quaternion);
+  ray.set(ctrlPos(),dir);
+  return ray.intersectObjects(scene.children,true)[0];
+}
+
+function ctrlPos(){
+  const v=new THREE.Vector3();
   v.setFromMatrixPosition(controller.matrixWorld);
   return v;
 }
 
 /* =========================
-   アニメーション
+   ループ
 ========================= */
 function animate(){
   renderer.setAnimationLoop(()=>{
     if(grabbing){
       grabbing.node.position.copy(
-        getCtrlPos().add(grabbing.offset)
+        ctrlPos().add(grabbing.offset)
       );
     }
 
+    // 常にカメラ向き
     nodes.forEach(n=>n.lookAt(camera.position));
+
+    // ライン更新
+    links.forEach(l=>{
+      l.line.geometry.setFromPoints([
+        l.a.position.clone(),
+        l.b.position.clone()
+      ]);
+    });
+
     renderer.render(scene,camera);
   });
 }

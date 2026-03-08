@@ -1,1 +1,2393 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>RPG Battle + Village Life (Full Integrated)</title>
+<style>
+  body{margin:0;background:#000;overflow:hidden}
+  canvas{display:block}
 
+  #ui{
+    position:fixed;left:10px;top:10px;
+    color:#fff;font-family:monospace;font-size:13px;
+    z-index:10;
+    text-shadow:0 1px 0 #000;
+    white-space:pre-line;
+    pointer-events:none;
+  }
+
+  #stick{
+    position:fixed;bottom:30px;left:30px;
+    width:120px;height:120px;border-radius:60px;
+    background:rgba(255,255,255,.08);
+    z-index:20;
+    touch-action:none;
+  }
+  #knob{
+    position:absolute;width:60px;height:60px;
+    left:30px;top:30px;border-radius:50%;
+    background:rgba(255,255,255,.35);
+  }
+
+  .btn{
+    position:fixed;
+    width:70px;height:70px;border-radius:50%;
+    background:rgba(255,255,255,.15);
+    color:#fff;font-size:22px;
+    display:flex;align-items:center;justify-content:center;
+    z-index:20;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:none;
+  }
+  .btn:active{filter:brightness(1.2)}
+  #A{right:30px;bottom:110px;}
+  #B{right:110px;bottom:40px;}
+  #C{right:110px;bottom:180px;}
+  #D{right:190px;bottom:110px;}
+#E{right:10px;bottom:180px;}
+
+  .modal{
+    position:fixed;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(10,10,12,.92);
+    color:#fff;
+    padding:16px 18px;
+    border:1px solid rgba(255,255,255,.35);
+    border-radius:12px;
+    display:none;
+    z-index:30;
+    width:min(460px, 92vw);
+    font-family:system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height:1.35;
+    box-shadow:0 18px 40px rgba(0,0,0,.45);
+  }
+  .modal .title{font-weight:800;margin-bottom:10px;font-size:18px}
+  .modal .small{opacity:.92;font-size:13px}
+  .modal .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .modal button{
+    flex:1 1 auto;
+    min-width:140px;
+    padding:12px 12px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.25);
+    background:rgba(255,255,255,.10);
+    color:#fff;
+    font-size:15px;
+    touch-action:manipulation;
+  }
+  .modal button:active{filter:brightness(1.15)}
+  .modal .hr{height:1px;background:rgba(255,255,255,.18);margin:10px 0}
+  .modal .muted{opacity:.75}
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+<div id="ui"></div>
+
+<div id="stick"><div id="knob"></div></div>
+
+<div class="btn" id="A">⚔</div>
+<div class="btn" id="B">🎒</div>
+<div class="btn" id="C">⛏</div>
+<div class="btn" id="D">🏹</div>
+<div class="btn" id="E">🏗</div>
+
+<div id="inventory" class="modal"></div>
+<div id="dialog" class="modal"></div>
+<div class="hr"></div>
+<button onclick="openSaveMenu()">💾 セーブ</button>
+<button onclick="openLoadMenu()">📂 ロード</button>
+
+
+<script>
+/* =======================
+   CANVAS
+======================= */
+const canvas = document.getElementById("cv");
+const ctx = canvas.getContext("2d");
+const ui = document.getElementById("ui");
+const inv = document.getElementById("inventory");
+const dlg = document.getElementById("dialog");
+
+// ===== QUICK SLOT =====
+let quickSlots = ["wall","floor","door"];
+let selectedSlot = 0;
+
+
+function resize(){
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+}
+addEventListener("resize", resize);
+resize();
+
+
+
+const SAVE_KEY = "village_rpg_save_v1";
+const SLOT_COUNT = 3;
+const SAVE_PREFIX = "village_rpg_slot_";
+
+/* =======================
+   WORLD TIME
+======================= */
+let worldTime = 9.0;     // 0..24
+let dayCount  = 1;
+let raidDoneForNight = false;
+let bossDoneForNight = false;
+
+function isNight(){
+  return (worldTime >= 18.0 || worldTime < 6.0);
+}
+function updateTime(){
+  const prevNight = isNight();
+  worldTime += 0.0007;  // speed
+  if(worldTime >= 24){
+    worldTime -= 24;
+    dayCount++;
+  }
+  const nowNight = isNight();
+
+  // Night edge
+  if(nowNight && !prevNight){
+    raidDoneForNight = false;
+    bossDoneForNight = false;
+  }
+  // Day edge
+  if(!nowNight && prevNight){
+    raidDoneForNight = false;
+    bossDoneForNight = false;
+  }
+}
+
+/* =======================
+   MAP
+======================= */
+const VIEW_W=15, VIEW_H=11;
+const MAP_W=90, MAP_H=90;
+
+const T_GRASS=0;
+const T_TREE =2;
+const T_WALL =4;
+const T_GATE =5;
+const T_HOUSE=6;
+const T_SHOP =7;
+const T_INN  =8;
+const T_ROAD =9;
+
+
+const T_FLOOR = 10;
+const T_WALL_BUILD = 11;
+const T_DOOR = 12;
+const T_PILLAR = 13;
+const T_ROOF = 14;
+const T_EMPTY = 15;
+
+
+const T_BED = 30;
+
+
+
+
+
+
+
+const BUILD_TYPES = {
+  fence:{wood:2, stone:0, color:"#caa"},
+  wall:{wood:3, stone:2, color:"#777"},
+  tower:{wood:5, stone:4, color:"#999"},
+  torch:{wood:1, stone:1, color:"#ffcc55"},
+  house:{wood:8, stone:4, color:"#d2b48c"},
+  farm:{wood:3, stone:0, color:"#6b4"}
+};
+
+let map = new Array(MAP_W*MAP_H).fill(T_GRASS);
+
+function inMap(x,y){ return !(x<0||y<0||x>=MAP_W||y>=MAP_H); }
+function idx(x,y){ return y*MAP_W+x; }
+function tile(x,y){
+  if(!inMap(x,y)) return T_WALL;
+  return map[idx(x,y)];
+}
+function setTile(x,y,t){
+  if(inMap(x,y)) map[idx(x,y)] = t;
+}
+
+function isSolid(t){
+  return (
+    t===T_WALL ||
+    t===T_HOUSE ||
+    t===T_SHOP ||
+    t===T_INN ||
+    t===T_WALL_BUILD ||   // ←追加
+    t===T_PILLAR ||
+    t===T_ROOF
+  );
+}
+
+function nearTileIsSolid(x,y){
+  const tx = Math.floor(x), ty = Math.floor(y);
+  return isSolid(tile(tx,ty));
+}
+
+// Trees scatter (avoid later villages)
+for(let i=0;i<320;i++){
+  const x = (Math.random()*MAP_W)|0;
+  const y = (Math.random()*MAP_H)|0;
+  map[idx(x,y)] = T_TREE;
+}
+
+
+function getFrontTile(){
+
+  let fx=0, fy=0;
+
+  if(hero.dir==="up") fy=-1;
+  if(hero.dir==="down") fy=1;
+  if(hero.dir==="left") fx=-1;
+  if(hero.dir==="right") fx=1;
+
+  return [
+    (hero.x + fx) | 0,
+    (hero.y + fy) | 0
+  ];
+}
+
+
+/* =======================
+   VILLAGES + ROAD
+======================= */
+function buildVillage(cx,cy, name){
+  const w=12, h=9;
+
+  // Clear area & walls
+  for(let y=-h;y<=h;y++){
+    for(let x=-w;x<=w;x++){
+      const wx=cx+x, wy=cy+y;
+      if(!inMap(wx,wy)) continue;
+      if(Math.abs(x)===w || Math.abs(y)===h){
+        setTile(wx,wy,T_WALL);
+      }else{
+        setTile(wx,wy,T_GRASS);
+      }
+    }
+  }
+
+  // Gate (south)
+  setTile(cx, cy+h, T_GATE);
+  setTile(cx, cy+h-1, T_GATE);
+
+  // Buildings (solid)
+  const house = {x:cx-6, y:cy-4};
+  const shop  = {x:cx+6, y:cy-4};
+  const inn   = {x:cx+3, y:cy+2};
+  setTile(house.x, house.y, T_HOUSE);
+  setTile(shop.x,  shop.y,  T_SHOP);
+  setTile(inn.x,   inn.y,   T_INN);
+
+  // Town square
+  const square = {x:cx, y:cy};
+
+  return {
+    name,
+    cx, cy, w, h,
+    gate:{x:cx, y:cy+h},
+    house, shop, inn, square
+  };
+}
+
+const village1 = buildVillage((MAP_W/2)|0, (MAP_H/2)|0, "グリーン村");
+const village2 = buildVillage((MAP_W/2)|0, ((MAP_H/2)+26)|0, "オーク村");
+
+// Road between villages
+for(let y=Math.min(village1.cy, village2.cy); y<=Math.max(village1.cy, village2.cy); y++){
+  setTile(village1.cx, y, T_ROAD);
+}
+for(let x=village1.cx-1; x<=village1.cx+1; x++){
+  for(let y=village1.cy+village1.h; y<=village2.cy-village2.h; y++){
+    if(tile(x,y)===T_GRASS) setTile(x,y,T_ROAD);
+  }
+}
+
+/* =======================
+   build
+======================= */
+let buildMode = false;
+
+let buildType = "wall";
+let buildTypes = ["wall","floor","door"];
+let buildIndex = 0;
+
+
+let buildPreviewX = null;
+let buildPreviewY = null;
+
+// 長押しでタイプ変更
+document.getElementById("E").addEventListener("touchend", e=>{
+  if(e.cancelable) e.preventDefault();
+});
+
+document.getElementById("E").addEventListener("dblclick", ()=>{
+  buildIndex = (buildIndex+1) % buildTypes.length;
+  buildType = buildTypes[buildIndex];
+
+  const name =
+    buildType==="wall" ? "壁" :
+    buildType==="floor" ? "床" : "ドア";
+
+  pushFloatText(hero.x, hero.y-0.6, "建築:"+name, "#fff");
+});
+
+
+
+
+
+
+
+function isHouseEnclosed(startX, startY){
+
+  const visited = new Set();
+  const stack = [[startX,startY]];
+  let enclosed = true;
+  let tiles = [];
+  let limit = 200; // ←暴走防止
+
+  while(stack.length && limit-- > 0){
+
+    const [x,y] = stack.pop();
+    const key = x+","+y;
+    if(visited.has(key)) continue;
+    visited.add(key);
+
+    if(!inMap(x,y)){
+      enclosed = false;
+      continue;
+    }
+
+    const t = tile(x,y);
+
+    if(t===T_WALL_BUILD || t===T_PILLAR) continue;
+
+    tiles.push([x,y]);
+
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of dirs){
+      stack.push([x+dx,y+dy]);
+    }
+  }
+
+  if(limit<=0) return null; // 大きすぎる
+
+  return enclosed ? tiles : null;
+}
+
+function checkHouse(x,y){
+  detectHouse(x,y);
+}
+
+
+
+document.getElementById("E").addEventListener("touchstart", e=>{
+  e.preventDefault();
+  buildMode = !buildMode;
+  pushFloatText(hero.x, hero.y-0.5, buildMode?"ビルドON":"ビルドOFF", "#fff");
+});
+
+function canBuild(type){
+  if(type==="wall") return hero.wood>=1;
+  if(type==="floor") return hero.wood>=1;
+  if(type==="door") return hero.wood>=2;
+  return false;
+}
+
+function payBuild(type){
+  if(type==="wall") hero.wood-=1;
+  if(type==="floor") hero.wood-=1;
+  if(type==="door") hero.wood-=2;
+}
+
+
+function gather(){
+
+  if(buildMode){
+    buildTile();
+    return;
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // ===== 通常採集 =====
+  let fx=0, fy=0;
+  if(hero.dir==="up") fy=-1;
+  if(hero.dir==="down") fy=1;
+  if(hero.dir==="left") fx=-1;
+  if(hero.dir==="right") fx=1;
+
+  if(lastMoveVec.mag>0.25){
+    fx = lastMoveVec.x; fy = lastMoveVec.y;
+    const d = Math.hypot(fx,fy)||1;
+    fx/=d; fy/=d;
+  }
+
+  const tx = Math.round(hero.x + fx*0.9);
+  const ty = Math.round(hero.y + fy*0.9);
+  const t = tile(tx,ty);
+
+  if(t===T_TREE){
+    hero.wood++;
+    setTile(tx,ty,T_GRASS);
+    pushFloatText(hero.x, hero.y-0.5, "+木材", "#ffffff");
+  }else{
+    pushFloatText(hero.x, hero.y-0.5, "採集なし", "#ffffff");
+  }
+}
+
+
+
+function buildTile(){
+
+
+  // 選択スロットのアイテムを使用
+  buildType = quickSlots[selectedSlot];
+
+
+// プレイヤーの向いている方向に建築
+let fx=0, fy=0;
+
+if(hero.dir==="up") fy=-1;
+if(hero.dir==="down") fy=1;
+if(hero.dir==="left") fx=-1;
+if(hero.dir==="right") fx=1;
+
+// 移動スティック方向優先
+if(lastMoveVec.mag>0.25){
+  fx = lastMoveVec.x;
+  fy = lastMoveVec.y;
+  const d = Math.hypot(fx,fy)||1;
+  fx/=d; fy/=d;
+}
+
+
+const [tx,ty] = getFrontTile();
+//const tx = Math.round(hero.x + fx);
+//const ty = Math.round(hero.y + fy);
+
+
+
+const t = tile(tx,ty);
+if(t!==T_GRASS && t!==T_FLOOR){
+  pushFloatText(hero.x, hero.y-0.5, "建築不可", "#fff");
+  return;
+}
+
+if(tx === Math.floor(hero.x) && ty === Math.floor(hero.y)){
+  pushFloatText(hero.x, hero.y-0.5, "そこには建てられない", "#fff");
+  return;
+}
+
+// 建築後に押し出し
+if(isSolid(tile(hero.x|0, hero.y|0))){
+  hero.x -= fx;
+  hero.y -= fy;
+}
+
+
+  if(!inMap(tx,ty)) return;
+
+  if(!canBuild(buildType)){
+    pushFloatText(hero, "資材不足");
+    return;
+  }
+
+  if(buildType==="wall"){
+    setTile(tx,ty,T_WALL_BUILD);
+  }
+
+  if(buildType==="floor"){
+    setTile(tx,ty,T_FLOOR);
+  }
+
+  if(buildType==="door"){
+    setTile(tx,ty,T_DOOR);
+  }
+
+if(buildType==="bed"){
+  map[ty][tx] = T_BED;
+}
+
+
+
+  payBuild(buildType);
+
+  checkHouse(tx,ty);
+}
+
+function detectHouse(startX,startY){
+
+  const area = isHouseEnclosed(startX,startY);
+  if(!area) return;
+
+  let floorCount = 0;
+  let doorCount = 0;
+
+  for(const [x,y] of area){
+    const t = tile(x,y);
+
+    if(t===T_FLOOR) floorCount++;
+    if(t===T_DOOR) doorCount++;
+  }
+
+  if(floorCount < 4) return;  // 2x2未満
+  if(doorCount < 1) return;   // ドア必須
+
+  // 家完成！
+
+  for(const [x,y] of area){
+    if(tile(x,y)===T_FLOOR){
+      setTile(x,y,T_ROOF);
+    }
+  }
+
+  pushFloatText(startX,startY,"🏠 家完成！","#fff");
+
+  hero.rep += 2;
+}
+
+
+
+function updateBuildPreview(){
+
+  if(!buildMode){
+    buildPreviewX = null;
+    buildPreviewY = null;
+    return;
+  }
+
+  let fx=0, fy=0;
+
+  if(hero.dir==="up") fy=-1;
+  if(hero.dir==="down") fy=1;
+  if(hero.dir==="left") fx=-1;
+  if(hero.dir==="right") fx=1;
+
+  if(lastMoveVec.mag>0.25){
+    fx = lastMoveVec.x;
+    fy = lastMoveVec.y;
+    const d = Math.hypot(fx,fy)||1;
+    fx/=d; fy/=d;
+  }
+
+  buildPreviewX = Math.round(hero.x + fx);
+  buildPreviewY = Math.round(hero.y + fy);
+}
+
+
+function collectTile(tx, ty){
+
+  const t = tile(tx,ty);
+
+  // 壊せない建物
+  if(t===T_HOUSE || t===T_SHOP || t===T_INN){
+    pushFloatText(hero.x, hero.y-0.5, "破壊できない", "#f66");
+    return;
+  }
+
+  if(t===T_WALL_BUILD){
+    hero.wood += 1;
+  }
+  else if(t===T_FLOOR){
+    hero.wood += 1;
+  }
+  else if(t===T_DOOR){
+    hero.wood += 2;
+  }
+  else{
+    pushFloatText(hero.x, hero.y-0.5, "回収不可", "#fff");
+    return;
+  }
+
+  setTile(tx,ty,T_GRASS);
+
+  pushFloatText(tx+0.5, ty, "回収", "#fff");
+}
+
+function getFrontTile(){
+
+  let fx=0, fy=0;
+
+  if(hero.dir==="up") fy=-1;
+  if(hero.dir==="down") fy=1;
+  if(hero.dir==="left") fx=-1;
+  if(hero.dir==="right") fx=1;
+
+  return [
+    Math.round(hero.x + fx),
+    Math.round(hero.y + fy)
+  ];
+}
+
+
+
+
+
+/* =======================
+   HERO + META
+======================= */
+let hero = {
+  x: village1.cx, y: village1.cy+3,
+  dir: "down",
+  hp: 100, maxHp: 100,
+  level: 1, exp: 0, nextExp: 20,
+  atk: 2,
+  wood: 0,
+  stone: 0,
+  torches: 0,
+  arrows: 10,
+  gold: 20,
+  rep: 0,
+  villageLevel: 1,
+  attacking: false,
+};
+
+
+let buildings = [];
+
+function addExp(n){
+  hero.exp += n;
+  while(hero.exp >= hero.nextExp){
+    hero.exp -= hero.nextExp;
+    hero.level++;
+    hero.nextExp = Math.floor(hero.nextExp * 1.35 + 5);
+    hero.maxHp += 12;
+    hero.hp = hero.maxHp;
+    hero.atk += 1;
+    hero.arrows += 2;
+    pushFloatText(hero.x, hero.y-0.6, `Lv${hero.level}!`, "#ffffff");
+  }
+}
+
+function addRep(n){
+  hero.rep = Math.max(0, hero.rep + n);
+}
+
+/* =======================
+   QUESTS
+======================= */
+
+function createQuests(){
+  return [
+    {
+      id:"q_wood5",
+      title:"木材集め",
+      desc:"木材を5個集めよう。",
+      giver:"villager",
+      accepted:false,
+      done:false,
+      check:()=> hero.wood>=5,
+      reward:()=>{
+        hero.gold+=10;
+        addRep(5);
+        pushFloatText(hero.x, hero.y-0.6, "+10G/名声+5", "#fff");
+      }
+    },
+    {
+      id:"q_defend1",
+      title:"夜襲を防げ",
+      desc:"夜の襲撃から村を守ろう。",
+      giver:"guard",
+      accepted:false,
+      done:false,
+      check:()=> stats.raidsDefended>=1,
+      reward:()=>{
+        hero.gold+=20;
+        addRep(10);
+        pushFloatText(hero.x, hero.y-0.6, "+20G/名声+10", "#fff");
+      }
+    },
+    {
+      id:"q_boss",
+      title:"ボス討伐",
+      desc:"巨大な魔物を倒そう。",
+      giver:"guard",
+      accepted:false,
+      done:false,
+      check:()=> stats.bossesDefeated>=1,
+      reward:()=>{
+        hero.gold+=50;
+        addRep(20);
+        pushFloatText(hero.x, hero.y-0.6, "+50G/名声+20", "#fff");
+      }
+    }
+  ];
+}
+
+let quests = createQuests();
+
+
+
+
+function acceptQuestByGiver(giverType){
+  // accept first not accepted/done that matches giver
+  const q = quests.find(q=>q.giver===giverType && !q.accepted && !q.done);
+  if(!q){
+    openDialog("今は頼みごとはないよ。", [{label:"閉じる", act: closeDialog}]);
+    return;
+  }
+  q.accepted = true;
+  openDialog(`📜 依頼：${q.title}\n${q.desc}`, [
+    {label:"受けた", act: closeDialog}
+  ]);
+}
+
+function checkQuests(){
+  for(const q of quests){
+    if(
+      q.accepted &&
+      !q.done &&
+      typeof q.check === "function" &&
+      q.check()
+    ){
+      q.done = true;
+
+      if(typeof q.reward === "function"){
+        q.reward();
+      }
+
+      openDialog(`✅ クエスト達成！\n${q.title}`, [
+        {label:"閉じる", act: closeDialog}
+      ]);
+    }
+  }
+}
+
+/* =======================
+   VILLAGE GROWTH
+======================= */
+function updateVillageGrowth(){
+  // thresholds: 20 -> Lv2, 50 -> Lv3, 90 -> Lv4
+  if(hero.villageLevel===1 && hero.rep>=20){
+    hero.villageLevel=2;
+    // Add more guards (both villages)
+    spawnExtraGuards(village1, 1);
+    spawnExtraGuards(village2, 1);
+    openDialog("🏰 村が発展した！\n衛兵が増えた。", [{label:"OK", act: closeDialog}]);
+  }
+  if(hero.villageLevel===2 && hero.rep>=50){
+    hero.villageLevel=3;
+    spawnExtraGuards(village1, 1);
+    spawnExtraGuards(village2, 1);
+    openDialog("🏰 村がさらに発展！\n商人の品揃えが増えた。", [{label:"OK", act: closeDialog}]);
+  }
+  if(hero.villageLevel===3 && hero.rep>=90){
+    hero.villageLevel=4;
+    spawnExtraGuards(village1, 2);
+    spawnExtraGuards(village2, 2);
+    openDialog("🏰 村は大きな町へ！\n防衛力が上がった。", [{label:"OK", act: closeDialog}]);
+  }
+}
+
+/* =======================
+   ENEMIES
+======================= */
+const ENEMY_TYPES = {
+  slime: { name:"スライム", hp: 8,  atk: 2, spd: 0.030, range: 0.65, exp: 3,  color:"#33ff55", ai:"chase" },
+  orc:   { name:"オーク",   hp: 18, atk: 4, spd: 0.022, range: 0.80, exp: 7,  color:"#ff7a33", ai:"chase" },
+  wolf:  { name:"ウルフ",   hp: 10, atk: 3, spd: 0.045, range: 0.65, exp: 5,  color:"#aab3ff", ai:"dash"  },
+  boss:  { name:"ボス",     hp: 220,atk: 8, spd: 0.018, range: 1.00, exp: 40, color:"#c43cff", ai:"boss"  },
+};
+
+let enemies = [];
+let projectiles = [];
+
+/* stats */
+let stats = {
+  raidsDefended: 0,
+  bossesDefeated: 0,
+};
+
+function chooseEnemyType(){
+  const r = Math.random();
+  return (r<0.55) ? "slime" : (r<0.82) ? "wolf" : "orc";
+}
+
+function spawnEnemyNearHero(){
+  const type = chooseEnemyType();
+  const ang = Math.random()*Math.PI*2;
+  const dist = 7 + Math.random()*6;
+  let x = hero.x + Math.cos(ang)*dist;
+  let y = hero.y + Math.sin(ang)*dist;
+
+  x = Math.max(2, Math.min(MAP_W-3, x));
+  y = Math.max(2, Math.min(MAP_H-3, y));
+
+  // Don't spawn inside solid tiles
+  if(isSolid(tile(x|0,y|0))) return;
+
+  enemies.push({
+    type, x, y,
+    hp: ENEMY_TYPES[type].hp,
+    maxHp: ENEMY_TYPES[type].hp,
+    cool: 0,
+    dashT: 0,
+    raid:false,
+    boss:false,
+    targetVillage:null,
+    vx:0,
+    vy:0
+
+  });
+}
+
+// Natural spawn (cap)
+setInterval(()=>{
+  if(enemies.length < 10) spawnEnemyNearHero();
+}, 2200);
+
+function spawnNightRaid(vill){
+  // spawn raiders around village ring
+  const count = 6 + Math.min(4, hero.villageLevel-1);
+  for(let i=0;i<count;i++){
+    const ang = Math.random()*Math.PI*2;
+    const dist = vill.w + 6;
+    const x = vill.cx + Math.cos(ang)*dist;
+    const y = vill.cy + Math.sin(ang)*dist;
+    if(isSolid(tile(x|0,y|0))) continue;
+    const type = (Math.random()<0.6) ? "orc" : (Math.random()<0.7) ? "wolf" : "slime";
+    enemies.push({
+      type, x, y,
+      hp: ENEMY_TYPES[type].hp + 4,
+      maxHp: ENEMY_TYPES[type].hp + 4,
+      cool: 0, dashT: 0,
+      raid:true,
+      boss:false,
+      targetVillage:vill
+    });
+  }
+  openDialog("🌙 夜襲だ！村を守れ！", [{label:"OK", act: closeDialog}]);
+}
+
+function spawnBossRaid(vill){
+  const ang = Math.random()*Math.PI*2;
+  const dist = vill.w + 10;
+  const x = vill.cx + Math.cos(ang)*dist;
+  const y = vill.cy + Math.sin(ang)*dist;
+  enemies.push({
+    type:"boss", x, y,
+    hp: ENEMY_TYPES.boss.hp + hero.villageLevel*30,
+    maxHp: ENEMY_TYPES.boss.hp + hero.villageLevel*30,
+    cool:0, dashT:0,
+    raid:true, boss:true,
+    targetVillage:vill
+  });
+  openDialog("🐉 巨大な魔物が現れた！", [{label:"OK", act: closeDialog}]);
+}
+
+/* =======================
+   NPCs
+======================= */
+let npcs = [];
+
+function spawnVillageNPCs(vill){
+  const {cx,cy} = vill;
+
+  // villagers
+  for(let i=0;i<4;i++){
+    npcs.push({
+      type:"villager",
+      name:["リン","タロウ","ミナ","シオリ"][i%4],
+      x: cx-4+i,
+      y: cy+1,
+      home:{x:cx-6+i, y:cy-4},
+      target:null,
+      speed:0.018,
+      vill
+    });
+  }
+
+  // merchant
+  npcs.push({
+    type:"merchant",
+    name:"商人",
+    x: vill.shop.x, y: vill.shop.y+1,
+    home:{x:vill.shop.x, y:vill.shop.y+1},
+    target:null,
+    speed:0.012,
+    vill
+  });
+
+  // innkeeper
+  npcs.push({
+    type:"innkeeper",
+    name:"宿屋",
+    x: vill.inn.x, y: vill.inn.y+1,
+    home:{x:vill.inn.x, y:vill.inn.y+1},
+    target:null,
+    speed:0.012,
+    vill
+  });
+
+  // guard (gate)
+  npcs.push({
+    type:"guard",
+    name:"門番",
+    x: vill.gate.x, y: vill.gate.y-1,
+    patrol:[
+      {x:vill.gate.x-3, y:vill.gate.y-2},
+      {x:vill.gate.x+3, y:vill.gate.y-2},
+      {x:vill.square.x, y:vill.square.y+3}
+    ],
+    patrolIndex:0,
+    speed:0.030,
+    vill
+  });
+
+  // roaming guard
+  npcs.push({
+    type:"guard",
+    name:"衛兵",
+    x: vill.square.x-3, y: vill.square.y+3,
+    patrol:[
+      {x:vill.cx-7, y:vill.cy+2},
+      {x:vill.cx+7, y:vill.cy+2},
+      {x:vill.cx+0, y:vill.cy+6},
+      {x:vill.cx+0, y:vill.cy-1}
+    ],
+    patrolIndex:0,
+    speed:0.032,
+    vill
+  });
+}
+
+function spawnExtraGuards(vill, n){
+  for(let i=0;i<n;i++){
+    npcs.push({
+      type:"guard",
+      name:"衛兵",
+      x: vill.square.x + (Math.random()<0.5?-2:2),
+      y: vill.square.y + (Math.random()<0.5? 2:4),
+      patrol:[
+        {x:vill.cx-7, y:vill.cy+2},
+        {x:vill.cx+7, y:vill.cy+2},
+        {x:vill.cx,   y:vill.cy+6}
+      ],
+      patrolIndex:0,
+      speed:0.034,
+      vill
+    });
+  }
+}
+
+spawnVillageNPCs(village1);
+spawnVillageNPCs(village2);
+
+function moveNPC(n, target){
+  if(!target) return;
+  const dx = target.x - n.x;
+  const dy = target.y - n.y;
+  const d = Math.hypot(dx,dy) || 1;
+  if(d > 0.12){
+    const nx = n.x + dx/d*n.speed;
+    const ny = n.y + dy/d*n.speed;
+    // avoid solid tiles
+    if(!isSolid(tile(nx|0, ny|0))){
+      n.x = nx; n.y = ny;
+    }
+  }
+}
+
+function updateNPCs(){
+  for(const n of npcs){
+    if(n.type==="villager"){
+      if(isNight()){
+        n.target = n.home;
+      }else{
+        if(!n.target || Math.random()<0.004){
+          const places = [
+            n.home,
+            n.vill.square,
+            {x:n.vill.shop.x, y:n.vill.shop.y+1},
+            {x:n.vill.inn.x,  y:n.vill.inn.y+1},
+            {x:n.vill.square.x+3, y:n.vill.square.y-1}
+          ];
+          n.target = places[(Math.random()*places.length)|0];
+        }
+      }
+      moveNPC(n, n.target);
+    }
+
+    if(n.type==="merchant" || n.type==="innkeeper"){
+      // small idle wiggle
+      if(!isNight() && Math.random()<0.01){
+        const tx = n.home.x + (Math.random()-0.5)*0.6;
+        const ty = n.home.y + (Math.random()-0.5)*0.6;
+        if(!isSolid(tile(tx|0,ty|0))){
+          n.x += (tx-n.x)*0.08;
+          n.y += (ty-n.y)*0.08;
+        }
+      }else{
+        moveNPC(n, n.home);
+      }
+    }
+
+    if(n.type==="guard"){
+      // attack enemies near
+      for(const e of enemies){
+        const d = Math.hypot(e.x-n.x, e.y-n.y);
+        if(d < 3.0){
+          e.hp -= 0.22 + hero.villageLevel*0.03;
+          if(Math.random()<0.04) pushFloatText(e.x, e.y-0.55, "-G", "#fff");
+        }
+      }
+
+      // patrol
+      const t = n.patrol[n.patrolIndex];
+      if(Math.hypot(n.x-t.x, n.y-t.y) < 0.35){
+        n.patrolIndex = (n.patrolIndex+1)%n.patrol.length;
+      }
+      moveNPC(n, n.patrol[n.patrolIndex]);
+    }
+  }
+}
+
+/* =======================
+   PROJECTILES (ARROWS)
+======================= */
+function shootArrow(){
+  if(stopIfModalOpen()) return;
+  if(hero.arrows<=0){
+    pushFloatText(hero.x, hero.y-0.4, "矢なし", "#ffffff");
+    return;
+  }
+  hero.arrows--;
+
+  let dx=0,dy=0;
+  if(hero.dir==="up") dy=-1;
+  if(hero.dir==="down") dy=1;
+  if(hero.dir==="left") dx=-1;
+  if(hero.dir==="right") dx=1;
+
+  if(lastMoveVec.mag>0.25){
+    dx = lastMoveVec.x;
+    dy = lastMoveVec.y;
+    const d = Math.hypot(dx,dy)||1;
+    dx/=d; dy/=d;
+  }
+
+  projectiles.push({
+    x: hero.x, y: hero.y,
+    dx, dy,
+    speed: 0.34,
+    life: 90,
+    dam: Math.max(2, hero.atk)
+  });
+}
+
+/* =======================
+   FLOATING TEXT
+======================= */
+let floatTexts = [];
+function pushFloatText(x,y,txt,color){
+  floatTexts.push({x,y,vy:-0.012,t:55,txt,color});
+}
+function updateFloatTexts(){
+  for(let i=floatTexts.length-1;i>=0;i--){
+    const f=floatTexts[i];
+    f.y += f.vy;
+    f.t--;
+    if(f.t<=0) floatTexts.splice(i,1);
+  }
+}
+
+/* =======================
+   JOYSTICK
+======================= */
+const stick = document.getElementById("stick");
+const knob  = document.getElementById("knob");
+let joy = {x:0,y:0};
+let lastMoveVec = {x:0,y:0,mag:0};
+
+function setJoyFromTouch(t){
+  const r = stick.getBoundingClientRect();
+  const x = t.clientX - r.left - 60;
+  const y = t.clientY - r.top  - 60;
+  const d = Math.hypot(x,y);
+  const max = 40;
+  let nx=0, ny=0;
+  if(d>0.001){
+    if(d>max){ nx=x/d; ny=y/d; }
+    else { nx=x/max; ny=y/max; }
+  }
+  joy.x = nx; joy.y = ny;
+  knob.style.left = (30 + joy.x*30) + "px";
+  knob.style.top  = (30 + joy.y*30) + "px";
+}
+
+stick.addEventListener("touchstart", e=>{
+  e.preventDefault();
+  if(stopIfModalOpen()) return;
+  setJoyFromTouch(e.touches[0]);
+},{passive:false});
+
+stick.addEventListener("touchmove", e=>{
+  e.preventDefault();
+  if(stopIfModalOpen()) return;
+  setJoyFromTouch(e.touches[0]);
+},{passive:false});
+
+stick.addEventListener("touchend", ()=>{
+  joy.x=joy.y=0;
+  knob.style.left="30px";
+  knob.style.top="30px";
+},{passive:true});
+
+
+canvas.addEventListener("touchstart", e=>{
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+
+  const x = t.clientX - rect.left;
+  const y = t.clientY - rect.top;
+
+  const sizeUI = 54;
+  const gap = 10;
+
+  for(let i=0;i<3;i++){
+    const bx = canvas.width - sizeUI - 20;
+    const by = canvas.height - (sizeUI+gap)*(3-i);
+
+    if(x>bx && x<bx+sizeUI && y>by && y<by+sizeUI){
+      selectedSlot = i;
+      return;
+    }
+  }
+});
+
+
+
+
+/* =======================
+   MODALS
+======================= */
+function stopIfModalOpen(){
+  return (inv.style.display==="block" || dlg.style.display==="block");
+}
+
+function openDialog(text, actions){
+  dlg.style.display="block";
+  const safe = String(text).replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  let html = `<div class="title">会話</div><div class="small" style="white-space:pre-line">${safe}</div>`;
+  if(actions && actions.length){
+    html += `<div class="row">`;
+    for(let i=0;i<actions.length;i++){
+      const a = actions[i];
+      html += `<button data-act="${i}">${a.label}</button>`;
+    }
+    html += `</div>`;
+  }else{
+    html += `<div class="row"><button data-act="x">閉じる</button></div>`;
+  }
+  dlg.innerHTML = html;
+
+  // bind
+  dlg.querySelectorAll("button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const k = btn.getAttribute("data-act");
+      if(k==="x"){ closeDialog(); return; }
+      const act = actions[Number(k)];
+      if(act && typeof act.act==="function") act.act();
+    });
+  });
+}
+function closeDialog(){ dlg.style.display="none"; }
+
+dlg.addEventListener("touchstart", e=>{
+  // tap outside buttons closes
+  if(e.target===dlg){ e.preventDefault(); closeDialog(); }
+},{passive:false});
+
+function toggleInventory(){
+  if(inv.style.display==="block"){
+    inv.style.display="none";
+  }else{
+    inv.style.display="block";
+    renderInventory();
+  }
+}
+
+inv.addEventListener("touchstart", e=>{
+  // tap background to close (but not when tapping buttons)
+  if(e.target===inv){
+    e.preventDefault();
+    toggleInventory();
+  }
+},{passive:false});
+
+function renderInventory(){
+  const accepted = quests.filter(q=>q.accepted && !q.done);
+  const done = quests.filter(q=>q.done);
+  const qList = accepted.length
+    ? accepted.map(q=>`• ${q.title}`).join("\n")
+    : "（なし）";
+
+  inv.innerHTML = `
+    <div class="title">🎒 インベントリ</div>
+    <div class="small">
+
+<button onclick="saveGame()">セーブ</button>
+<button onclick="loadGame()">ロード</button>
+
+      Lv: ${hero.level}　EXP: ${hero.exp}/${hero.nextExp}<br>
+      HP: ${hero.hp.toFixed(0)}/${hero.maxHp}<br>
+      時刻: ${worldTime.toFixed(1)} ${isNight()?"🌙":"☀"}　日数: ${dayCount}<br>
+      名声: ${hero.rep}　村Lv: ${hero.villageLevel}<br>
+      <div class="hr"></div>
+      所持金: ${hero.gold}G<br>
+      木材: ${hero.wood}　石材: ${hero.stone}　松明: ${hero.torches}<br>
+      矢: ${hero.arrows}　攻撃力: ${hero.atk}<br>
+      <div class="hr"></div>
+      <div style="font-weight:700;margin-bottom:6px">📜 受注中クエスト</div>
+      <div style="white-space:pre-line">${qList}</div>
+      <div class="muted" style="margin-top:8px">（背景タップで閉じる / A=会話優先）</div>
+    </div>
+  `;
+}
+
+/* =======================
+   BUTTONS
+======================= */
+document.getElementById("A").addEventListener("touchstart", e=>{
+  e.preventDefault();
+  if(stopIfModalOpen()) return;
+  // If near NPC -> talk, else melee
+  if(tryInteractNPC()) return;
+  meleeAttack();
+}, {passive:false});
+
+document.getElementById("B").addEventListener("touchstart", e=>{
+  e.preventDefault();
+  // close dialog first
+  if(dlg.style.display==="block"){ closeDialog(); return; }
+  toggleInventory();
+}, {passive:false});
+
+document.getElementById("B").onclick = openInventoryMenu;
+
+document.getElementById("C").addEventListener("touchstart", e=>{
+  e.preventDefault();
+  if(stopIfModalOpen()) return;
+
+  const [tx, ty] = getFrontTile();
+
+  if(buildMode){
+    buildTile();   // 建築
+  }else{
+    collectTile(tx, ty);  // 回収
+  }
+},{passive:false});
+
+document.getElementById("D").addEventListener("touchstart", e=>{
+  e.preventDefault();
+  if(stopIfModalOpen()) return;
+  shootArrow();
+}, {passive:false});
+
+
+
+
+
+/* =======================
+   INTERACTION (NPC / SHOP / INN / QUEST)
+======================= */
+function nearestVillage(){
+  // pick closest to hero
+  const d1 = Math.hypot(hero.x - village1.cx, hero.y - village1.cy);
+  const d2 = Math.hypot(hero.x - village2.cx, hero.y - village2.cy);
+  return (d1<=d2) ? village1 : village2;
+}
+
+function isInsideVillage(vill){
+  return (
+    hero.x >= vill.cx - (vill.w-1) &&
+    hero.x <= vill.cx + (vill.w-1) &&
+    hero.y >= vill.cy - (vill.h-1) &&
+    hero.y <= vill.cy + (vill.h-1)
+  );
+}
+
+function findNearbyNPC(){
+  let best=null, bestD=999;
+  for(const n of npcs){
+    const d = Math.hypot(hero.x-n.x, hero.y-n.y);
+    if(d<1.25 && d<bestD){
+      best=n; bestD=d;
+    }
+  }
+  return best;
+}
+
+function tryInteractNPC(){
+  const n = findNearbyNPC();
+  if(!n) return false;
+
+  if(n.type==="villager"){
+    // villagers can give quest; otherwise small talk
+    const pending = quests.find(q=>q.giver==="villager" && !q.accepted && !q.done);
+    const lines = [
+      "今日はいい天気ですね。",
+      "最近、街道にモンスターが出るらしい…。",
+      "名声が上がると村が発展するよ！",
+      "夜は怖い。門の近くにいてね。"
+    ];
+    const msg = `【${n.name}】\n` + (pending ? "お願いがあるの。\n（依頼を受ける？）" : lines[(Math.random()*lines.length)|0]);
+    const actions = [];
+    if(pending){
+      actions.push({label:"依頼を受ける", act: ()=>{ closeDialog(); acceptQuestByGiver("villager"); }});
+    }
+    actions.push({label:"閉じる", act: closeDialog});
+    openDialog(msg, actions);
+    return true;
+  }
+
+  if(n.type==="merchant"){
+    openShop(n.vill);
+    return true;
+  }
+
+  if(n.type==="innkeeper"){
+    openInn(n.vill);
+    return true;
+  }
+
+  if(n.type==="guard"){
+    const pending = quests.find(q=>q.giver==="guard" && !q.accepted && !q.done);
+    const msg = `【${n.name}】\n` + (pending ? "依頼がある。\n（受けるか？）" : (isNight() ? "警戒しろ。夜襲が来るぞ。" : "街道の安全を頼む。"));
+    const actions = [];
+    if(pending){
+      actions.push({label:"依頼を受ける", act: ()=>{ closeDialog(); acceptQuestByGiver("guard"); }});
+    }
+    // quick hint
+    actions.push({label:"名声について", act: ()=>{
+      openDialog("名声が20/50/90で村Lvが上がる。\n村Lvが上がると衛兵や店が強化される。", [
+        {label:"OK", act: closeDialog}
+      ]);
+    }});
+    actions.push({label:"閉じる", act: closeDialog});
+    openDialog(msg, actions);
+    return true;
+  }
+
+  return false;
+}
+
+function openShop(vill){
+  dlg.style.display="block";
+
+  const canBetter = (hero.villageLevel>=3);
+  const buyTorchCost = 10;
+  const buyArrowCost = 4;
+  const buyPotionCost = 15;
+  const buywoodCost = 4;
+  const buystoneCost = 4;
+
+  dlg.innerHTML = `
+    <div class="title">商人（${vill.name}）</div>
+    <div class="small">売買できます。</div>
+    <div class="hr"></div>
+    <div class="row">
+      <button id="sellWood">木材を売る（+5G）</button>
+      <button id="sellStone">石材を売る（+5G）</button>
+
+      <button id="buyWood">木材を買う（-10G）</button>
+      <button id="buyStone">石材を買う(-10G）</button>
+
+
+    </div>
+    <div class="row">
+      <button id="buyTorch">松明を買う（-${buyTorchCost}G）</button>
+      <button id="buyArrow">矢5本（-${buyArrowCost}G）</button>
+    </div>
+    <div class="row">
+      <button id="buyPotion" ${canBetter?"":"disabled"}>回復薬（-${buyPotionCost}G）</button>
+    </div>
+    <div class="hr"></div>
+    <div class="small muted">
+      所持金:${hero.gold}G / 木:${hero.wood} 石:${hero.stone} 松明:${hero.torches} 矢:${hero.arrows}
+      <br>${canBetter?"（村Lv3以上で回復薬が買える）":"（名声を上げると品揃えが増える）"}
+    </div>
+    <div class="row"><button id="closeShop">閉じる</button></div>
+  `;
+
+  const bind = (id, fn)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("click", fn);
+    el.addEventListener("touchstart", (e)=>{ e.preventDefault(); fn(); }, {passive:false});
+  };
+
+  bind("sellWood", ()=>{
+    if(hero.wood<=0){ pushFloatText(hero.x, hero.y-0.5, "木材なし", "#fff"); return; }
+    hero.wood--; hero.gold+=5; pushFloatText(hero.x, hero.y-0.55, "+5G", "#fff");
+    openShop(vill);
+  });
+  bind("sellStone", ()=>{
+    if(hero.stone<=0){ pushFloatText(hero.x, hero.y-0.5, "石材なし", "#fff"); return; }
+    hero.stone--; hero.gold+=5; pushFloatText(hero.x, hero.y-0.55, "+5G", "#fff");
+    openShop(vill);
+  });
+
+
+  bind("buyWood", ()=>{
+    if(hero.gold<buywoodCost){ pushFloatText(hero.x, hero.y-0.5, "お金不足", "#fff"); return; }
+    hero.gold-=buywoodCost; hero.wood+=5; pushFloatText(hero.x, hero.y-0.55, "木+5", "#fff");
+    openShop(vill);
+  });
+
+bind("buyStone", ()=>{
+    if(hero.gold<buystoneCost){ pushFloatText(hero.x, hero.y-0.5, "お金不足", "#fff"); return; }
+    hero.gold-=buystoneCost; hero.stone+=5; pushFloatText(hero.x, hero.y-0.55, "木+5", "#fff");
+    openShop(vill);
+  });
+
+
+
+
+  bind("buyTorch", ()=>{
+    if(hero.gold<buyTorchCost){ pushFloatText(hero.x, hero.y-0.5, "お金不足", "#fff"); return; }
+    hero.gold-=buyTorchCost; hero.torches++; pushFloatText(hero.x, hero.y-0.55, "松明+1", "#fff");
+    openShop(vill);
+  });
+  bind("buyArrow", ()=>{
+    if(hero.gold<buyArrowCost){ pushFloatText(hero.x, hero.y-0.5, "お金不足", "#fff"); return; }
+    hero.gold-=buyArrowCost; hero.arrows+=5; pushFloatText(hero.x, hero.y-0.55, "矢+5", "#fff");
+    openShop(vill);
+  });
+
+
+
+
+
+  bind("buyPotion", ()=>{
+    if(!canBetter) return;
+    if(hero.gold<buyPotionCost){ pushFloatText(hero.x, hero.y-0.5, "お金不足", "#fff"); return; }
+    hero.gold-=buyPotionCost;
+    hero.hp = Math.min(hero.maxHp, hero.hp + 60);
+    pushFloatText(hero.x, hero.y-0.55, "回復", "#fff");
+    openShop(vill);
+  });
+  bind("closeShop", closeDialog);
+}
+
+function openInn(vill){
+  const cost = 5;
+  const msg = `宿屋（${vill.name}）\n${cost}Gで全回復します。`;
+  openDialog(msg, [
+    {label:`泊まる（-${cost}G）`, act: ()=>{
+      if(hero.gold<cost){
+        openDialog("お金が足りません。", [{label:"OK", act: closeDialog}]);
+        return;
+      }
+      hero.gold-=cost;
+      hero.hp = hero.maxHp;
+      pushFloatText(hero.x, hero.y-0.6, "全回復", "#fff");
+      openDialog("ゆっくり休めました。", [{label:"OK", act: closeDialog}]);
+    }},
+    {label:"閉じる", act: closeDialog}
+  ]);
+}
+
+/* =======================
+   ACTIONS
+======================= */
+function gather2(){
+  // gather in front (dir or lastMoveVec)
+  let fx=0, fy=0;
+  if(hero.dir==="up") fy=-1;
+  if(hero.dir==="down") fy=1;
+  if(hero.dir==="left") fx=-1;
+  if(hero.dir==="right") fx=1;
+  if(lastMoveVec.mag>0.25){
+    fx = lastMoveVec.x; fy = lastMoveVec.y;
+    const d = Math.hypot(fx,fy)||1;
+    fx/=d; fy/=d;
+  }
+
+  const tx = Math.round(hero.x + fx*0.9);
+  const ty = Math.round(hero.y + fy*0.9);
+  const t = tile(tx,ty);
+
+  if(t===T_TREE){
+    hero.wood++;
+    setTile(tx,ty,T_GRASS);
+    pushFloatText(hero.x, hero.y-0.5, "+木材", "#ffffff");
+  }else if(t===T_ROAD){
+    pushFloatText(hero.x, hero.y-0.5, "街道だ", "#ffffff");
+  }else{
+    // small chance to pick stone outside village
+    const vill = nearestVillage();
+    const outside = !(isInsideVillage(village1) || isInsideVillage(village2));
+    if(outside && Math.random()<0.18){
+      hero.stone++;
+      pushFloatText(hero.x, hero.y-0.5, "+石材", "#ffffff");
+    }else{
+      pushFloatText(hero.x, hero.y-0.5, "採集なし", "#ffffff");
+    }
+  }
+}
+
+function meleeAttack(){
+  hero.attacking = true;
+  setTimeout(()=>hero.attacking=false, 140);
+
+  let fx=0, fy=0;
+  if(hero.dir==="up") fy=-1;
+  if(hero.dir==="down") fy=1;
+  if(hero.dir==="left") fx=-1;
+  if(hero.dir==="right") fx=1;
+
+  if(lastMoveVec.mag>0.25){
+    fx = lastMoveVec.x;
+    fy = lastMoveVec.y;
+    const d = Math.hypot(fx,fy)||1;
+    fx/=d; fy/=d;
+  }
+
+  const ax = hero.x + fx*0.8;
+  const ay = hero.y + fy*0.8;
+  const range = 1.1;
+
+  let hit=false;
+  for(const e of enemies){
+    if(Math.hypot(e.x-ax, e.y-ay) < range){
+      const dmg = hero.atk + (Math.random()<0.2 ? 1 : 0);
+      applyDamageEnemy(e, dmg);
+      hit=true;
+      break;
+    }
+  }
+  if(!hit) pushFloatText(hero.x, hero.y-0.5, "空振り", "#ffffff");
+}
+
+function applyDamageEnemy(e, dmg){
+  e.hp -= dmg;
+spawnHitEffect(e.x, e.y);
+shakePower = 6; // 画面揺れ
+
+  pushFloatText(e.x, e.y-0.5, `-${dmg}`, "#ffffff");
+
+  // ===== ノックバック =====
+  const dx = e.x - hero.x;
+  const dy = e.y - hero.y;
+  const dist = Math.hypot(dx,dy) || 1;
+
+  const power = (e.boss ? 0.08 : 0.18); // ボスは重い
+
+  e.vx += (dx/dist) * power;
+  e.vy += (dy/dist) * power;
+}
+
+
+
+
+function spawnHitEffect(x,y){
+
+  for(let i=0;i<6;i++){
+    particles.push({
+      x, y,
+      vx:(Math.random()-0.5)*0.2,
+      vy:(Math.random()-0.5)*0.2,
+      life:20,
+      color:"#fff"
+    });
+  }
+}
+
+
+
+
+
+/* =======================
+   life 
+======================= */
+
+
+
+
+function trySleep(){
+
+  const [tx,ty] = getFrontTile();
+
+  if(tile(tx,ty)!==T_BED){
+    pushFloatText(hero.x, hero.y-0.5, "ベッドが必要", "#fff");
+    return;
+  }
+
+  if(timeOfDay < 18 && timeOfDay > 6){
+    pushFloatText(hero.x, hero.y-0.5, "夜しか眠れない", "#fff");
+    return;
+  }
+
+  // 夜スキップ
+  timeOfDay = 6;
+  nightAttackTimer = 9999;
+
+  hero.hp = hero.maxHp;
+
+  pushFloatText(hero.x, hero.y-0.5, "休息した", "#aaffaa");
+}
+
+
+
+
+/* =======================
+   UPDATE LOOP
+======================= */
+function resolveCollision(oldX, oldY){
+  // If landed in solid tile, revert axis separately
+  const t = tile(hero.x|0, hero.y|0);
+  if(!isSolid(t)) return;
+
+  // try revert x
+  const tryX = oldX;
+  const tx = tile(tryX|0, hero.y|0);
+  if(!isSolid(tx)){
+    hero.x = tryX;
+    return;
+  }
+  // try revert y
+  const tryY = oldY;
+  const ty = tile(hero.x|0, tryY|0);
+  if(!isSolid(ty)){
+    hero.y = tryY;
+    return;
+  }
+  // revert both
+  hero.x = oldX; hero.y = oldY;
+}
+
+function updateHero(){
+  const speed = 0.125;
+
+  if(stopIfModalOpen()){
+    lastMoveVec.mag = 0;
+    return;
+  }
+
+  const oldX = hero.x, oldY = hero.y;
+  hero.x += joy.x * speed;
+  hero.y += joy.y * speed;
+
+  hero.x = Math.max(0.5, Math.min(MAP_W-1.5, hero.x));
+  hero.y = Math.max(0.5, Math.min(MAP_H-1.5, hero.y));
+
+  resolveCollision(oldX, oldY);
+
+  const mag = Math.hypot(joy.x, joy.y);
+  lastMoveVec = {x:joy.x, y:joy.y, mag};
+
+  if(mag > 0.18){
+    if(Math.abs(joy.x) > Math.abs(joy.y)) hero.dir = joy.x>0 ? "right" : "left";
+    else hero.dir = joy.y>0 ? "down" : "up";
+  }
+}
+
+
+function separateUnits(list, minDist = 0.6, force = 0.04){
+  for(let i=0;i<list.length;i++){
+    for(let j=i+1;j<list.length;j++){
+      const a = list[i];
+      const b = list[j];
+
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dist = Math.hypot(dx,dy);
+
+      if(dist > 0 && dist < minDist){
+        const push = (minDist - dist) * force;
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        a.x += nx * push;
+        a.y += ny * push;
+        b.x -= nx * push;
+        b.y -= ny * push;
+      }
+    }
+  }
+}
+
+function separateGroups(groupA, groupB, minDist=0.6, force=0.05){
+  for(const a of groupA){
+    for(const b of groupB){
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dist = Math.hypot(dx,dy);
+
+      if(dist > 0 && dist < minDist){
+        const push = (minDist - dist) * force;
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        a.x += nx * push;
+        a.y += ny * push;
+        b.x -= nx * push;
+        b.y -= ny * push;
+      }
+    }
+  }
+}
+
+
+function updateEnemies(){
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    const conf = ENEMY_TYPES[e.type];
+
+    if(e.cool>0) e.cool--;
+
+    // target point
+    let tx = hero.x, ty = hero.y;
+
+    // Raid enemies head to their target village square
+    if(e.raid && e.targetVillage){
+      tx = e.targetVillage.square.x;
+      ty = e.targetVillage.square.y;
+      // if hero is very close, focus hero
+      if(Math.hypot(hero.x-e.x, hero.y-e.y) < 6){
+        tx = hero.x; ty = hero.y;
+      }
+    }
+
+    const dx = tx - e.x;
+    const dy = ty - e.y;
+    const d = Math.hypot(dx,dy) || 1;
+
+    if(!stopIfModalOpen()){
+      if(conf.ai==="dash"){
+        if(d < 5 && e.dashT<=0 && Math.random()<0.03) e.dashT = 18;
+        let sp = conf.spd;
+        if(e.dashT>0){ sp *= 2.4; e.dashT--; }
+        if(d < 10){ e.x += dx/d * sp; e.y += dy/d * sp; }
+        else{ e.x += (Math.random()-0.5)*0.015; e.y += (Math.random()-0.5)*0.015; }
+      }else if(conf.ai==="boss"){
+        // boss slow but relentless
+        e.x += dx/d * conf.spd;
+        e.y += dy/d * conf.spd;
+      }else{
+        if(d < 10){ e.x += dx/d * conf.spd; e.y += dy/d * conf.spd; }
+        else{ e.x += (Math.random()-0.5)*0.012; e.y += (Math.random()-0.5)*0.012; }
+      }
+    }
+
+    // prevent walking into solid tiles (simple)
+    if(isSolid(tile(e.x|0, e.y|0))){
+      // nudge back
+      e.x -= dx/d * conf.spd*1.5;
+      e.y -= dy/d * conf.spd*1.5;
+    }
+
+    // Attack hero (contact)
+    const dh = Math.hypot(hero.x - e.x, hero.y - e.y);
+    if(dh < conf.range && e.cool<=0 && !stopIfModalOpen()){
+      e.cool = (e.type==="wolf") ? 26 : (e.type==="orc") ? 38 : (e.type==="boss") ? 22 : 30;
+      const dmg = conf.atk + (Math.random()<0.15 ? 1 : 0);
+      hero.hp -= dmg;
+      pushFloatText(hero.x, hero.y-0.55, `-${dmg}`, "#ffffff");
+      if(hero.hp < 0) hero.hp = 0;
+    }
+
+    // Death
+    if(e.hp <= 0){
+      addExp(conf.exp);
+      hero.gold += (e.type==="boss") ? 25 : (e.type==="orc") ? 3 : (e.type==="wolf") ? 2 : 1;
+
+      // boss stats
+      if(e.boss){
+        stats.bossesDefeated++;
+        addRep(20);
+        pushFloatText(hero.x, hero.y-0.6, "ボス撃破！名声+20", "#fff");
+      }
+
+      enemies.splice(i,1);
+    }
+  }
+}
+
+function updateProjectiles(){
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p = projectiles[i];
+    p.x += p.dx * p.speed;
+    p.y += p.dy * p.speed;
+    p.life--;
+
+    // hit wall/building/tree
+    const t = tile(p.x|0, p.y|0);
+    if(isSolid(t) || t===T_TREE){
+      projectiles.splice(i,1);
+      continue;
+    }
+
+    // hit enemy
+    let hit = false;
+    for(const e of enemies){
+      if(Math.hypot(e.x-p.x, e.y-p.y) < 0.55){
+        applyDamageEnemy(e, p.dam + (Math.random()<0.2?1:0));
+        hit = true;
+        break;
+      }
+    }
+    if(hit || p.life<=0 || p.x<0 || p.y<0 || p.x>=MAP_W || p.y>=MAP_H){
+      projectiles.splice(i,1);
+    }
+  }
+}
+
+/* =======================
+   NIGHT EVENTS
+======================= */
+function updateNightEvents(){
+  const night = isNight();
+
+  if(night && !raidDoneForNight){
+    // raid target: closest village to hero
+    const vill = nearestVillage();
+    spawnNightRaid(vill);
+    raidDoneForNight = true;
+  }
+
+  // boss chance: requires some reputation or every few nights
+  if(night && !bossDoneForNight){
+    const vill = nearestVillage();
+    const chance = (hero.rep>=40 ? 0.18 : 0.06) + Math.min(0.10, hero.villageLevel*0.03);
+    if(Math.random() < chance){
+      spawnBossRaid(vill);
+      bossDoneForNight = true;
+    }else{
+      bossDoneForNight = true; // only once check per night
+    }
+  }
+
+  // Raid defended check: if night & no raid enemies remain near target village (rough)
+  if(night && raidDoneForNight){
+    // if all raid enemies are gone -> defended
+    const raidAlive = enemies.some(e=>e.raid);
+    if(!raidAlive){
+      // count once per night
+      if(stats._defendedMark !== dayCount + ":" + (night?1:0)){
+        stats.raidsDefended++;
+        stats._defendedMark = dayCount + ":" + (night?1:0);
+        addRep(10);
+        pushFloatText(hero.x, hero.y-0.6, "夜襲撃退！名声+10", "#fff");
+      }
+    }
+  }
+}
+
+/* =======================
+   RENDER
+======================= */
+function cam(){
+  const size = Math.min(canvas.width/VIEW_W, canvas.height/VIEW_H);
+  const camX = hero.x - (VIEW_W/2);
+  const camY = hero.y - (VIEW_H/2);
+  return {size, camX, camY};
+}
+
+function drawTile(px,py,t,size){
+  // base
+  if(t===T_TREE) ctx.fillStyle = "#0a5";
+  else if(t===T_WALL) ctx.fillStyle = "#7a7a7a";
+  else if(t===T_GATE) ctx.fillStyle = "#a86";
+  else if(t===T_HOUSE) ctx.fillStyle = "#d2b48c";
+  else if(t===T_SHOP) ctx.fillStyle = "#ffe066";
+  else if(t===T_INN) ctx.fillStyle = "#88d";
+  else if(t===T_ROAD) ctx.fillStyle = "#2aa";
+
+else if(t===T_WALL_BUILD) ctx.fillStyle="#666";
+else if(t===T_DOOR) ctx.fillStyle="#964B00";
+else if(t===T_ROOF) ctx.fillStyle="#b44";
+else if(t===T_FLOOR) ctx.fillStyle="#ddd";
+
+
+
+  else ctx.fillStyle = "#2d8";
+  ctx.fillRect(px,py,size,size);
+
+  // tiny detail
+  if(t===T_ROAD){
+    ctx.fillStyle="rgba(255,255,255,.08)";
+    ctx.fillRect(px+size*0.15, py+size*0.48, size*0.70, 2);
+  }
+  if(t===T_GATE){
+    ctx.fillStyle="rgba(0,0,0,.18)";
+    ctx.fillRect(px+size*0.18, py+size*0.25, size*0.64, size*0.50);
+  }
+}
+
+function drawHPBar(px,py,w,h,ratio,fill){
+  ratio = Math.max(0, Math.min(1, ratio));
+  ctx.fillStyle="rgba(0,0,0,.55)";
+  ctx.fillRect(px,py,w,h);
+  ctx.fillStyle=fill;
+  ctx.fillRect(px,py,w*ratio,h);
+  ctx.strokeStyle="rgba(255,255,255,.35)";
+  ctx.strokeRect(px,py,w,h);
+}
+
+function drawHero(px,py,size){
+  ctx.fillStyle="rgba(0,0,0,.28)";
+  ctx.beginPath();
+  ctx.ellipse(px+size/2, py+size*0.88, size*0.28, size*0.13, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="#2e7dff";
+  ctx.fillRect(px+size*0.30, py+size*0.38, size*0.40, size*0.42);
+
+  ctx.fillStyle="#ffd9a3";
+  ctx.fillRect(px+size*0.35, py+size*0.12, size*0.30, size*0.26);
+
+  ctx.fillStyle="#000";
+  const ex = (hero.dir==="right")?0.58:(hero.dir==="left")?0.40:0.49;
+  const ey = (hero.dir==="down")?0.26:(hero.dir==="up")?0.16:0.20;
+  ctx.fillRect(px+size*ex, py+size*ey, 3, 3);
+
+  if(hero.attacking){
+    ctx.fillStyle="#fff";
+    ctx.fillRect(px+size*0.72, py+size*0.45, size*0.25, 4);
+  }
+
+  drawHPBar(px+size*0.10, py-8, size*0.80, 6, hero.hp/hero.maxHp, "rgba(120,255,120,.95)");
+}
+
+function drawEnemy(e, px, py, size){
+  const conf = ENEMY_TYPES[e.type];
+
+  ctx.fillStyle="rgba(0,0,0,.25)";
+  ctx.beginPath();
+  ctx.ellipse(px+size/2, py+size*0.80, size*0.22, size*0.10, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = conf.color;
+  ctx.beginPath();
+  ctx.arc(px+size/2, py+size*0.52, (e.boss?size*0.35:size*0.25), 0, Math.PI*2);
+  ctx.fill();
+
+  // eye
+  const dx = hero.x - e.x;
+  const dy = hero.y - e.y;
+  const d = Math.hypot(dx,dy)||1;
+  const ox = (dx/d) * (size*0.05);
+  const oy = (dy/d) * (size*0.05);
+  ctx.fillStyle="#000";
+  ctx.fillRect(px+size*0.47 + ox, py+size*0.47 + oy, 3, 3);
+
+  drawHPBar(px+size*0.12, py-8, size*0.76, 6, e.hp/e.maxHp, "rgba(255,120,120,.95)");
+
+  if(e.boss){
+    ctx.fillStyle="rgba(255,255,255,.25)";
+    ctx.fillText("BOSS", px+size*0.50, py-14);
+  }
+}
+
+function drawNPC(n, px, py, size){
+
+  const palette = {
+    villager: {body:"#ffffff", head:"#ffd9a3"},
+    merchant: {body:"#ffcc66", head:"#ffd9a3"},
+    innkeeper:{body:"#66ccff", head:"#ffd9a3"},
+    guard:    {body:"#ff4444", head:"#ffd9a3"},
+  };
+
+  const col = palette[n.type] || palette.villager;
+
+  // ===== 影 =====
+  ctx.fillStyle="rgba(0,0,0,.28)";
+  ctx.beginPath();
+  ctx.ellipse(px+size/2, py+size*0.88, size*0.28, size*0.13, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // ===== 体 =====
+  ctx.fillStyle = col.body;
+  ctx.fillRect(px+size*0.30, py+size*0.38, size*0.40, size*0.42);
+
+  // ===== 頭 =====
+  ctx.fillStyle = col.head;
+  ctx.fillRect(px+size*0.35, py+size*0.12, size*0.30, size*0.26);
+
+  // ===== 目（主人公と同じ向きロジック）=====
+  let dir = "down";
+  if(Math.abs(hero.x-n.x) > Math.abs(hero.y-n.y)){
+    dir = hero.x>n.x ? "right" : "left";
+  }else{
+    dir = hero.y>n.y ? "down" : "up";
+  }
+
+  const ex = (dir==="right")?0.58:(dir==="left")?0.40:0.49;
+  const ey = (dir==="down")?0.26:(dir==="up")?0.16:0.20;
+
+  ctx.fillStyle="#000";
+  ctx.fillRect(px+size*ex, py+size*ey, 3, 3);
+
+  // ===== 近づいた時に名前表示 =====
+  if(Math.hypot(hero.x-n.x, hero.y-n.y) < 1.6){
+    ctx.font = "12px monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle="rgba(0,0,0,.55)";
+    ctx.fillText(n.name, px+size/2+1, py-10+1);
+    ctx.fillStyle="#fff";
+    ctx.fillText(n.name, px+size/2, py-10);
+  }
+}
+
+function drawProjectiles(camX, camY, size){
+  ctx.fillStyle="#fff";
+  for(const p of projectiles){
+    const px = (p.x - camX)*size;
+    const py = (p.y - camY)*size;
+    ctx.fillRect(px, py, 4, 4);
+  }
+}
+
+function drawFloatTexts(camX, camY, size){
+  ctx.font = "12px monospace";
+  ctx.textAlign = "center";
+  for(const f of floatTexts){
+    const px = (f.x - camX)*size;
+    const py = (f.y - camY)*size;
+    ctx.fillStyle = "rgba(0,0,0,.55)";
+    ctx.fillText(f.txt, px+1, py+1);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.txt, px, py);
+  }
+}
+
+/* =======================
+   RENDER
+======================= */
+
+function render(){
+  const {size, camX, camY} = cam();
+
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // map
+  for(let y=0;y<VIEW_H;y++){
+    for(let x=0;x<VIEW_W;x++){
+      const wx = (camX+x)|0;
+      const wy = (camY+y)|0;
+      drawTile(x*size, y*size, tile(wx,wy), size);
+    }
+  }
+
+  // NPCs
+  for(const n of npcs){
+    const px = (n.x - camX)*size - size*0.5;
+    const py = (n.y - camY)*size - size*0.5;
+    if(px<-size || py<-size || px>canvas.width+size || py>canvas.height+size) continue;
+    drawNPC(n, px, py, size);
+  }
+
+  // enemies
+  for(const e of enemies){
+    const px = (e.x - camX)*size - size*0.5;
+    const py = (e.y - camY)*size - size*0.5;
+    if(px<-size || py<-size || px>canvas.width+size || py>canvas.height+size) continue;
+    drawEnemy(e, px, py, size);
+  }
+
+  // arrows
+  drawProjectiles(camX, camY, size);
+
+  // hero (center)
+  drawHero((VIEW_W/2-0.5)*size, (VIEW_H/2-0.5)*size, size);
+
+  // night shade
+  if(isNight()){
+    ctx.fillStyle = "rgba(0,0,50,0.35)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+
+  // floating texts
+  drawFloatTexts(camX, camY, size);
+
+if(buildPreviewX !== null){
+
+  const t = tile(buildPreviewX, buildPreviewY);
+
+  ctx.fillStyle =
+    isSolid(t)
+    ? "rgba(255,80,80,0.45)"
+    : "rgba(255,255,255,0.35)";
+
+  const px = (buildPreviewX - camX) * size;
+  const py = (buildPreviewY - camY) * size;
+
+  ctx.fillRect(px, py, size, size);
+}
+
+
+if(!buildMode){
+  const t = tile(buildPreviewX, buildPreviewY);
+  if(t===T_WALL_BUILD || t===T_FLOOR || t===T_DOOR){
+    ctx.fillStyle="rgba(255,255,0,0.35)";
+  }
+}
+
+drawQuickSlots();
+
+}
+
+
+function drawQuickSlots(){
+  const sizeUI = 54;
+  const gap = 10;
+
+  for(let i=0;i<3;i++){
+
+    const x = canvas.width - sizeUI - 20;
+    const y = canvas.height - (sizeUI+gap)*(3-i);
+
+    ctx.fillStyle="rgba(0,0,0,0.45)";
+    ctx.fillRect(x,y,sizeUI,sizeUI);
+
+    if(i===selectedSlot){
+      ctx.strokeStyle="#fff";
+      ctx.lineWidth=3;
+      ctx.strokeRect(x,y,sizeUI,sizeUI);
+    }
+
+    ctx.fillStyle="#fff";
+    ctx.font="28px sans-serif";
+
+    const icon = getItemIcon(quickSlots[i]);
+    ctx.fillText(icon, x+14, y+36);
+  }
+}
+
+
+function getItemIcon(item){
+  switch(item){
+    case "wall": return "🧱";
+    case "floor": return "🟫";
+    case "door": return "🚪";
+    case "torch": return "🔦";
+    case "potion": return "💊";
+    case "wood": return "🪵";
+    case "stone": return "🪨";
+　　　case "bed": return "🛏";
+
+    default: return "❔";
+  }
+}
+
+function openInventoryMenu(){
+
+  const items = [
+    "wall","floor","door",
+    "torch","potion","wood",
+    "stone","arrow",null
+  ];
+
+  openDialog("アイテム選択", items.map((it,i)=>{
+
+    if(!it) return {label:"閉じる", act:closeDialog};
+
+    return {
+      label: `${getItemIcon(it)} ${it}`,
+      act: ()=>{
+        quickSlots[selectedSlot] = it;
+        closeDialog();
+      }
+    };
+  }));
+}
+
+
+
+
+
+/* =======================
+   SAVE LOAD
+======================= */
+
+function saveGame(slot){
+
+  if(localStorage.getItem(SAVE_PREFIX+slot)){
+    if(!confirm("上書きしますか？")) return;
+  }
+
+  const data = {
+    hero,
+    worldTime,
+    dayCount,
+    quests,
+    stats,
+    buildings,
+    map,
+    savedAt: Date.now()
+  };
+
+  localStorage.setItem(
+    SAVE_PREFIX + slot,
+    JSON.stringify(data)
+  );
+
+  pushFloatText(hero.x, hero.y-0.6, `スロット${slot}に保存`, "#fff");
+}
+
+
+function loadGame(slot){
+  const raw = localStorage.getItem(SAVE_PREFIX + slot);
+  if(!raw){
+    openDialog("このスロットは空です", [
+      {label:"OK", act: closeDialog}
+    ]);
+    return;
+  }
+
+
+
+
+  const data = JSON.parse(raw);
+
+  Object.assign(hero, data.hero);
+  worldTime = data.worldTime;
+  dayCount = data.dayCount;
+  quests = data.quests;
+  stats = data.stats;
+  buildings = data.buildings || [];
+  map = data.map || map;
+
+  pushFloatText(hero.x, hero.y-0.6, `スロット${slot}読込`, "#fff");
+}
+
+
+
+function getSlotInfo(slot){
+  const raw = localStorage.getItem(SAVE_PREFIX + slot);
+  if(!raw) return "空きスロット";
+
+  const data = JSON.parse(raw);
+  const d = new Date(data.savedAt);
+
+  return `Lv${data.hero.level} / 日${data.dayCount}
+${d.toLocaleString()}`;
+}
+
+
+
+function openSaveMenu(){
+  let buttons = [];
+
+  for(let i=1;i<=SLOT_COUNT;i++){
+    buttons.push({
+      label:`保存 スロット${i}`,
+      act:()=>{ saveGame(i); closeDialog(); }
+    });
+  }
+
+  buttons.push({label:"閉じる", act:closeDialog});
+
+  openDialog("保存先を選択", buttons);
+}
+
+
+
+function openLoadMenu(){
+  let buttons = [];
+
+  for(let i=1;i<=SLOT_COUNT;i++){
+    buttons.push({
+      label:`読込 ${i}\n${getSlotInfo(i)}`,
+      act:()=>{ loadGame(i); closeDialog(); }
+    });
+  }
+
+  buttons.push({label:"閉じる", act:closeDialog});
+
+  openDialog("ロードするスロット", buttons);
+}
+
+
+
+
+
+
+/* =======================
+   MAIN LOOP
+======================= */
+let last=performance.now();
+function loop(now){
+  last = now;
+
+  updateTime();
+  updateHero();
+  updateBuildPreview();
+  updateNPCs();
+  updateEnemies();
+  updateProjectiles();
+  updateFloatTexts();
+
+  updateNightEvents();
+  checkQuests();
+  updateVillageGrowth();
+
+　separateUnits(enemies);
+　separateUnits(npcs, 0.55, 0.05);
+　separateGroups(enemies, npcs);
+　
+
+  // Death -> respawn at nearest village inn area
+  if(hero.hp<=0){
+    hero.hp = hero.maxHp;
+    const vill = nearestVillage();
+    hero.x = vill.cx; hero.y = vill.cy+3;
+    pushFloatText(hero.x, hero.y-0.6, "村に戻った", "#ffffff");
+    // penalty: small gold loss
+    hero.gold = Math.max(0, hero.gold - 5);
+  }
+
+  render();
+
+  const activeQ = quests.filter(q=>q.accepted && !q.done).length;
+  ui.textContent =
+`HP:${hero.hp.toFixed(0)}/${hero.maxHp}  Lv:${hero.level} EXP:${hero.exp}/${hero.nextExp}
+ATK:${hero.atk}  矢:${hero.arrows}  木:${hero.wood} 石:${hero.stone} 松明:${hero.torches}  G:${hero.gold}
+名声:${hero.rep}  村Lv:${hero.villageLevel}  クエスト:${activeQ}
+時刻:${worldTime.toFixed(0.1)} ${isNight()?"🌙 夜":"☀ 昼"}  敵:${enemies.length}
+(A=会話/剣  B=袋  C=採集  D=弓)`;
+ui.textContent += buildMode
+  ? `\n🏗 ${buildType==="wall"?"壁":buildType==="floor"?"床":"ドア"}`
+  : "";
+
+  requestAnimationFrame(loop);
+
+if(performance.now() % 600000 < 16){ // 約6秒ごと
+  saveGame("auto");
+}
+}
+loadGame();
+
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

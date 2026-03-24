@@ -1,0 +1,3792 @@
+<!-- PART 1 / 2 -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>協働AIマインドマップ - Wikipedia + 多職種AIエージェント統合版（安定化修正版）</title>
+  <style>
+    :root{
+      --bg:#0d1117;
+      --panel:#161b22;
+      --panel2:#1f2633;
+      --line:#2f3b4e;
+      --text:#eaf1ff;
+      --muted:#9eb0cc;
+      --accent:#7db0ff;
+      --good:#67d48e;
+      --warn:#ffd166;
+      --danger:#ff8f8f;
+      --user:#ffcc66;
+      --creative:#ff8be6;
+      --shadow:0 12px 28px rgba(0,0,0,.28);
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+
+    .app{
+      display:grid;
+      grid-template-rows:auto auto 1fr auto;
+      gap:12px;
+      padding:12px;
+      min-height:100vh;
+    }
+
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:flex-end;
+      padding:10px 12px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+    }
+
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+      min-height:0;
+      box-shadow:var(--shadow);
+    }
+
+    .panel-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      background:var(--panel2);
+      border-bottom:1px solid var(--line);
+      font-weight:700;
+    }
+
+    .panel-body{
+      padding:12px;
+      min-height:0;
+    }
+
+    .main{
+      display:grid;
+      grid-template-columns:1.6fr 390px;
+      gap:12px;
+      min-height:0;
+    }
+
+    .two-col{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      min-height:0;
+    }
+
+    .small-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+
+    button,input,select,textarea{
+      background:var(--panel2);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:8px 12px;
+      font-size:13px;
+    }
+
+    button{cursor:pointer}
+    button:hover{border-color:var(--accent)}
+    button.compact{padding:6px 10px;font-size:12px}
+    button.active{
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px var(--accent) inset;
+    }
+    button.user-active{
+      border-color:var(--user);
+      box-shadow:0 0 0 1px var(--user) inset;
+    }
+    button.creative-active{
+      border-color:var(--creative);
+      box-shadow:0 0 0 1px var(--creative) inset;
+    }
+
+    input[type="text"],input[type="password"],select{width:100%}
+    textarea{
+      width:100%;
+      min-height:90px;
+      resize:vertical;
+      font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size:12px;
+      color:var(--muted);
+      min-width:180px;
+    }
+
+    .status{
+      font-size:12px;
+      color:var(--muted);
+      padding:8px 10px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:var(--panel2);
+      white-space:nowrap;
+    }
+
+    .kv{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.7;
+    }
+
+    .mono{
+      font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .pill{
+      display:inline-block;
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:12px;
+      color:#ddebff;
+      background:#223148;
+      margin-right:6px;
+      margin-bottom:6px;
+    }
+
+    .pill.user{
+      background:#4b3a16;
+      border-color:#8b6b22;
+      color:#ffe8a3;
+    }
+
+    .pill.creative{
+      background:#4a1d48;
+      border-color:#9c52a8;
+      color:#ffd7ff;
+    }
+
+    .list-row{
+      padding:8px 0;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+      font-size:13px;
+    }
+
+    .list-row:last-child{border-bottom:none}
+
+    .good{color:var(--good)}
+    .warn{color:var(--warn)}
+    .danger{color:var(--danger)}
+
+    .file-input{display:none}
+
+    .canvas-wrap{
+      position:relative;
+      height:100%;
+      min-height:620px;
+      background:
+        radial-gradient(circle at center, rgba(125,176,255,.05) 0, rgba(125,176,255,0) 40%),
+        linear-gradient(180deg,#111826,#0d121a);
+      overflow:hidden;
+    }
+
+    #mindCanvas{
+      width:100%;
+      height:100%;
+      display:block;
+      cursor:grab;
+      touch-action:none;
+    }
+
+    #mindCanvas.dragging{cursor:grabbing}
+
+    .canvas-toolbar{
+      position:absolute;
+      top:12px;
+      left:12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      z-index:5;
+    }
+
+    .canvas-toolbar button{
+      background:rgba(15,20,29,.82);
+      backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.12);
+    }
+
+    .overlay-bottom{
+      position:absolute;
+      left:12px;
+      bottom:12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      pointer-events:none;
+      z-index:4;
+    }
+
+    .overlay-bottom .chip{
+      background:rgba(12,17,24,.72);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      backdrop-filter:blur(6px);
+    }
+
+    .log-panel.collapsed .panel-body{display:none}
+    #logList{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .log-item{
+      font-size:12px;
+      line-height:1.5;
+      padding:8px 10px;
+      border-radius:10px;
+      background:#0f141d;
+      border:1px solid rgba(255,255,255,.06);
+      word-break:break-word;
+    }
+
+    #statePreviewWrap{display:none;margin-top:8px}
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.48);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+      padding:16px;
+    }
+
+    .modal{
+      width:min(580px, 100%);
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .modal-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 12px;
+      background:var(--panel2);
+      border-bottom:1px solid var(--line);
+      font-weight:700;
+    }
+
+    .modal-body{
+      padding:12px;
+      display:grid;
+      gap:10px;
+    }
+
+    .modal-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    @media (max-width: 1200px){
+      .main,.two-col{grid-template-columns:1fr}
+      .canvas-wrap{min-height:500px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="controls">
+    <button id="startBtn">開始</button>
+    <button id="stopBtn">停止</button>
+    <button id="stepBtn">1ステップ</button>
+    <button id="tenStepBtn">10ステップ</button>
+    <button id="resetBtn">初期化</button>
+    <button id="centerBtn">中央へ</button>
+    <button id="fitBtn">全体表示</button>
+    <button id="autoSaveBtn">オートセーブ</button>
+    <button id="loadAutoBtn">オート読込</button>
+
+    <label>
+      チーム方針
+      <select id="teamPolicySelect">
+        <option value="balanced">バランス</option>
+        <option value="aggressive">ガンガンいこうぜ</option>
+        <option value="defensive">いのちだいじに</option>
+        <option value="market">商売第一</option>
+      </select>
+    </label>
+
+    <label style="min-width:220px;">
+      Wikipedia取込
+      <input type="text" id="wikiQuickInput" placeholder="例: 猫 / 富士山 / 自動車">
+    </label>
+    <button id="wikiQuickBtn">Wikipedia追加</button>
+
+    <span class="status" id="statusText">tick=0</span>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">保存ハブ（固定3スロット + auto + JSON + JSONBin）</div>
+    <div class="panel-body">
+      <div class="two-col">
+        <div>
+          <div style="margin-bottom:10px;"><b>ローカル固定スロット</b></div>
+          <div class="small-grid" style="margin-bottom:12px;">
+            <button data-save-slot="1">保存 1</button>
+            <button data-load-slot="1">読込 1</button>
+            <button data-save-slot="2">保存 2</button>
+            <button data-load-slot="2">読込 2</button>
+            <button data-save-slot="3">保存 3</button>
+            <button data-load-slot="3">読込 3</button>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <button id="exportJsonBtn">JSON書き出し</button>
+            <button id="importJsonBtn">JSON読込</button>
+            <input type="file" id="jsonFileInput" class="file-input" accept=".json,application/json">
+          </div>
+
+          <div style="margin-bottom:10px;"><b>JSONBin</b></div>
+          <div style="display:grid;gap:8px;">
+            <label>
+              JSONBin Read URL
+              <input type="text" id="jsonBinReadUrl" placeholder="https://api.jsonbin.io/v3/b/XXXX/latest">
+            </label>
+            <label>
+              JSONBin Write URL
+              <input type="text" id="jsonBinWriteUrl" placeholder="https://api.jsonbin.io/v3/b/XXXX">
+            </label>
+            <label>
+              JSONBin Master Key
+              <input type="password" id="jsonBinMasterKey" placeholder="X-Master-Key">
+            </label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="pushJsonBinBtn">JSONBinへアップデート</button>
+              <button id="pullJsonBinBtn">JSONBinから読込</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <b>現在状態プレビュー</b>
+            <button type="button" class="compact" id="togglePreviewBtn">展開する</button>
+          </div>
+          <div id="statePreviewWrap">
+            <div id="statePreview" class="kv mono" style="white-space:pre-wrap;"></div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div><b>スロット状況</b></div>
+            <div id="slotPreview" class="kv" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <div class="panel-header">
+        <span>無限キャンバス・マインドマップ</span>
+        <span class="kv">Wikipedia内部リンク展開 + サムネイル / 長押し空白でノード生成 / ピンチズーム</span>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <div class="canvas-wrap">
+          <div class="canvas-toolbar">
+            <button id="canvasViewBtn" class="compact active">👁 閲覧</button>
+            <button id="canvasEditBtn" class="compact">✏ 編集</button>
+            <button id="canvasLinkBtn" class="compact">🔗 リンク</button>
+            <button id="canvasCreativeBtn" class="compact">🎨 Creative</button>
+          </div>
+
+          <canvas id="mindCanvas"></canvas>
+
+          <div class="overlay-bottom">
+            <div class="chip" id="camInfo">zoom 1.00</div>
+            <div class="chip" id="modeInfo">MODE: VIEW</div>
+            <div class="chip" id="mergeInfo">collective: OFF</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">右パネル</div>
+      <div class="panel-body" id="sidePanel"></div>
+    </div>
+  </div>
+
+  <div class="panel log-panel" id="logPanel">
+    <div class="panel-header">
+      <span>ログ（直近10件）</span>
+      <div style="display:flex;gap:8px;">
+        <button class="compact" id="toggleLogBtn">折りたたむ</button>
+        <button class="compact" id="clearLogBtn">クリア</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div id="logList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <span id="modalTitle">編集</span>
+      <button class="compact" id="closeModalBtn">閉じる</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   定数
+========================= */
+const AUTO_SAVE_KEY = "mindmapCreativeWikiMultiAgent:auto";
+const SAVE_PREFIX = "mindmapCreativeWikiMultiAgent:slot:";
+const SLOT_COUNT = 3;
+const FETCH_TIMEOUT_MS = 9000;
+const NODE_DRAG_MAGNET_COOLDOWN_MS = 2000;
+const FORGET_RATE = 0.9985;
+const MIN_EDGE_WEIGHT = 0.15;
+
+const TEAM_POLICIES = {
+  balanced:  { label:"バランス", input:1.0,  trade:1.0,  reinforce:1.0,  cost:1.0 },
+  aggressive:{ label:"ガンガンいこうぜ", input:1.15, trade:1.35, reinforce:0.9,  cost:1.1 },
+  defensive: { label:"いのちだいじに", input:0.9,  trade:0.7,  reinforce:1.2,  cost:0.85 },
+  market:    { label:"商売第一", input:0.95, trade:1.5,  reinforce:0.9,  cost:1.0 }
+};
+
+const REL_COLORS = {
+  is_a:"#7db0ff",
+  related_to:"#bf9cff",
+  has_property:"#ffb56c",
+  has_part:"#67d48e",
+  capable_of:"#ff7aa8",
+  used_for:"#59d6d6"
+};
+
+const RELS = ["related_to","is_a","has_property","has_part","capable_of","used_for"];
+
+const AGENT_CONFIGS = [
+  {
+    name:"Humanities-1",
+    role:"人文系専門家",
+    archetype:"humanities",
+    theme:["歴史","思想","文化","社会"],
+    roots:["国家","宗教","文学"],
+    personality:{ curiosity:0.72, focus:0.82, thrift:0.45, sociability:0.58, skepticism:0.76 },
+    policy:{ inputBias:0.78, outputBias:0.42, tradeAggression:0.22, negativity:0.30, cooperation:0.62, wikiBias:0.95 }
+  },
+  {
+    name:"Science-1",
+    role:"理科系専門家",
+    archetype:"science",
+    theme:["物理","化学","生物","工学"],
+    roots:["エネルギー","細胞","機械"],
+    personality:{ curiosity:0.68, focus:0.92, thrift:0.50, sociability:0.38, skepticism:0.86 },
+    policy:{ inputBias:0.82, outputBias:0.36, tradeAggression:0.18, negativity:0.22, cooperation:0.44, wikiBias:0.90 }
+  },
+  {
+    name:"Interdisciplinary-1",
+    role:"学際型",
+    archetype:"interdisciplinary",
+    theme:["横断","融合","接続"],
+    roots:["情報","人間","環境"],
+    personality:{ curiosity:0.95, focus:0.58, thrift:0.36, sociability:0.80, skepticism:0.60 },
+    policy:{ inputBias:0.88, outputBias:0.55, tradeAggression:0.52, negativity:0.10, cooperation:0.82, wikiBias:0.92 }
+  },
+  {
+    name:"Reporter-1",
+    role:"報道関係者型",
+    archetype:"reporter",
+    theme:["事件","人物","社会","話題"],
+    roots:["政治","経済","災害"],
+    personality:{ curiosity:0.90, focus:0.70, thrift:0.42, sociability:0.76, skepticism:0.66 },
+    policy:{ inputBias:0.90, outputBias:0.72, tradeAggression:0.50, negativity:0.18, cooperation:0.64, wikiBias:0.88 }
+  },
+  {
+    name:"Editor-1",
+    role:"編集者型",
+    archetype:"editor",
+    theme:["整理","見出し","構成"],
+    roots:["文章","要約","分類"],
+    personality:{ curiosity:0.62, focus:0.94, thrift:0.55, sociability:0.60, skepticism:0.78 },
+    policy:{ inputBias:0.55, outputBias:0.84, tradeAggression:0.26, negativity:0.14, cooperation:0.78, wikiBias:0.62 }
+  },
+  {
+    name:"Critic-1",
+    role:"評論家型",
+    archetype:"critic",
+    theme:["評価","論争","比較"],
+    roots:["思想","作品","政策"],
+    personality:{ curiosity:0.70, focus:0.80, thrift:0.48, sociability:0.52, skepticism:0.96 },
+    policy:{ inputBias:0.60, outputBias:0.76, tradeAggression:0.30, negativity:0.54, cooperation:0.42, wikiBias:0.74 }
+  },
+  {
+    name:"Merchant-1",
+    role:"商人型",
+    archetype:"merchant",
+    theme:["市場","取引","人気"],
+    roots:["商品","価格","流通"],
+    personality:{ curiosity:0.56, focus:0.72, thrift:0.88, sociability:0.74, skepticism:0.62 },
+    policy:{ inputBias:0.42, outputBias:0.64, tradeAggression:0.94, negativity:0.08, cooperation:0.58, wikiBias:0.40 }
+  },
+  {
+    name:"Consumer-1",
+    role:"消費者型",
+    archetype:"consumer",
+    theme:["生活","体験","使いやすさ"],
+    roots:["食べ物","家電","旅行"],
+    personality:{ curiosity:0.66, focus:0.52, thrift:0.60, sociability:0.70, skepticism:0.42 },
+    policy:{ inputBias:0.50, outputBias:0.45, tradeAggression:0.62, negativity:0.06, cooperation:0.56, wikiBias:0.52 }
+  },
+  {
+    name:"Skeptic-1",
+    role:"批判者型",
+    archetype:"skeptic",
+    theme:["検証","反証","限界"],
+    roots:["誤解","偏見","検証"],
+    personality:{ curiosity:0.64, focus:0.86, thrift:0.46, sociability:0.34, skepticism:0.99 },
+    policy:{ inputBias:0.58, outputBias:0.70, tradeAggression:0.18, negativity:0.72, cooperation:0.30, wikiBias:0.68 }
+  }
+];
+
+const SOURCE_KNOWLEDGE = {
+  "犬":[
+    { rel:"is_a", to:"動物", confidence:0.92, evidence:"基本分類" },
+    { rel:"has_property", to:"嗅覚", confidence:0.85, evidence:"感覚" },
+    { rel:"used_for", to:"盲導", confidence:0.83, evidence:"実用" }
+  ],
+  "猫":[
+    { rel:"is_a", to:"動物", confidence:0.92, evidence:"基本分類" },
+    { rel:"has_property", to:"俊敏", confidence:0.79, evidence:"特徴" },
+    { rel:"related_to", to:"行動学", confidence:0.77, evidence:"研究" }
+  ],
+  "鳥":[
+    { rel:"is_a", to:"動物", confidence:0.92, evidence:"基本分類" },
+    { rel:"capable_of", to:"飛行", confidence:0.90, evidence:"能力" },
+    { rel:"related_to", to:"渡り", confidence:0.84, evidence:"行動" }
+  ],
+  "木":[
+    { rel:"is_a", to:"植物", confidence:0.90, evidence:"基本分類" },
+    { rel:"has_part", to:"枝", confidence:0.84, evidence:"構成" },
+    { rel:"related_to", to:"森林", confidence:0.80, evidence:"生態" }
+  ],
+  "車":[
+    { rel:"is_a", to:"乗り物", confidence:0.93, evidence:"基本分類" },
+    { rel:"related_to", to:"自動運転", confidence:0.86, evidence:"技術" },
+    { rel:"related_to", to:"電動化", confidence:0.88, evidence:"産業" }
+  ],
+  "火":[
+    { rel:"is_a", to:"現象", confidence:0.90, evidence:"基本分類" },
+    { rel:"related_to", to:"消防", confidence:0.84, evidence:"安全" },
+    { rel:"related_to", to:"山火事", confidence:0.78, evidence:"災害" }
+  ],
+  "本":[
+    { rel:"is_a", to:"情報媒体", confidence:0.90, evidence:"基本分類" },
+    { rel:"used_for", to:"読解", confidence:0.85, evidence:"用途" },
+    { rel:"related_to", to:"図書館", confidence:0.84, evidence:"制度" }
+  ],
+  "水":[
+    { rel:"is_a", to:"液体", confidence:0.93, evidence:"基本分類" },
+    { rel:"related_to", to:"上水道", confidence:0.87, evidence:"制度" },
+    { rel:"related_to", to:"渇水", confidence:0.72, evidence:"環境" }
+  ],
+  "植物":[
+    { rel:"is_a", to:"生物", confidence:0.90, evidence:"基本分類" },
+    { rel:"related_to", to:"生態系", confidence:0.85, evidence:"自然" },
+    { rel:"related_to", to:"保全", confidence:0.81, evidence:"制度" }
+  ],
+  "動物":[
+    { rel:"is_a", to:"生物", confidence:0.90, evidence:"基本分類" },
+    { rel:"related_to", to:"進化", confidence:0.87, evidence:"学術" },
+    { rel:"related_to", to:"保護活動", confidence:0.74, evidence:"社会" }
+  ],
+  "国家":[
+    { rel:"related_to", to:"政治", confidence:0.88, evidence:"制度" },
+    { rel:"related_to", to:"主権", confidence:0.86, evidence:"制度" }
+  ],
+  "宗教":[
+    { rel:"related_to", to:"文化", confidence:0.84, evidence:"人文" },
+    { rel:"related_to", to:"思想", confidence:0.83, evidence:"人文" }
+  ],
+  "文学":[
+    { rel:"related_to", to:"物語", confidence:0.84, evidence:"表現" },
+    { rel:"related_to", to:"詩", confidence:0.80, evidence:"表現" }
+  ],
+  "エネルギー":[
+    { rel:"related_to", to:"熱", confidence:0.85, evidence:"物理" },
+    { rel:"related_to", to:"発電", confidence:0.87, evidence:"工学" }
+  ],
+  "細胞":[
+    { rel:"is_a", to:"生物", confidence:0.80, evidence:"生物" },
+    { rel:"has_part", to:"膜", confidence:0.78, evidence:"構造" }
+  ],
+  "機械":[
+    { rel:"related_to", to:"装置", confidence:0.84, evidence:"工学" },
+    { rel:"used_for", to:"作業", confidence:0.82, evidence:"用途" }
+  ],
+  "情報":[
+    { rel:"related_to", to:"通信", confidence:0.84, evidence:"横断" },
+    { rel:"related_to", to:"知識", confidence:0.88, evidence:"横断" }
+  ],
+  "人間":[
+    { rel:"related_to", to:"社会", confidence:0.86, evidence:"横断" },
+    { rel:"related_to", to:"身体", confidence:0.82, evidence:"横断" }
+  ],
+  "環境":[
+    { rel:"related_to", to:"保全", confidence:0.86, evidence:"横断" },
+    { rel:"related_to", to:"気候", confidence:0.84, evidence:"横断" }
+  ],
+  "政治":[
+    { rel:"related_to", to:"制度", confidence:0.82, evidence:"報道" },
+    { rel:"related_to", to:"選挙", confidence:0.81, evidence:"報道" }
+  ],
+  "経済":[
+    { rel:"related_to", to:"市場", confidence:0.89, evidence:"報道" },
+    { rel:"related_to", to:"消費", confidence:0.84, evidence:"報道" }
+  ],
+  "災害":[
+    { rel:"related_to", to:"事故", confidence:0.80, evidence:"報道" },
+    { rel:"related_to", to:"防災", confidence:0.85, evidence:"報道" }
+  ],
+  "文章":[
+    { rel:"related_to", to:"編集", confidence:0.82, evidence:"編集" },
+    { rel:"related_to", to:"見出し", confidence:0.80, evidence:"編集" }
+  ],
+  "要約":[
+    { rel:"used_for", to:"理解", confidence:0.81, evidence:"編集" },
+    { rel:"related_to", to:"整理", confidence:0.83, evidence:"編集" }
+  ],
+  "分類":[
+    { rel:"related_to", to:"体系", confidence:0.85, evidence:"編集" },
+    { rel:"related_to", to:"概念", confidence:0.78, evidence:"編集" }
+  ],
+  "思想":[
+    { rel:"related_to", to:"評価", confidence:0.79, evidence:"評論" },
+    { rel:"related_to", to:"解釈", confidence:0.77, evidence:"評論" }
+  ],
+  "作品":[
+    { rel:"related_to", to:"比較", confidence:0.78, evidence:"評論" },
+    { rel:"related_to", to:"賛否", confidence:0.72, evidence:"評論" }
+  ],
+  "政策":[
+    { rel:"related_to", to:"論争", confidence:0.81, evidence:"評論" },
+    { rel:"related_to", to:"評価", confidence:0.80, evidence:"評論" }
+  ],
+  "商品":[
+    { rel:"related_to", to:"価格", confidence:0.86, evidence:"商業" },
+    { rel:"related_to", to:"販売", confidence:0.84, evidence:"商業" }
+  ],
+  "価格":[
+    { rel:"related_to", to:"市場", confidence:0.88, evidence:"商業" },
+    { rel:"related_to", to:"需要", confidence:0.82, evidence:"商業" }
+  ],
+  "流通":[
+    { rel:"related_to", to:"供給", confidence:0.81, evidence:"商業" },
+    { rel:"related_to", to:"輸送", confidence:0.80, evidence:"商業" }
+  ],
+  "食べ物":[
+    { rel:"related_to", to:"料理", confidence:0.86, evidence:"生活" },
+    { rel:"related_to", to:"栄養", confidence:0.82, evidence:"生活" }
+  ],
+  "家電":[
+    { rel:"related_to", to:"生活", confidence:0.82, evidence:"生活" },
+    { rel:"related_to", to:"便利", confidence:0.76, evidence:"生活" }
+  ],
+  "旅行":[
+    { rel:"related_to", to:"観光", confidence:0.89, evidence:"生活" },
+    { rel:"related_to", to:"体験", confidence:0.82, evidence:"生活" }
+  ],
+  "誤解":[
+    { rel:"related_to", to:"偏見", confidence:0.82, evidence:"批判" },
+    { rel:"related_to", to:"検証", confidence:0.80, evidence:"批判" }
+  ],
+  "偏見":[
+    { rel:"related_to", to:"批判", confidence:0.78, evidence:"批判" },
+    { rel:"related_to", to:"反証", confidence:0.79, evidence:"批判" }
+  ],
+  "検証":[
+    { rel:"related_to", to:"反証", confidence:0.83, evidence:"批判" },
+    { rel:"related_to", to:"限界", confidence:0.77, evidence:"批判" }
+  ]
+};
+
+/* =========================
+   状態
+========================= */
+let timer = null;
+let localStorageAvailable = false;
+let appState = null;
+let uiLogs = [];
+let previewCollapsed = true;
+let mode = "view";
+let creativeMode = false;
+let longPressTimer = null;
+let suppressTapAfterLongPress = false;
+let mergeVisualState = new Map();
+
+const imageCache = new Map();
+
+const canvas = document.getElementById("mindCanvas");
+const ctx = canvas.getContext("2d");
+const sidePanel = document.getElementById("sidePanel");
+
+const modalBackdrop = document.getElementById("modalBackdrop");
+const modalTitle = document.getElementById("modalTitle");
+const modalBody = document.getElementById("modalBody");
+
+const camera = { x:0, y:0, zoom:1 };
+
+const interaction = {
+  draggingCanvas:false,
+  draggingNode:false,
+  dragNodeOwnerType:null,
+  dragNodeOwnerId:null,
+  dragNodeName:null,
+  nodeOffsetX:0,
+  nodeOffsetY:0,
+  dragStartX:0,
+  dragStartY:0,
+  dragCamX:0,
+  dragCamY:0,
+  lastTapAt:0,
+  lastTapKey:null,
+  pointers:new Map(),
+  pinchActive:false,
+  pinchStartDist:0,
+  pinchStartZoom:1,
+  pinchWorldMid:{x:0,y:0},
+  pressInfo:null,
+  linkStart:null,
+  movedDuringPress:false,
+  longPressTriggered:false
+};
+
+/* =========================
+   基本ユーティリティ
+========================= */
+function nowIso(){ return new Date().toISOString(); }
+function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function escapeHtml(str){
+  return String(str ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
+}
+
+function edgeKey(from, rel, to){
+  return `${from}|${rel}|${to}`;
+}
+
+function weightedChoice(items, weightFn){
+  const weights = items.map(weightFn);
+  const total = weights.reduce((a,b)=>a+b,0);
+  if(total <= 0) return rand(items);
+  let r = Math.random()*total;
+  for(let i=0;i<items.length;i++){
+    r -= weights[i];
+    if(r <= 0) return items[i];
+  }
+  return items[items.length-1];
+}
+
+function normalizeWordKey(text){
+  return String(text || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[ \t\r\n　]/g, "")
+    .replace(/[“”"'`‘’.,，。・:：;；!！?？()（）[\]［］{}｛｝<>＜＞]/g, "")
+    .trim();
+}
+
+function addLog(text, type=""){
+  uiLogs.unshift({ text, type, at:new Date().toLocaleTimeString() });
+  uiLogs = uiLogs.slice(0,10);
+  renderLogs();
+}
+
+function renderLogs(){
+  const box = document.getElementById("logList");
+  box.innerHTML = uiLogs.length
+    ? uiLogs.map(item => `
+      <div class="log-item ${item.type}">
+        [${escapeHtml(item.at)}] ${escapeHtml(item.text)}
+      </div>
+    `).join("")
+    : `<div class="kv">ログなし。静かなのは平和か、まだ何も起きていないだけです。</div>`;
+}
+
+function checkLocalStorageAvailable(){
+  try{
+    const key = "__mm_test__";
+    localStorage.setItem(key,"ok");
+    localStorage.removeItem(key);
+    localStorageAvailable = true;
+  }catch{
+    localStorageAvailable = false;
+  }
+  return localStorageAvailable;
+}
+
+function saveJsonBinConfigToSession(){
+  try{
+    sessionStorage.setItem("mmReadUrl", document.getElementById("jsonBinReadUrl").value);
+    sessionStorage.setItem("mmWriteUrl", document.getElementById("jsonBinWriteUrl").value);
+    sessionStorage.setItem("mmMasterKey", document.getElementById("jsonBinMasterKey").value);
+  }catch{}
+}
+
+function loadJsonBinConfigFromSession(){
+  try{
+    document.getElementById("jsonBinReadUrl").value = sessionStorage.getItem("mmReadUrl") || "";
+    document.getElementById("jsonBinWriteUrl").value = sessionStorage.getItem("mmWriteUrl") || "";
+    document.getElementById("jsonBinMasterKey").value = sessionStorage.getItem("mmMasterKey") || "";
+  }catch{}
+}
+
+function openModal(title, html){
+  modalTitle.textContent = title;
+  modalBody.innerHTML = html;
+  modalBackdrop.style.display = "flex";
+}
+
+function closeModal(){
+  modalBackdrop.style.display = "none";
+  modalBody.innerHTML = "";
+}
+
+async function fetchWithTimeout(url, options={}, timeoutMs=FETCH_TIMEOUT_MS){
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), timeoutMs);
+  try{
+    return await fetch(url, { ...options, signal: controller.signal });
+  }catch(err){
+    if(err.name === "AbortError"){
+      throw new Error(`timeout ${timeoutMs}ms`);
+    }
+    throw err;
+  }finally{
+    clearTimeout(timerId);
+  }
+}
+
+document.getElementById("closeModalBtn").onclick = closeModal;
+modalBackdrop.addEventListener("click", e => {
+  if(e.target === modalBackdrop) closeModal();
+});
+
+/* =========================
+   サムネイル
+========================= */
+function warmThumbnail(url){
+  if(!url || imageCache.has(url)) return;
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.referrerPolicy = "no-referrer";
+  img.src = url;
+  imageCache.set(url, img);
+}
+
+/* =========================
+   モデル生成
+========================= */
+function createOwnerBase(name, roots){
+  return {
+    name,
+    pt:10000,
+    growth:0,
+    trades:0,
+    imports:0,
+    reinforcements:0,
+    curations:0,
+    criticalAdds:0,
+    syntheses:0,
+    intelligence:10,
+    mood:"neutral",
+    memory:{},
+    knownWords:[...roots],
+    knownEdgeKeys:[],
+    positions:{},
+    nodeMeta:{},
+    thumbnails:{},
+    wikiVisitedTitles:[],
+    wikiVisitedNormKeys:[]
+  };
+}
+
+function createInitialState(){
+  const state = {
+    version:12,
+    tick:0,
+    updatedAt:nowIso(),
+    teamPolicy:"balanced",
+    selected:{ ownerType:"agent", ownerId:0, node:null, mode:"overview" },
+    selectedEdge:null,
+    market:{
+      totalTrades:0,
+      priceIndex:100,
+      history:[]
+    },
+    user:{
+      ...createOwnerBase("User", ["ユーザー"]),
+      pt:5000,
+      handmade:0,
+      role:"ユーザー",
+      theme:["手動","外部"],
+      archetype:"user",
+      policy:{ inputBias:1.0, outputBias:0.5, tradeAggression:0.4, negativity:0.2, cooperation:0.7, wikiBias:1.0 }
+    },
+    agents:AGENT_CONFIGS.map((cfg, idx) => ({
+      id:idx,
+      name:cfg.name,
+      role:cfg.role,
+      archetype:cfg.archetype,
+      theme:[...cfg.theme],
+      roots:[...cfg.roots],
+      personality:clone(cfg.personality),
+      policy:clone(cfg.policy),
+      ...createOwnerBase(cfg.name, cfg.roots)
+    }))
+  };
+
+  initializeOwnerState(state.user, ["ユーザー"], 0, true);
+  state.agents.forEach((agent, i) => initializeOwnerState(agent, agent.roots, i, false));
+  return state;
+}
+
+function initializeOwnerState(owner, roots, index=0, isUser=false){
+  owner.memory = owner.memory || {};
+  owner.knownWords = owner.knownWords || [...roots];
+  owner.knownEdgeKeys = owner.knownEdgeKeys || [];
+  owner.positions = owner.positions || {};
+  owner.nodeMeta = owner.nodeMeta || {};
+  owner.thumbnails = owner.thumbnails || {};
+  owner.wikiVisitedTitles = owner.wikiVisitedTitles || [];
+  owner.wikiVisitedNormKeys = owner.wikiVisitedNormKeys || [];
+
+  const radius = 160 + index * 18;
+  const cols = 3;
+  const centerX = isUser ? 0 : (index % cols) * 620 - 620;
+  const centerY = isUser ? 560 : Math.floor(index / cols) * 500 - 350;
+
+  roots.forEach((root, i) => {
+    const angle = (Math.PI * 2 / Math.max(roots.length,1)) * i - Math.PI / 2;
+    owner.positions[root] = {
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      vx:0, vy:0
+    };
+
+    if(!owner.memory[root]) owner.memory[root] = [];
+    if(!owner.nodeMeta[root]){
+      owner.nodeMeta[root] = {
+        sourceType:isUser ? "user-root" : "seed",
+        editable:!!isUser,
+        createdAt:nowIso(),
+        lastDraggedAt:0
+      };
+    }
+  });
+
+  for(const root of roots){
+    if(SOURCE_KNOWLEDGE[root]){
+      for(const edge of SOURCE_KNOWLEDGE[root].slice(0,1)){
+        addEdgeToOwner(owner, {
+          from:root,
+          rel:edge.rel,
+          to:edge.to,
+          confidence:edge.confidence,
+          evidence:edge.evidence,
+          weight:0.75,
+          sourceType:"seed",
+          editable:false
+        }, "seed");
+      }
+    }
+  }
+}
+
+function ensureNodePosition(owner, node, nearNode=null){
+  if(owner.positions[node]) return;
+
+  let x = (Math.random()-0.5)*400;
+  let y = (Math.random()-0.5)*300;
+
+  if(nearNode && owner.positions[nearNode]){
+    const base = owner.positions[nearNode];
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 110 + Math.random() * 70;
+    x = base.x + Math.cos(angle) * radius;
+    y = base.y + Math.sin(angle) * radius;
+  }
+
+  owner.positions[node] = { x, y, vx:0, vy:0 };
+}
+
+function addNodeMeta(owner, node, meta={}){
+  owner.nodeMeta = owner.nodeMeta || {};
+  if(!owner.nodeMeta[node]){
+    owner.nodeMeta[node] = {
+      sourceType:meta.sourceType || "user",
+      editable:!!meta.editable,
+      createdAt:nowIso(),
+      lastDraggedAt:0
+    };
+  }
+  owner.nodeMeta[node] = { ...owner.nodeMeta[node], ...meta };
+}
+
+function touchEdge(edgeObj){
+  edgeObj.lastTouchedTick = appState?.tick ?? 0;
+}
+
+function addEdgeToOwner(owner, edge, fallbackSourceType="generic"){
+  const from = String(edge.from || "").trim();
+  const to = String(edge.to || "").trim();
+  const rel = String(edge.rel || "related_to").trim();
+
+  if(!from || !to || !rel) return false;
+
+  const key = edgeKey(from, rel, to);
+  if(owner.knownEdgeKeys.includes(key)) return false;
+
+  if(!owner.memory[from]) owner.memory[from] = [];
+  if(!owner.memory[to]) owner.memory[to] = [];
+
+  ensureNodePosition(owner, from);
+  ensureNodePosition(owner, to, from);
+
+  addNodeMeta(owner, from, {
+    sourceType:edge.fromSourceType || edge.sourceType || fallbackSourceType,
+    editable:!!edge.fromEditable
+  });
+  addNodeMeta(owner, to, {
+    sourceType:edge.toSourceType || edge.sourceType || fallbackSourceType,
+    editable:!!edge.toEditable
+  });
+
+  const edgeObj = {
+    rel,
+    to,
+    confidence:clamp(edge.confidence ?? 0.7, 0.1, 0.99),
+    weight:clamp(edge.weight ?? 0.7, 0.1, 2.0),
+    evidence:edge.evidence || fallbackSourceType,
+    sourceType:edge.sourceType || fallbackSourceType,
+    editable:!!edge.editable,
+    lastTouchedTick:appState?.tick ?? 0
+  };
+
+  owner.memory[from].push(edgeObj);
+  owner.knownEdgeKeys.push(key);
+
+  if(!owner.knownWords.includes(from)) owner.knownWords.push(from);
+  if(!owner.knownWords.includes(to)) owner.knownWords.push(to);
+
+  return true;
+}
+
+function getOwnerByTypeAndId(ownerType, ownerId){
+  return ownerType === "user" ? appState.user : appState.agents[ownerId];
+}
+
+function getAllOwners(){
+  return [
+    ...appState.agents.map(a => ({
+      ownerType:"agent",
+      ownerId:a.id,
+      owner:a,
+      roots:a.roots
+    })),
+    {
+      ownerType:"user",
+      ownerId:0,
+      owner:appState.user,
+      roots:["ユーザー"]
+    }
+  ];
+}
+
+function getAllEdges(owner){
+  const result = [];
+  for(const from in owner.memory){
+    for(const e of owner.memory[from]){
+      result.push({ from, ...e });
+    }
+  }
+  return result;
+}
+
+function getNodeDetails(owner, node){
+  const outbound = (owner.memory[node] || []).map(e => ({ from:node, ...e }));
+  const inbound = [];
+  for(const from in owner.memory){
+    for(const e of owner.memory[from]){
+      if(e.to === node) inbound.push({ from, ...e });
+    }
+  }
+  return { inbound, outbound };
+}
+
+function countEdges(owner){
+  let n = 0;
+  for(const k in owner.memory) n += owner.memory[k].length;
+  return n;
+}
+
+function knowledgeValue(owner){
+  let total = 0;
+  for(const from in owner.memory){
+    for(const e of owner.memory[from]){
+      total += 10 + e.confidence * 40 + e.weight * 18;
+    }
+  }
+  return Math.round(total);
+}
+
+function totalAsset(owner){
+  return Math.round((owner.pt || 0) + knowledgeValue(owner));
+}
+
+function isEditableNode(ownerType, ownerId, nodeName){
+  if(creativeMode) return true;
+  if(ownerType !== "user") return false;
+  const meta = appState.user.nodeMeta?.[nodeName];
+  return !!meta?.editable;
+}
+
+function isEditableEdge(edge){
+  if(creativeMode) return true;
+  if(edge.ownerType !== "user") return false;
+  const list = appState.user.memory[edge.from] || [];
+  const found = list.find(e => e.rel === edge.rel && e.to === edge.to);
+  return !!found?.editable;
+}
+
+function rebuildKnownEdgeKeys(owner){
+  owner.knownEdgeKeys = [];
+  for(const from in owner.memory){
+    for(const e of owner.memory[from]){
+      owner.knownEdgeKeys.push(edgeKey(from, e.rel, e.to));
+    }
+  }
+}
+
+function removeEdge(ownerType, ownerId, from, rel, to){
+  const owner = getOwnerByTypeAndId(ownerType, ownerId);
+  const list = owner.memory[from] || [];
+  const before = list.length;
+  owner.memory[from] = list.filter(e => !(e.rel === rel && e.to === to));
+  rebuildKnownEdgeKeys(owner);
+  return before !== owner.memory[from].length;
+}
+
+function removeNode(ownerType, ownerId, node){
+  const owner = getOwnerByTypeAndId(ownerType, ownerId);
+  delete owner.memory[node];
+  delete owner.positions[node];
+  delete owner.nodeMeta[node];
+  delete owner.thumbnails[node];
+  owner.knownWords = owner.knownWords.filter(w => w !== node);
+
+  for(const from in owner.memory){
+    owner.memory[from] = owner.memory[from].filter(e => e.to !== node);
+  }
+
+  rebuildKnownEdgeKeys(owner);
+
+  if(
+    appState.selected &&
+    appState.selected.ownerType === ownerType &&
+    appState.selected.ownerId === ownerId &&
+    appState.selected.node === node
+  ){
+    appState.selected = { ownerType:"user", ownerId:0, node:null, mode:"overview" };
+  }
+
+  if(
+    appState.selectedEdge &&
+    appState.selectedEdge.ownerType === ownerType &&
+    appState.selectedEdge.ownerId === ownerId &&
+    (appState.selectedEdge.from === node || appState.selectedEdge.to === node)
+  ){
+    appState.selectedEdge = null;
+  }
+
+  return true;
+}
+
+function renameNode(ownerType, ownerId, oldName, newName){
+  const owner = getOwnerByTypeAndId(ownerType, ownerId);
+  if(!newName) return false;
+  if(oldName === newName) return true;
+
+  const normalizedNew = normalizeWordKey(newName);
+  const exists = owner.knownWords.some(w => normalizeWordKey(w) === normalizedNew && w !== oldName);
+  if(exists) return false;
+
+  owner.memory[newName] = owner.memory[oldName] || [];
+  delete owner.memory[oldName];
+
+  owner.positions[newName] = owner.positions[oldName];
+  delete owner.positions[oldName];
+
+  owner.nodeMeta[newName] = { ...(owner.nodeMeta[oldName] || {}) };
+  delete owner.nodeMeta[oldName];
+
+  if(owner.thumbnails?.[oldName]){
+    owner.thumbnails[newName] = owner.thumbnails[oldName];
+    delete owner.thumbnails[oldName];
+  }
+
+  owner.knownWords = owner.knownWords.map(w => w === oldName ? newName : w);
+
+  for(const from in owner.memory){
+    owner.memory[from].forEach(e => {
+      if(e.to === oldName) e.to = newName;
+    });
+  }
+
+  rebuildKnownEdgeKeys(owner);
+
+  if(appState.selected?.node === oldName &&
+     appState.selected.ownerType === ownerType &&
+     appState.selected.ownerId === ownerId){
+    appState.selected.node = newName;
+  }
+
+  return true;
+}
+
+function copyNode(ownerType, ownerId, nodeName){
+  const owner = getOwnerByTypeAndId(ownerType, ownerId);
+  let base = `${nodeName}_copy`;
+  let name = base;
+  let i = 2;
+
+  while(owner.knownWords.some(w => normalizeWordKey(w) === normalizeWordKey(name))){
+    name = `${base}${i++}`;
+  }
+
+  const copiedEdges = (owner.memory[nodeName] || []).map(e => ({
+    ...clone(e),
+    editable:true,
+    sourceType:creativeMode ? "creative-copy" : "user-copy",
+    lastTouchedTick:appState?.tick ?? 0
+  }));
+
+  owner.memory[name] = copiedEdges;
+  ensureNodePosition(owner, name, nodeName);
+  owner.positions[name].x += 80;
+  owner.positions[name].y += 50;
+  owner.knownWords.push(name);
+
+  addNodeMeta(owner, name, {
+    sourceType:creativeMode ? "creative-copy" : "user-copy",
+    editable:true
+  });
+
+  copiedEdges.forEach(e => {
+    if(!owner.memory[e.to]) owner.memory[e.to] = owner.memory[e.to] || [];
+    ensureNodePosition(owner, e.to, name);
+  });
+
+  if(owner.thumbnails?.[nodeName]){
+    owner.thumbnails[name] = owner.thumbnails[nodeName];
+    warmThumbnail(owner.thumbnails[name]);
+  }
+
+  rebuildKnownEdgeKeys(owner);
+  return name;
+}
+
+/* =========================
+   Wikipedia
+========================= */
+const wikiTitleCache = new Map();
+const wikiThumbCache = new Map();
+
+function isGoodWikiLinkTitle(title){
+  const t = String(title || "").trim();
+  if(!t) return false;
+
+  const ngPrefixes = [
+    "Template:",
+    "Help:",
+    "Category:",
+    "Portal:",
+    "Wikipedia:",
+    "Special:",
+    "Project:"
+  ];
+
+  if(ngPrefixes.some(p => t.startsWith(p))) return false;
+  if(t.includes("曖昧さ回避")) return false;
+  if(t.includes("一覧")) return false;
+  if(t.length < 2) return false;
+  if(/^[0-9]+$/.test(t)) return false;
+
+  return true;
+}
+
+function scoreWikiLinkTitle(title, root){
+  let score = 0;
+  const t = String(title || "");
+
+  if(t.length >= 2 && t.length <= 8) score += 2;
+  if(t.includes("日本")) score -= 1;
+  if(t.includes("一覧")) score -= 3;
+  if(t.includes(root)) score -= 2;
+  if(/[A-Za-z]/.test(t) && !/[ァ-ヴー一-龠ぁ-ん]/.test(t)) score -= 1;
+
+  return score;
+}
+
+function pickWikiLinksForAgent(agent, root, links, limit=10){
+  const themeWords = agent.theme || [];
+  const archetype = agent.archetype || "general";
+
+  function score(link){
+    let s = 0;
+    const t = String(link || "");
+
+    if(t.length >= 2 && t.length <= 10) s += 1.5;
+    if(themeWords.some(w => t.includes(w))) s += 4;
+
+    if(archetype === "science"){
+      if(/[学力性素子系論工機電化生熱量波]/.test(t)) s += 4;
+      if(/[人物小説宗教神話詩]/.test(t)) s -= 2;
+    }
+
+    if(archetype === "humanities"){
+      if(/[史文化思想制度文学宗教国家社会哲学芸術法]/.test(t)) s += 4;
+      if(/[装置回路分子半導体機関]/.test(t)) s -= 1.5;
+    }
+
+    if(archetype === "interdisciplinary"){
+      if(/[情報社会環境人間技術経済医療教育]/.test(t)) s += 3;
+      s += Math.random() * 2;
+    }
+
+    if(archetype === "reporter"){
+      if(/[事件戦争政治経済災害人物企業選挙事故]/.test(t)) s += 4;
+      if(t.length <= 4) s += 1;
+    }
+
+    if(archetype === "editor"){
+      if(/[分類体系概念章見出し要約編集整理構造]/.test(t)) s += 4;
+      if(/[曖昧さ回避]/.test(t)) s -= 10;
+    }
+
+    if(archetype === "critic"){
+      if(/[問題論争批判評価比較是非対立限界]/.test(t)) s += 4;
+    }
+
+    if(archetype === "merchant"){
+      if(/[市場企業価格商品流通販売ブランド消費需要供給]/.test(t)) s += 4;
+      if(/[文学理論抽象概念]/.test(t)) s -= 1;
+    }
+
+    if(archetype === "consumer"){
+      if(/[生活料理家電観光食品体験趣味日常家庭]/.test(t)) s += 4;
+    }
+
+    if(archetype === "skeptic"){
+      if(/[誤解偏見検証限界批判反証虚偽誇張]/.test(t)) s += 5;
+      if(/[一覧]/.test(t)) s -= 3;
+    }
+
+    if(t.includes(root)) s -= 1.5;
+    return s + Math.random()*0.3;
+  }
+
+  return [...links]
+    .sort((a,b) => score(b) - score(a))
+    .slice(0, limit);
+}
+
+async function resolveWikipediaTitle(rawTitle){
+  const cleaned = String(rawTitle || "").trim();
+  if(!cleaned) throw new Error("検索語が空");
+
+  if (wikiTitleCache.has(cleaned)) return wikiTitleCache.get(cleaned);
+
+  const searchUrl =
+    `https://ja.wikipedia.org/w/api.php?origin=*` +
+    `&action=query&format=json&list=search&srlimit=1` +
+    `&srsearch=${encodeURIComponent(cleaned)}`;
+
+  try{
+    const res = await fetchWithTimeout(searchUrl);
+    if(!res.ok) throw new Error(`search HTTP ${res.status}`);
+    const json = await res.json();
+    const hit = json?.query?.search?.[0]?.title;
+    if(hit){
+      wikiTitleCache.set(cleaned, hit);
+      return hit;
+    }
+  }catch(err){
+    addLog(`Wikipedia search fallback前エラー: ${err.message}`, "warn");
+  }
+
+  const openUrl =
+    `https://ja.wikipedia.org/w/api.php?origin=*` +
+    `&action=opensearch` +
+    `&search=${encodeURIComponent(cleaned)}` +
+    `&limit=1&namespace=0&format=json`;
+
+  const res2 = await fetchWithTimeout(openUrl);
+  if(!res2.ok) throw new Error(`opensearch HTTP ${res2.status}`);
+  const json2 = await res2.json();
+  const titles = json2?.[1] || [];
+  if(!titles.length) throw new Error("記事候補なし");
+
+  wikiTitleCache.set(cleaned, titles[0]);
+  return titles[0];
+}
+
+async function fetchWikipediaPage(rawTitle){
+  const resolvedTitle = await resolveWikipediaTitle(rawTitle);
+
+  const url =
+    `https://ja.wikipedia.org/w/api.php?origin=*` +
+    `&action=query` +
+    `&format=json` +
+    `&prop=extracts|links` +
+    `&exintro=1` +
+    `&explaintext=1` +
+    `&pllimit=max` +
+    `&titles=${encodeURIComponent(resolvedTitle)}`;
+
+  const res = await fetchWithTimeout(url);
+  if(!res.ok) throw new Error(`page fetch HTTP ${res.status}`);
+
+  const json = await res.json();
+  const page = Object.values(json?.query?.pages || {})[0];
+
+  if(!page || page.missing !== undefined) throw new Error("記事ページなし");
+
+  const extract = String(page.extract || "").replace(/\s+/g, " ").trim();
+  const links = (page.links || [])
+    .map(x => x.title)
+    .filter(isGoodWikiLinkTitle);
+
+  return {
+    title: resolvedTitle,
+    extract,
+    links
+  };
+}
+
+async function fetchWikipediaThumbnailSingle(title){
+  const cleaned = String(title || "").trim();
+  if (!cleaned) return null;
+  if (wikiThumbCache.has(cleaned)) return wikiThumbCache.get(cleaned);
+
+  const resolvedTitle = await resolveWikipediaTitle(cleaned);
+  const restUrl = `https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(resolvedTitle)}`;
+
+  try{
+    const res = await fetchWithTimeout(restUrl);
+    if(res.ok){
+      const json = await res.json();
+      const url = json?.thumbnail?.source || null;
+      wikiThumbCache.set(cleaned, url);
+      return url;
+    }
+  }catch(err){
+    addLog(`サムネ(summary)失敗: ${title} / ${err.message}`, "warn");
+  }
+
+  const apiUrl =
+    `https://ja.wikipedia.org/w/api.php?origin=*` +
+    `&action=query` +
+    `&format=json` +
+    `&prop=pageimages` +
+    `&pithumbsize=240` +
+    `&titles=${encodeURIComponent(resolvedTitle)}`;
+
+  const res2 = await fetchWithTimeout(apiUrl);
+  if(!res2.ok) throw new Error(`thumbnail API HTTP ${res2.status}`);
+  const json2 = await res2.json();
+  const page = Object.values(json2?.query?.pages || {})[0];
+  const url = page?.thumbnail?.source || null;
+
+  wikiThumbCache.set(cleaned, url);
+  return url;
+}
+
+async function fetchWikipediaThumbnailBatch(titles){
+  const cleaned = [...new Set(titles.map(t => String(t || "").trim()).filter(Boolean))];
+  const entries = await Promise.all(cleaned.map(async title => {
+    try{
+      return [title, await fetchWikipediaThumbnailSingle(title)];
+    }catch(err){
+      addLog(`サムネ失敗: ${title} / ${err.message}`, "warn");
+      return [title, null];
+    }
+  }));
+  return Object.fromEntries(entries);
+}
+
+async function importWikipediaToUser(term){
+  addLog(`Wikipedia候補解決中: ${term}`, "good");
+  const page = await fetchWikipediaPage(term);
+  const root = page.title;
+
+  addLog(`Wikipedia本文取得OK: ${root} / links=${page.links.length}`, "good");
+
+  addNodeMeta(appState.user, root, {
+    sourceType:"wikipedia",
+    editable:true,
+    summary: page.extract
+  });
+
+  ensureNodePosition(appState.user, root);
+  if(!appState.user.memory[root]) appState.user.memory[root] = [];
+  if(!appState.user.knownWords.includes(root)) appState.user.knownWords.push(root);
+
+  const uniqueLinks = [];
+  const seen = new Set();
+  for(const linkTitle of page.links){
+    const normalized = normalizeWordKey(linkTitle);
+    if(!normalized) continue;
+    if(normalized === normalizeWordKey(root)) continue;
+    if(seen.has(normalized)) continue;
+    seen.add(normalized);
+    uniqueLinks.push(linkTitle);
+  }
+
+  const selectedLinks = uniqueLinks
+    .sort((a, b) => scoreWikiLinkTitle(b, root) - scoreWikiLinkTitle(a, root))
+    .slice(0, 20);
+
+  let added = 0;
+  for(const linkTitle of selectedLinks){
+    const ok = addEdgeToOwner(appState.user, {
+      from:root,
+      rel:"related_to",
+      to:linkTitle,
+      confidence:0.70,
+      evidence:"Wikipedia内部リンク",
+      weight:0.70,
+      sourceType:"wikipedia-link",
+      editable:true,
+      fromEditable:true,
+      toEditable:true
+    }, "wikipedia-link");
+    if(ok) added++;
+  }
+
+  try{
+    const thumbTargets = [root, ...selectedLinks.slice(0, 8)];
+    const thumbMap = await fetchWikipediaThumbnailBatch(thumbTargets);
+    for(const [title, url] of Object.entries(thumbMap)){
+      if(url){
+        appState.user.thumbnails[title] = url;
+        warmThumbnail(url);
+      }
+    }
+    addLog(`Wikipediaサムネ取得完了: ${Object.values(thumbMap).filter(Boolean).length}件`, "good");
+  }catch(err){
+    addLog(`Wikipediaサムネイル取得失敗: ${err.message}`, "warn");
+  }
+
+  appState.selected = { ownerType:"user", ownerId:0, node:root, mode:"node" };
+  appState.user.handmade += added > 0 ? 1 : 0;
+  centerOnSelection();
+  renderAll();
+  saveAuto();
+}
+
+async function importWikipediaToAgent(agent, term){
+  const page = await fetchWikipediaPage(term);
+  const root = page.title;
+  const normRoot = normalizeWordKey(root);
+
+  if((agent.wikiVisitedTitles || []).includes(root)) return { root, added:0 };
+  if((agent.wikiVisitedNormKeys || []).includes(normRoot)) return { root, added:0 };
+
+  agent.wikiVisitedTitles = agent.wikiVisitedTitles || [];
+  agent.wikiVisitedNormKeys = agent.wikiVisitedNormKeys || [];
+  agent.wikiVisitedTitles.push(root);
+  agent.wikiVisitedNormKeys.push(normRoot);
+  agent.wikiVisitedTitles = agent.wikiVisitedTitles.slice(-60);
+  agent.wikiVisitedNormKeys = agent.wikiVisitedNormKeys.slice(-60);
+
+  addNodeMeta(agent, root, {
+    sourceType:"wikipedia",
+    editable:false,
+    summary: page.extract
+  });
+
+  ensureNodePosition(agent, root);
+  if(!agent.memory[root]) agent.memory[root] = [];
+  if(!agent.knownWords.includes(root)) agent.knownWords.push(root);
+
+  const uniqueLinks = [];
+  const seen = new Set();
+  for(const linkTitle of page.links){
+    const normalized = normalizeWordKey(linkTitle);
+    if(!normalized) continue;
+    if(normalized === normalizeWordKey(root)) continue;
+    if(seen.has(normalized)) continue;
+    seen.add(normalized);
+    uniqueLinks.push(linkTitle);
+  }
+
+  const pickedLinks = pickWikiLinksForAgent(agent, root, uniqueLinks, 10);
+  let added = 0;
+
+  for(const linkTitle of pickedLinks){
+    const ok = addEdgeToOwner(agent, {
+      from:root,
+      rel:"related_to",
+      to:linkTitle,
+      confidence:0.68 + Math.random()*0.12,
+      evidence:`Wikipedia by ${agent.name}`,
+      weight:0.65 + Math.random()*0.25,
+      sourceType:"agent-wikipedia",
+      editable:false
+    }, "agent-wikipedia");
+    if(ok) added++;
+  }
+
+  try{
+    const thumbTargets = [root, ...pickedLinks.slice(0, 6)];
+    const thumbMap = await fetchWikipediaThumbnailBatch(thumbTargets);
+    for(const [title, url] of Object.entries(thumbMap)){
+      if(url){
+        agent.thumbnails[title] = url;
+        warmThumbnail(url);
+      }
+    }
+  }catch(err){
+    addLog(`${agent.name} のサムネ取得失敗: ${err.message}`, "warn");
+  }
+
+  agent.imports += added;
+  agent.intelligence += Math.max(1, Math.floor(added / 2));
+  agent.pt = Math.max(0, agent.pt - 25);
+
+  return { root, added };
+}
+
+/* =========================
+   ここで前半終了
+   後半では以下を続けます:
+   - シミュレーション
+   - 保存
+   - キャンバス描画
+   - 編集UI
+   - 右パネル
+   - イベント
+   - 起動処理
+========================= */
+
+
+
+
+
+
+/* =========================
+   シミュレーション
+========================= */
+function maybeImportKnowledge(agent, team){
+  const possibleRoots = agent.knownWords.filter(w => SOURCE_KNOWLEDGE[w]);
+  if(!possibleRoots.length) return false;
+
+  const topic = weightedChoice(possibleRoots, w => {
+    const inTheme = agent.theme.some(t => w.includes(t));
+    return inTheme ? 1 + agent.personality.focus : 1 + agent.personality.curiosity;
+  });
+
+  const candidates = SOURCE_KNOWLEDGE[topic].filter(edge =>
+    !agent.knownEdgeKeys.includes(edgeKey(topic, edge.rel, edge.to))
+  );
+
+  if(!candidates.length) return false;
+
+  const pick = rand(candidates);
+  const ok = addEdgeToOwner(agent, {
+    from:topic,
+    rel:pick.rel,
+    to:pick.to,
+    confidence:pick.confidence,
+    evidence:pick.evidence,
+    weight:0.65 + pick.confidence * 0.3,
+    sourceType:"import",
+    editable:false
+  }, "import");
+
+  if(ok){
+    agent.imports += 1;
+    agent.intelligence += Math.round((2 + Math.random()*2) * team.input);
+    agent.pt -= Math.round(10 * team.cost);
+    return true;
+  }
+  return false;
+}
+
+function maybeTrade(agent, team){
+  const sellers = appState.agents.filter(a => a.id !== agent.id);
+  if(!sellers.length) return false;
+
+  const seller = weightedChoice(sellers, s => 1 + s.trades * 0.03);
+  const sellerEdges = getAllEdges(seller).filter(e =>
+    !agent.knownEdgeKeys.includes(edgeKey(e.from, e.rel, e.to))
+  );
+
+  if(!sellerEdges.length) return false;
+
+  const pick = weightedChoice(sellerEdges, e => 1 + e.confidence + e.weight);
+  const price = Math.round((12 + pick.weight * 12 + pick.confidence * 10) * team.trade);
+
+  if(agent.pt < price) return false;
+
+  const ok = addEdgeToOwner(agent, {
+    from:pick.from,
+    rel:pick.rel,
+    to:pick.to,
+    confidence:pick.confidence,
+    evidence:`trade from ${seller.name}`,
+    weight:pick.weight,
+    sourceType:"trade",
+    editable:false
+  }, "trade");
+
+  if(ok){
+    agent.trades += 1;
+    seller.trades += 1;
+    agent.pt -= price;
+    seller.pt += price;
+    agent.intelligence += 1;
+    appState.market.totalTrades += 1;
+    appState.market.priceIndex += Math.random() < 0.55 ? 1 : -1;
+    return true;
+  }
+  return false;
+}
+
+function maybeReinforce(agent, team){
+  const edges = getAllEdges(agent);
+  if(!edges.length) return false;
+
+  const pick = weightedChoice(edges, e => 1 + e.weight + e.confidence);
+  const ref = agent.memory[pick.from].find(e => e.to === pick.to && e.rel === pick.rel);
+  if(!ref) return false;
+
+  ref.weight = clamp(ref.weight + 0.05 * team.reinforce, MIN_EDGE_WEIGHT, 2.0);
+  touchEdge(ref);
+  agent.reinforcements += 1;
+  agent.intelligence += 1;
+  agent.pt -= Math.round(5 * team.cost);
+  return true;
+}
+
+function maybeObserve(agent, team){
+  const topics = ["市場","競争","規制","保全","読解","安全","進化","EV","消防","図書館","文化","技術","制度","検証"];
+  const known = rand(agent.knownWords);
+  const target = rand(topics);
+  if(!known || !target) return false;
+
+  const rel = rand(["related_to","has_property","used_for"]);
+  const ok = addEdgeToOwner(agent, {
+    from:known,
+    rel,
+    to:target,
+    confidence:clamp(0.45 + Math.random()*0.2, 0.1, 0.99),
+    evidence:"observe",
+    weight:0.5 + Math.random()*0.3,
+    sourceType:"observe",
+    editable:false
+  }, "observe");
+
+  if(ok){
+    agent.intelligence += 1;
+    agent.pt -= Math.round(4 * team.cost);
+    return true;
+  }
+  return false;
+}
+
+async function maybeWikipediaExplore(agent, team){
+  const candidates = agent.knownWords.filter(w =>
+    w && w.length >= 2 && !(agent.wikiVisitedNormKeys || []).includes(normalizeWordKey(w))
+  );
+  if(!candidates.length) return false;
+
+  const topic = weightedChoice(candidates, w => {
+    const inTheme = (agent.theme || []).some(t => w.includes(t));
+    return inTheme ? 2.2 : 1.0;
+  });
+
+  try{
+    const result = await importWikipediaToAgent(agent, topic);
+    if(result.added > 0){
+      addLog(`${agent.name} が Wikipedia探索: ${result.root} (+${result.added})`, "good");
+      return true;
+    }
+  }catch(err){
+    addLog(`${agent.name} のWikipedia探索失敗: ${topic} / ${err.message}`, "warn");
+  }
+
+  return false;
+}
+
+function maybeCurateKnowledge(agent){
+  const names = [...agent.knownWords];
+  if(names.length < 2) return false;
+
+  const normalizedMap = new Map();
+  for(const name of names){
+    const key = normalizeWordKey(name);
+    if(!key) continue;
+    if(!normalizedMap.has(key)) normalizedMap.set(key, []);
+    normalizedMap.get(key).push(name);
+  }
+
+  let changed = false;
+
+  for(const [, list] of normalizedMap.entries()){
+    if(list.length < 2) continue;
+    const canonical = list[0];
+
+    for(let i=1;i<list.length;i++){
+      const dup = list[i];
+      const details = getNodeDetails(agent, dup);
+
+      for(const e of details.outbound){
+        changed = addEdgeToOwner(agent, {
+          from:canonical,
+          rel:e.rel,
+          to:e.to,
+          confidence:e.confidence,
+          evidence:`curated from ${dup}`,
+          weight:e.weight,
+          sourceType:"editor-curate",
+          editable:false
+        }, "editor-curate") || changed;
+      }
+
+      for(const e of details.inbound){
+        changed = addEdgeToOwner(agent, {
+          from:e.from,
+          rel:e.rel,
+          to:canonical,
+          confidence:e.confidence,
+          evidence:`curated from ${dup}`,
+          weight:e.weight,
+          sourceType:"editor-curate",
+          editable:false
+        }, "editor-curate") || changed;
+      }
+
+      removeNode("agent", agent.id, dup);
+    }
+  }
+
+  if(changed){
+    agent.curations = (agent.curations || 0) + 1;
+    agent.intelligence += 2;
+    agent.pt = Math.max(0, agent.pt - 6);
+  }
+
+  return changed;
+}
+
+function maybeAddCriticalView(agent){
+  if(!["critic","skeptic"].includes(agent.archetype)) return false;
+
+  const topic = rand(agent.knownWords.filter(w => w.length >= 2));
+  if(!topic) return false;
+
+  const criticalTerms = agent.archetype === "critic"
+    ? ["評価","比較","論争","解釈","賛否"]
+    : ["検証","誤解","限界","偏見","反証"];
+
+  const to = rand(criticalTerms);
+
+  const ok = addEdgeToOwner(agent, {
+    from:topic,
+    rel:"related_to",
+    to,
+    confidence:0.66,
+    evidence:`${agent.archetype} view`,
+    weight:0.62,
+    sourceType:"critical-view",
+    editable:false
+  }, "critical-view");
+
+  if(ok){
+    agent.criticalAdds = (agent.criticalAdds || 0) + 1;
+    agent.intelligence += 1;
+    agent.pt = Math.max(0, agent.pt - 4);
+  }
+
+  return ok;
+}
+
+function maybeSynthesize(agent){
+  const words = agent.knownWords.filter(w => w.length >= 2);
+  if(words.length < 2) return false;
+
+  const a = rand(words);
+  const b = rand(words.filter(x => x !== a));
+  if(!a || !b) return false;
+
+  const ok = addEdgeToOwner(agent, {
+    from:a,
+    rel:"related_to",
+    to:b,
+    confidence:0.42 + Math.random()*0.18,
+    evidence:"agent synthesis",
+    weight:0.45,
+    sourceType:"synthesis",
+    editable:false
+  }, "synthesis");
+
+  if(ok){
+    agent.syntheses = (agent.syntheses || 0) + 1;
+    agent.intelligence += 1;
+    agent.pt = Math.max(0, agent.pt - 3);
+  }
+
+  return ok;
+}
+
+function applyForgetting(owner){
+  for(const from in owner.memory){
+    for(const e of owner.memory[from]){
+      e.weight = Math.max(MIN_EDGE_WEIGHT, e.weight * FORGET_RATE);
+    }
+  }
+}
+
+function relaxMindMap(owner, roots){
+  const names = Object.keys(owner.positions);
+  if(!names.length) return;
+
+  for(let iter=0; iter<5; iter++){
+    for(let i=0;i<names.length;i++){
+      const a = owner.positions[names[i]];
+      for(let j=i+1;j<names.length;j++){
+        const b = owner.positions[names[j]];
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let dist2 = dx*dx + dy*dy + 0.01;
+        let dist = Math.sqrt(dist2);
+        const force = 2400 / dist2;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        a.vx -= fx; a.vy -= fy;
+        b.vx += fx; b.vy += fy;
+      }
+    }
+
+    for(const from in owner.memory){
+      const pa = owner.positions[from];
+      if(!pa) continue;
+      for(const e of owner.memory[from]){
+        ensureNodePosition(owner, e.to, from);
+        const pb = owner.positions[e.to];
+        let dx = pb.x - pa.x;
+        let dy = pb.y - pa.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 0.01;
+        const ideal = roots.includes(from) ? 160 : 120;
+        const force = (dist - ideal) * 0.006;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        pa.vx += fx; pa.vy += fy;
+        pb.vx -= fx; pb.vy -= fy;
+      }
+    }
+
+    for(const name of names){
+      const p = owner.positions[name];
+      p.vx *= 0.82;
+      p.vy *= 0.82;
+      p.x += p.vx;
+      p.y += p.vy;
+    }
+  }
+}
+
+function applyCreativeCollectiveMagnet(){
+  mergeVisualState = new Map();
+  if(!creativeMode) return;
+
+  const groups = new Map();
+
+  for(const item of getAllOwners()){
+    for(const name of Object.keys(item.owner.positions)){
+      const key = normalizeWordKey(name);
+      if(!key || key.length < 2) continue;
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({
+        ownerType:item.ownerType,
+        ownerId:item.ownerId,
+        owner:item.owner,
+        name
+      });
+    }
+  }
+
+  for(const [key, nodes] of groups.entries()){
+    if(nodes.length < 2) continue;
+
+    let cx = 0;
+    let cy = 0;
+    nodes.forEach(n => {
+      const p = n.owner.positions[n.name];
+      cx += p.x;
+      cy += p.y;
+    });
+
+    cx /= nodes.length;
+    cy /= nodes.length;
+
+    let maxDist = 0;
+    const now = Date.now();
+
+    nodes.forEach(n => {
+      const p = n.owner.positions[n.name];
+      const lastDraggedAt = n.owner.nodeMeta?.[n.name]?.lastDraggedAt || 0;
+      if(now - lastDraggedAt < NODE_DRAG_MAGNET_COOLDOWN_MS) return;
+
+      const dx = cx - p.x;
+      const dy = cy - p.y;
+      const d = Math.hypot(dx,dy);
+      maxDist = Math.max(maxDist, d);
+      p.x += dx * 0.025;
+      p.y += dy * 0.025;
+    });
+
+    const merged = maxDist < 26;
+
+    if(merged){
+      nodes.forEach(n => {
+        const lastDraggedAt = n.owner.nodeMeta?.[n.name]?.lastDraggedAt || 0;
+        if(now - lastDraggedAt < NODE_DRAG_MAGNET_COOLDOWN_MS) return;
+        n.owner.positions[n.name].x = cx;
+        n.owner.positions[n.name].y = cy;
+      });
+    }
+
+    mergeVisualState.set(key, {
+      key, count:nodes.length, cx, cy, merged, maxDist, members:nodes
+    });
+  }
+}
+
+async function stepSimulation(state){
+  const team = TEAM_POLICIES[state.teamPolicy] || TEAM_POLICIES.balanced;
+  state.tick += 1;
+  state.updatedAt = nowIso();
+
+  let wikiBudget = 2;
+
+  for(const agent of state.agents){
+    const actions = [
+      { name:"input", weight:0.24 + agent.policy.inputBias * team.input },
+      { name:"trade", weight:0.16 + agent.policy.tradeAggression * team.trade },
+      { name:"reinforce", weight:0.20 + agent.policy.outputBias * team.reinforce },
+      { name:"observe", weight:0.14 + agent.policy.negativity * 0.2 },
+      { name:"wiki", weight: wikiBudget > 0 ? (0.12 + (agent.policy.wikiBias || 0.4) * 0.45) : 0 },
+      { name:"curate", weight:0.14 + (agent.archetype === "editor" ? 0.35 : 0.0) },
+      { name:"critic", weight:(agent.archetype === "critic" || agent.archetype === "skeptic") ? 0.20 : 0.02 },
+      { name:"synthesis", weight:0.16 + (agent.archetype === "interdisciplinary" ? 0.18 : 0.0) }
+    ];
+
+    const action = weightedChoice(actions, a => a.weight).name;
+    let ok = false;
+
+    if(action === "input") ok = maybeImportKnowledge(agent, team);
+    else if(action === "trade") ok = maybeTrade(agent, team);
+    else if(action === "reinforce") ok = maybeReinforce(agent, team);
+    else if(action === "observe") ok = maybeObserve(agent, team);
+    else if(action === "wiki"){
+      ok = await maybeWikipediaExplore(agent, team);
+      if(ok) wikiBudget--;
+    }else if(action === "curate") ok = maybeCurateKnowledge(agent);
+    else if(action === "critic") ok = maybeAddCriticalView(agent);
+    else if(action === "synthesis") ok = maybeSynthesize(agent);
+
+    if(!ok){
+      const fallbacks = [
+        () => maybeImportKnowledge(agent, team),
+        () => maybeTrade(agent, team),
+        () => maybeReinforce(agent, team),
+        () => maybeObserve(agent, team),
+        () => maybeAddCriticalView(agent),
+        () => maybeSynthesize(agent)
+      ];
+      for(const fn of fallbacks){
+        if(fn()){ ok = true; break; }
+      }
+    }
+
+    agent.growth += 1;
+    agent.pt = Math.max(0, agent.pt);
+
+    if(agent.intelligence > 90) agent.mood = "sharp";
+    else if(agent.intelligence > 50) agent.mood = "focused";
+    else if(agent.intelligence > 25) agent.mood = "active";
+    else agent.mood = "neutral";
+
+    if(agent.pt < 120) agent.pt += 100;
+
+    applyForgetting(agent);
+    relaxMindMap(agent, agent.roots || []);
+  }
+
+  applyForgetting(state.user);
+  relaxMindMap(state.user, ["ユーザー"]);
+  applyCreativeCollectiveMagnet();
+
+  state.market.priceIndex = Math.max(50, state.market.priceIndex);
+  state.market.history.push({
+    tick:state.tick,
+    totalTrades:state.market.totalTrades,
+    priceIndex:state.market.priceIndex
+  });
+  state.market.history = state.market.history.slice(-100);
+}
+
+/* =========================
+   保存
+========================= */
+function getSlotKey(slot){ return `${SAVE_PREFIX}${slot}`; }
+
+function saveAuto(){
+  if(!localStorageAvailable) return false;
+  try{
+    const state = clone(appState);
+    state.__meta = { saveType:"auto", savedAt:nowIso() };
+    localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(state));
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+function loadAuto(){
+  if(!localStorageAvailable) return false;
+  try{
+    const raw = localStorage.getItem(AUTO_SAVE_KEY);
+    if(!raw) return false;
+    appState = JSON.parse(raw);
+    normalizeLoadedState();
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+function saveSlot(slot){
+  if(!localStorageAvailable) throw new Error("localStorageが使えない");
+  const state = clone(appState);
+  state.__meta = { saveType:"slot", slot, savedAt:nowIso() };
+  localStorage.setItem(getSlotKey(slot), JSON.stringify(state));
+}
+
+function loadSlot(slot){
+  const raw = localStorage.getItem(getSlotKey(slot));
+  if(!raw) throw new Error(`スロット${slot}は空`);
+  appState = JSON.parse(raw);
+  normalizeLoadedState();
+}
+
+function getSlotInfo(slot){
+  if(!localStorageAvailable) return "localStorage無効";
+  try{
+    const raw = localStorage.getItem(getSlotKey(slot));
+    if(!raw) return "空きスロット";
+    const data = JSON.parse(raw);
+    const d = new Date(data.__meta?.savedAt || data.updatedAt || Date.now());
+    return `tick ${data.tick} / ${d.toLocaleString()}`;
+  }catch{
+    return "破損データ";
+  }
+}
+
+function exportStateAsJson(){ return JSON.stringify(appState, null, 2); }
+
+function downloadJson(filename, text){
+  const blob = new Blob([text], { type:"application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importJsonFile(file){
+  const text = await file.text();
+  appState = JSON.parse(text);
+  normalizeLoadedState();
+}
+
+async function pushStateToJsonBin(){
+  const writeUrl = document.getElementById("jsonBinWriteUrl").value.trim();
+  const masterKey = document.getElementById("jsonBinMasterKey").value.trim();
+
+  if(!writeUrl) throw new Error("JSONBin Write URL が空");
+  if(!masterKey) throw new Error("JSONBin Master Key が空");
+
+  const payload = clone(appState);
+  payload.__meta = { ...(payload.__meta || {}), pushedToJsonBinAt:nowIso() };
+
+  const response = await fetchWithTimeout(writeUrl, {
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json",
+      "X-Master-Key":masterKey,
+      "X-Bin-Versioning":"false"
+    },
+    body:JSON.stringify(payload)
+  }, 12000);
+
+  if(!response.ok){
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text}`);
+  }
+
+  return response.json();
+}
+
+async function pullStateFromJsonBin(){
+  const readUrl = document.getElementById("jsonBinReadUrl").value.trim();
+  if(!readUrl) throw new Error("JSONBin Read URL が空");
+
+  const response = await fetchWithTimeout(readUrl, {}, 12000);
+  if(!response.ok){
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text}`);
+  }
+
+  const json = await response.json();
+  appState = json.record || json;
+  normalizeLoadedState();
+}
+
+function normalizeLoadedState(){
+  appState.selected = appState.selected || { ownerType:"agent", ownerId:0, node:null, mode:"overview" };
+  appState.selectedEdge = appState.selectedEdge || null;
+  appState.market = appState.market || { totalTrades:0, priceIndex:100, history:[] };
+
+  if(!appState.user) appState.user = createInitialState().user;
+  appState.user.memory = appState.user.memory || {};
+  appState.user.knownWords = appState.user.knownWords || ["ユーザー"];
+  appState.user.knownEdgeKeys = appState.user.knownEdgeKeys || [];
+  appState.user.positions = appState.user.positions || {};
+  appState.user.nodeMeta = appState.user.nodeMeta || {};
+  appState.user.thumbnails = appState.user.thumbnails || {};
+  appState.user.wikiVisitedNormKeys = appState.user.wikiVisitedNormKeys || [];
+
+  if(!Object.keys(appState.user.positions).length){
+    initializeOwnerState(appState.user, ["ユーザー"], 0, true);
+  }
+
+  appState.agents = appState.agents || createInitialState().agents;
+  appState.agents.forEach((agent, i) => {
+    agent.memory = agent.memory || {};
+    agent.knownWords = agent.knownWords || agent.roots || [];
+    agent.knownEdgeKeys = agent.knownEdgeKeys || [];
+    agent.positions = agent.positions || {};
+    agent.nodeMeta = agent.nodeMeta || {};
+    agent.thumbnails = agent.thumbnails || {};
+    agent.wikiVisitedTitles = agent.wikiVisitedTitles || [];
+    agent.wikiVisitedNormKeys = agent.wikiVisitedNormKeys || [];
+    if(!Object.keys(agent.positions).length){
+      initializeOwnerState(agent, agent.roots || [], i, false);
+    }
+  });
+
+  for(const ownerItem of getAllOwners()){
+    Object.values(ownerItem.owner.thumbnails || {}).forEach(url => {
+      if(url) warmThumbnail(url);
+    });
+    rebuildKnownEdgeKeys(ownerItem.owner);
+
+    for(const nodeName of Object.keys(ownerItem.owner.nodeMeta || {})){
+      if(typeof ownerItem.owner.nodeMeta[nodeName].lastDraggedAt !== "number"){
+        ownerItem.owner.nodeMeta[nodeName].lastDraggedAt = 0;
+      }
+    }
+
+    for(const from in ownerItem.owner.memory){
+      ownerItem.owner.memory[from].forEach(e => {
+        if(typeof e.lastTouchedTick !== "number") e.lastTouchedTick = appState.tick || 0;
+        if(typeof e.editable !== "boolean") e.editable = false;
+      });
+    }
+  }
+}
+
+/* =========================
+   キャンバス
+========================= */
+function resizeCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(rect.width * ratio);
+  canvas.height = Math.floor(rect.height * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  renderCanvas();
+}
+
+function worldToScreen(x,y){
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x:(x - camera.x) * camera.zoom + rect.width / 2,
+    y:(y - camera.y) * camera.zoom + rect.height / 2
+  };
+}
+
+function screenToWorld(x,y){
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x:(x - rect.width / 2) / camera.zoom + camera.x,
+    y:(y - rect.height / 2) / camera.zoom + camera.y
+  };
+}
+
+function drawGrid(w,h){
+  ctx.save();
+
+  const startWorld = screenToWorld(0,0);
+  const endWorld = screenToWorld(w,h);
+  const startXMinor = Math.floor(startWorld.x / 120) * 120;
+  const endXMinor = Math.ceil(endWorld.x / 120) * 120;
+  const startYMinor = Math.floor(startWorld.y / 120) * 120;
+  const endYMinor = Math.ceil(endWorld.y / 120) * 120;
+
+  for(let x=startXMinor; x<=endXMinor; x+=120){
+    const s = worldToScreen(x,0);
+    ctx.strokeStyle = (x % 600 === 0) ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.04)";
+    ctx.beginPath(); ctx.moveTo(s.x, 0); ctx.lineTo(s.x, h); ctx.stroke();
+  }
+
+  for(let y=startYMinor; y<=endYMinor; y+=120){
+    const s = worldToScreen(0,y);
+    ctx.strokeStyle = (y % 600 === 0) ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.04)";
+    ctx.beginPath(); ctx.moveTo(0, s.y); ctx.lineTo(w, s.y); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function getNodeRadius(owner, roots, name){
+  const outDegree = owner.memory[name]?.length || 0;
+  const inDegree = Object.values(owner.memory).reduce((acc, arr) => acc + arr.filter(e => e.to === name).length, 0);
+  const degree = outDegree + inDegree;
+  const isRoot = roots.includes(name);
+  const r = (isRoot ? 28 : Math.min(22, 12 + degree*1.4)) * Math.sqrt(camera.zoom);
+  return clamp(r, 10, 34);
+}
+
+function shouldSkipNodeDueToMergedVisual(ownerType, ownerId, name){
+  if(!creativeMode) return false;
+  const key = normalizeWordKey(name);
+  const group = mergeVisualState.get(key);
+  if(!group || !group.merged || group.count < 2) return false;
+  const leader = group.members[0];
+  return !(leader.ownerType === ownerType && leader.ownerId === ownerId && leader.name === name);
+}
+
+function drawOwnerEdges(ownerType, ownerId, owner){
+  ctx.save();
+
+  for(const from in owner.memory){
+    const a = owner.positions[from];
+    if(!a) continue;
+
+    for(const e of owner.memory[from]){
+      const b = owner.positions[e.to];
+      if(!b) continue;
+
+      const p1 = worldToScreen(a.x, a.y);
+      const p2 = worldToScreen(b.x, b.y);
+      const mx = (p1.x + p2.x) / 2;
+      const my = (p1.y + p2.y) / 2;
+      const curve = 0.12;
+      const cx = mx + (p2.y - p1.y) * curve;
+      const cy = my - (p2.x - p1.x) * curve;
+
+      const selectedEdge = appState.selectedEdge;
+      const isSelected =
+        selectedEdge &&
+        selectedEdge.ownerType === ownerType &&
+        selectedEdge.ownerId === ownerId &&
+        selectedEdge.from === from &&
+        selectedEdge.rel === e.rel &&
+        selectedEdge.to === e.to;
+
+      const editable = isEditableEdge({ ownerType, ownerId, from, rel:e.rel, to:e.to });
+
+      let stroke = isSelected ? "#ffffff" : (REL_COLORS[e.rel] || "#999");
+      if(editable) stroke = ownerType === "user" ? "#ffcc66" : "#ff8be6";
+      if(creativeMode && normalizeWordKey(from) === normalizeWordKey(e.to)) stroke = "#ffd7ff";
+
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = Math.max(1, (1 + e.weight * 1.6) * camera.zoom * 0.6) + (isSelected ? 1.2 : 0);
+      ctx.globalAlpha = 0.84;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.quadraticCurveTo(cx, cy, p2.x, p2.y);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawOwnerNodes(ownerType, ownerId, owner, roots){
+  const selected = appState.selected;
+
+  Object.keys(owner.positions).forEach(name => {
+    if(shouldSkipNodeDueToMergedVisual(ownerType, ownerId, name)) return;
+
+    const p = owner.positions[name];
+    const s = worldToScreen(p.x, p.y);
+    const radius = getNodeRadius(owner, roots, name);
+
+    const isSelected =
+      selected.ownerType === ownerType &&
+      selected.ownerId === ownerId &&
+      selected.node === name;
+
+    const editable = isEditableNode(ownerType, ownerId, name);
+    const isRoot = roots.includes(name);
+
+    let fill = isRoot ? "#243e70" : "#192433";
+    let stroke = isSelected ? "#ffffff" : (isRoot ? "#7db0ff" : "#627b99");
+
+    if(editable){
+      fill = ownerType === "user" ? "#4b3a16" : "#4a1d48";
+      stroke = isSelected ? "#ffffff" : (ownerType === "user" ? "#ffcc66" : "#ff8be6");
+    }
+
+    const mergeKey = normalizeWordKey(name);
+    const mergeGroup = creativeMode ? mergeVisualState.get(mergeKey) : null;
+    const mergedCount = mergeGroup && mergeGroup.merged ? mergeGroup.count : 1;
+
+    if(mergeGroup && mergeGroup.merged && mergedCount > 1){
+      fill = "#412a57";
+      stroke = "#ffd7ff";
+    }
+
+    const thumbUrl = owner.thumbnails?.[name];
+    const thumbImg = thumbUrl ? imageCache.get(thumbUrl) : null;
+    const hasThumb = !!(thumbImg && thumbImg.complete);
+
+    ctx.save();
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = isSelected ? 3 : (isRoot ? 2.5 : 1.5);
+
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, radius + (mergedCount > 1 ? 4 : 0), 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+
+    if(hasThumb){
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y - radius*0.12, radius*0.78, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      const imgSize = radius * 1.8;
+      ctx.drawImage(
+        thumbImg,
+        s.x - imgSize/2,
+        s.y - imgSize/2 - radius*0.12,
+        imgSize,
+        imgSize
+      );
+      ctx.restore();
+
+      ctx.fillStyle = "#eaf1ff";
+      ctx.font = `${Math.max(11, radius * 0.42)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(name, s.x, s.y + radius + 12);
+    }else{
+      ctx.fillStyle = "#eaf1ff";
+      ctx.font = `${Math.max(11, radius * 0.55)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(name, s.x, s.y);
+    }
+
+    if(editable){
+      ctx.fillStyle = ownerType === "user" ? "#ffcc66" : "#ff8be6";
+      ctx.beginPath();
+      ctx.arc(s.x + radius*0.68, s.y - radius*0.68, Math.max(3, radius*0.18), 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    if(hasThumb){
+      ctx.strokeStyle = ownerType === "user" ? "#ffe29a" : "#9fd3ff";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y - radius*0.12, radius*0.80, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if(mergedCount > 1){
+      ctx.fillStyle = "#ffd7ff";
+      ctx.font = "bold 11px sans-serif";
+      ctx.fillText(`×${mergedCount}`, s.x, s.y + radius + 26);
+    }
+
+    ctx.restore();
+  });
+}
+
+function renderCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0,0,rect.width,rect.height);
+
+  if(creativeMode) applyCreativeCollectiveMagnet();
+
+  drawGrid(rect.width, rect.height);
+
+  const owners = getAllOwners();
+  owners.forEach(item => drawOwnerEdges(item.ownerType, item.ownerId, item.owner));
+  owners.forEach(item => drawOwnerNodes(item.ownerType, item.ownerId, item.owner, item.roots));
+
+  document.getElementById("camInfo").textContent =
+    `zoom ${camera.zoom.toFixed(2)} / x ${camera.x.toFixed(0)} / y ${camera.y.toFixed(0)}`;
+
+  const modeLabel =
+    mode === "view" ? "MODE: VIEW" :
+    mode === "edit" ? "MODE: EDIT" :
+    "MODE: LINK";
+
+  document.getElementById("modeInfo").textContent = modeLabel;
+  document.getElementById("mergeInfo").textContent = `collective: ${creativeMode ? "ON" : "OFF"}`;
+}
+
+function pointToCurveDistance(px, py, x1, y1, cx, cy, x2, y2){
+  let min = Infinity;
+  for(let t=0; t<=1.001; t+=0.05){
+    const xt = (1-t)*(1-t)*x1 + 2*(1-t)*t*cx + t*t*x2;
+    const yt = (1-t)*(1-t)*y1 + 2*(1-t)*t*cy + t*t*y2;
+    const dx = px - xt;
+    const dy = py - yt;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if(d < min) min = d;
+  }
+  return min;
+}
+
+function findNodeAtScreen(x,y){
+  const hits = [];
+
+  for(const item of getAllOwners()){
+    Object.keys(item.owner.positions).forEach(name => {
+      if(shouldSkipNodeDueToMergedVisual(item.ownerType, item.ownerId, name)) return;
+      const p = item.owner.positions[name];
+      const s = worldToScreen(p.x, p.y);
+      const radius = getNodeRadius(item.owner, item.roots, name) + 4;
+      const dx = x - s.x;
+      const dy = y - s.y;
+      if(dx*dx + dy*dy <= radius*radius){
+        hits.push({ ownerType:item.ownerType, ownerId:item.ownerId, node:name });
+      }
+    });
+  }
+
+  return hits[0] || null;
+}
+
+function findEdgeAtScreen(x,y){
+  let best = null;
+  let bestDist = 14;
+
+  for(const item of getAllOwners()){
+    for(const from in item.owner.memory){
+      const a = item.owner.positions[from];
+      if(!a) continue;
+
+      for(const e of item.owner.memory[from]){
+        const b = item.owner.positions[e.to];
+        if(!b) continue;
+
+        const p1 = worldToScreen(a.x, a.y);
+        const p2 = worldToScreen(b.x, b.y);
+        const mx = (p1.x + p2.x) / 2;
+        const my = (p1.y + p2.y) / 2;
+        const curve = 0.12;
+        const cx = mx + (p2.y - p1.y) * curve;
+        const cy = my - (p2.x - p1.x) * curve;
+
+        const d = pointToCurveDistance(x, y, p1.x, p1.y, cx, cy, p2.x, p2.y);
+        if(d < bestDist){
+          bestDist = d;
+          best = { ownerType:item.ownerType, ownerId:item.ownerId, from, rel:e.rel, to:e.to };
+        }
+      }
+    }
+  }
+
+  return best;
+}
+
+function centerOnSelection(){
+  const sel = appState.selected;
+  if(!sel?.node) return;
+  const owner = getOwnerByTypeAndId(sel.ownerType, sel.ownerId);
+  const p = owner.positions[sel.node];
+  if(!p) return;
+  camera.x = p.x;
+  camera.y = p.y;
+  renderCanvas();
+}
+
+function fitAll(){
+  const owners = getAllOwners();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  owners.forEach(item => {
+    Object.values(item.owner.positions).forEach(p => {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    });
+  });
+
+  if(!isFinite(minX)) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const worldW = Math.max(300, maxX - minX + 300);
+  const worldH = Math.max(300, maxY - minY + 300);
+
+  camera.x = (minX + maxX) / 2;
+  camera.y = (minY + maxY) / 2;
+  camera.zoom = clamp(Math.min(rect.width / worldW, rect.height / worldH), 0.08, 1.2);
+  renderCanvas();
+}
+
+/* =========================
+   編集UI
+========================= */
+function openNodeEditor(ownerType, ownerId, nodeName){
+  if(!isEditableNode(ownerType, ownerId, nodeName)){
+    addLog("このノードは編集できない。", "warn");
+    return;
+  }
+
+  openModal("ノード編集", `
+    <label>ノード名
+      <input type="text" id="editNodeNameInput" value="${escapeHtml(nodeName)}">
+    </label>
+    <div class="modal-actions">
+      <button id="saveNodeEditBtn">保存</button>
+      <button id="copyNodeBtn">コピー</button>
+      <button id="deleteNodeBtn">削除</button>
+    </div>
+  `);
+
+  document.getElementById("saveNodeEditBtn").onclick = () => {
+    const newName = document.getElementById("editNodeNameInput").value.trim();
+    if(!newName){ addLog("ノード名が空。", "warn"); return; }
+    const ok = renameNode(ownerType, ownerId, nodeName, newName);
+    if(!ok){ addLog("ノード名変更失敗。同名がある。", "warn"); return; }
+    addLog(`ノード名変更: ${nodeName} → ${newName}`, "good");
+    closeModal();
+    renderAll();
+    saveAuto();
+  };
+
+  document.getElementById("copyNodeBtn").onclick = () => {
+    const newName = copyNode(ownerType, ownerId, nodeName);
+    addLog(`ノードをコピー: ${nodeName} → ${newName}`, "good");
+    closeModal();
+    renderAll();
+    saveAuto();
+  };
+
+  document.getElementById("deleteNodeBtn").onclick = () => openConfirmDeleteNode(ownerType, ownerId, nodeName);
+}
+
+function openConfirmDeleteNode(ownerType, ownerId, nodeName){
+  openModal("削除確認", `
+    <div>ノード <b>${escapeHtml(nodeName)}</b> を削除する？</div>
+    <div class="kv">関連リンクも一緒に消える。</div>
+    <div class="modal-actions">
+      <button id="confirmDeleteNodeBtn">削除する</button>
+      <button id="cancelDeleteNodeBtn">やめる</button>
+    </div>
+  `);
+
+  document.getElementById("confirmDeleteNodeBtn").onclick = () => {
+    removeNode(ownerType, ownerId, nodeName);
+    addLog(`ノード削除: ${nodeName}`, "good");
+    closeModal();
+    renderAll();
+    saveAuto();
+  };
+  document.getElementById("cancelDeleteNodeBtn").onclick = closeModal;
+}
+
+function openConfirmDeleteEdge(edge){
+  openModal("リンク削除", `
+    <div><b>${escapeHtml(edge.from)}</b> --${escapeHtml(edge.rel)}--> <b>${escapeHtml(edge.to)}</b></div>
+    <div class="kv">このリンクを削除します。</div>
+    <div class="modal-actions">
+      <button id="confirmDeleteEdgeBtn">削除する</button>
+      <button id="cancelDeleteEdgeBtn">やめる</button>
+    </div>
+  `);
+
+  document.getElementById("confirmDeleteEdgeBtn").onclick = () => {
+    const ok = removeEdge(edge.ownerType, edge.ownerId, edge.from, edge.rel, edge.to);
+    if(ok){
+      appState.selectedEdge = null;
+      addLog(`リンク削除: ${edge.from} --${edge.rel}--> ${edge.to}`, "good");
+      closeModal();
+      renderAll();
+      saveAuto();
+    }else{
+      addLog("リンク削除失敗。", "warn");
+    }
+  };
+
+  document.getElementById("cancelDeleteEdgeBtn").onclick = closeModal;
+}
+
+function openCreateNodeModal(worldX, worldY){
+  if(mode !== "edit"){
+    addLog("ノード生成は編集モードで。", "warn");
+    return;
+  }
+
+  openModal("ノード生成", `
+    <label>ノード名
+      <input type="text" id="createNodeNameInput" placeholder="新しいノード名" autofocus>
+    </label>
+    <div class="modal-actions">
+      <button id="createNodeBtn">作成する</button>
+      <button id="cancelCreateNodeBtn">やめる</button>
+    </div>
+  `);
+
+  const create = () => {
+    const name = document.getElementById("createNodeNameInput").value.trim();
+    if(!name){ addLog("ノード名が空。", "warn"); return; }
+    if(appState.user.knownWords.some(w => normalizeWordKey(w) === normalizeWordKey(name))){
+      addLog("同名ノードがある。", "warn");
+      return;
+    }
+
+    if(!appState.user.memory[name]) appState.user.memory[name] = [];
+    appState.user.knownWords.push(name);
+    appState.user.positions[name] = { x:worldX, y:worldY, vx:0, vy:0 };
+    addNodeMeta(appState.user, name, { sourceType:"user-create", editable:true });
+    appState.user.handmade += 1;
+
+    addLog(`ノード作成: ${name}`, "good");
+    closeModal();
+    renderAll();
+    saveAuto();
+  };
+
+  document.getElementById("createNodeBtn").onclick = create;
+  document.getElementById("cancelCreateNodeBtn").onclick = closeModal;
+
+  setTimeout(() => {
+    const input = document.getElementById("createNodeNameInput");
+    if(input) input.focus();
+  }, 30);
+}
+
+/* =========================
+   右パネル / 状態描画
+========================= */
+function renderStatePreview(){
+  const preview = {
+    tick:appState.tick,
+    updatedAt:appState.updatedAt,
+    teamPolicy:appState.teamPolicy,
+    mode,
+    creativeMode,
+    market:appState.market,
+    user:{
+      pt:appState.user.pt,
+      trades:appState.user.trades,
+      handmade:appState.user.handmade,
+      knowledgeCount:appState.user.knownWords.length,
+      thumbCount:Object.keys(appState.user.thumbnails || {}).length
+    },
+    agents:appState.agents.map(a => ({
+      name:a.name,
+      role:a.role,
+      archetype:a.archetype,
+      pt:a.pt,
+      intelligence:a.intelligence,
+      growth:a.growth,
+      trades:a.trades,
+      mood:a.mood,
+      knowledgeCount:a.knownWords.length,
+      imports:a.imports || 0,
+      curations:a.curations || 0,
+      criticalAdds:a.criticalAdds || 0,
+      syntheses:a.syntheses || 0
+    }))
+  };
+
+  document.getElementById("statePreview").textContent = JSON.stringify(preview, null, 2);
+}
+
+function renderPreviewVisibility(){
+  const wrap = document.getElementById("statePreviewWrap");
+  const btn = document.getElementById("togglePreviewBtn");
+  wrap.style.display = previewCollapsed ? "none" : "block";
+  btn.textContent = previewCollapsed ? "展開する" : "折りたたむ";
+}
+
+function renderSlotPreview(){
+  const el = document.getElementById("slotPreview");
+  let html = "";
+  for(let i=1;i<=SLOT_COUNT;i++){
+    html += `<div class="list-row"><b>Slot ${i}</b><div class="kv">${escapeHtml(getSlotInfo(i))}</div></div>`;
+  }
+  html += `<div class="list-row"><b>Auto</b><div class="kv">${localStorageAvailable && localStorage.getItem(AUTO_SAVE_KEY) ? "保存あり" : "未保存"}</div></div>`;
+  el.innerHTML = html;
+}
+
+function buySelectedNodeKnowledgeForUser(){
+  const sel = appState.selected;
+  if(!sel || sel.ownerType !== "agent" || !sel.node) return;
+
+  const seller = appState.agents[sel.ownerId];
+  const details = getNodeDetails(seller, sel.node);
+  const pick = details.outbound[0];
+  if(!pick){ addLog("購入候補がない。", "warn"); return; }
+
+  const price = Math.round(18 + pick.weight * 12 + pick.confidence * 10);
+  if(appState.user.pt < price){ addLog("Userのpt不足。", "warn"); return; }
+
+  const ok = addEdgeToOwner(appState.user, {
+    from:pick.from,
+    rel:pick.rel,
+    to:pick.to,
+    confidence:pick.confidence,
+    evidence:`bought from ${seller.name}`,
+    weight:pick.weight,
+    sourceType:"trade",
+    editable:true,
+    fromEditable:true,
+    toEditable:true
+  }, "trade");
+
+  if(!ok){ addLog("Userはその知識を既に持ってる。", "warn"); return; }
+
+  if(seller.thumbnails?.[pick.from]){
+    appState.user.thumbnails[pick.from] = seller.thumbnails[pick.from];
+    warmThumbnail(seller.thumbnails[pick.from]);
+  }
+  if(seller.thumbnails?.[pick.to]){
+    appState.user.thumbnails[pick.to] = seller.thumbnails[pick.to];
+    warmThumbnail(seller.thumbnails[pick.to]);
+  }
+
+  appState.user.pt -= price;
+  appState.user.trades += 1;
+  seller.pt += price;
+  seller.trades += 1;
+  appState.market.totalTrades += 1;
+
+  addLog(`Userが ${seller.name} から購入: ${pick.from} --${pick.rel}--> ${pick.to} (${price}pt)`, "good");
+  renderAll();
+  saveAuto();
+}
+
+function renderSidePanel(){
+  const sel = appState.selected || { ownerType:"agent", ownerId:0, node:null, mode:"overview" };
+  const owner = getOwnerByTypeAndId(sel.ownerType, sel.ownerId);
+
+  if(appState.selectedEdge){
+    const edge = appState.selectedEdge;
+    const deletable = isEditableEdge(edge);
+
+    sidePanel.innerHTML = `
+      <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+        <div><b>リンク選択</b></div>
+        <div class="kv" style="margin-top:8px;">
+          ${escapeHtml(edge.from)} --${escapeHtml(edge.rel)}--> ${escapeHtml(edge.to)}
+        </div>
+        <div class="kv">編集可: ${deletable ? "はい" : "いいえ"}</div>
+        <div class="kv">owner: ${escapeHtml(edge.ownerType)} / source edge</div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          ${deletable ? `<button id="deleteSelectedEdgeBtn">このリンクを削除</button>` : `<span class="kv">このリンクは削除不可</span>`}
+        </div>
+      </div>
+    `;
+
+    const btn = document.getElementById("deleteSelectedEdgeBtn");
+    if(btn) btn.onclick = () => openConfirmDeleteEdge(edge);
+    return;
+  }
+
+  if(!owner){
+    sidePanel.innerHTML = `<div class="kv">データなし</div>`;
+    return;
+  }
+
+  if(sel.mode === "node" && sel.node){
+    const details = getNodeDetails(owner, sel.node);
+    const editable = isEditableNode(sel.ownerType, sel.ownerId, sel.node);
+    const thumbUrl = owner.thumbnails?.[sel.node] || "";
+    const summary = owner.nodeMeta?.[sel.node]?.summary || "";
+
+    sidePanel.innerHTML = `
+      <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+        <div><b>${escapeHtml(sel.node)}</b>
+          <span class="pill ${editable ? (sel.ownerType==="user" ? "user" : "creative") : ""}">
+            ${escapeHtml(owner.name)}
+          </span>
+        </div>
+        <div class="kv">入次数: ${details.inbound.length} / 出次数: ${details.outbound.length}</div>
+        <div class="kv">編集可: ${editable ? "はい" : "いいえ"}</div>
+        ${summary ? `<div class="kv" style="margin-top:8px;">${escapeHtml(summary)}</div>` : ``}
+
+        ${thumbUrl ? `
+          <div style="margin-top:10px;">
+            <img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(sel.node)}"
+              style="width:100%;max-width:220px;border-radius:10px;border:1px solid rgba(255,255,255,.08);display:block;">
+          </div>
+        ` : ``}
+
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="centerNodeBtn">このノードへ移動</button>
+          ${sel.ownerType === "agent" ? `<button id="buyNodeKnowledgeBtn">Userが先頭知識を買う</button>` : ``}
+          ${editable ? `<button id="editNodeBtn">編集 / コピー / 削除</button>` : ``}
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+        <div><b>出ていく知識</b></div>
+        <div style="margin-top:8px;">
+          ${
+            details.outbound.length
+              ? details.outbound.map(e => `
+                <div class="list-row">
+                  <div><span class="pill">${escapeHtml(e.rel)}</span> → <b>${escapeHtml(e.to)}</b></div>
+                  <div class="kv">confidence: ${e.confidence.toFixed(2)} / weight: ${e.weight.toFixed(2)} / source: ${escapeHtml(e.sourceType)}</div>
+                </div>
+              `).join("")
+              : `<div class="kv">なし</div>`
+          }
+        </div>
+      </div>
+
+      <div>
+        <div><b>入ってくる知識</b></div>
+        <div style="margin-top:8px;">
+          ${
+            details.inbound.length
+              ? details.inbound.map(e => `
+                <div class="list-row">
+                  <div><b>${escapeHtml(e.from)}</b> → <span class="pill">${escapeHtml(e.rel)}</span></div>
+                  <div class="kv">confidence: ${e.confidence.toFixed(2)} / weight: ${e.weight.toFixed(2)} / source: ${escapeHtml(e.sourceType)}</div>
+                </div>
+              `).join("")
+              : `<div class="kv">なし</div>`
+          }
+        </div>
+      </div>
+    `;
+
+    document.getElementById("centerNodeBtn").onclick = centerOnSelection;
+    const buyBtn = document.getElementById("buyNodeKnowledgeBtn");
+    if(buyBtn) buyBtn.onclick = buySelectedNodeKnowledgeForUser;
+    const editBtn = document.getElementById("editNodeBtn");
+    if(editBtn) editBtn.onclick = () => openNodeEditor(sel.ownerType, sel.ownerId, sel.node);
+    return;
+  }
+
+  sidePanel.innerHTML = `
+    <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+      <div><b>${escapeHtml(owner.name)}</b>
+        <span class="pill ${sel.ownerType==="user" ? "user" : ""}">${escapeHtml(owner.role || "User")}</span>
+      </div>
+      <div class="kv">
+        pt: ${owner.pt}<br>
+        total asset: ${totalAsset(owner)}<br>
+        nodes: ${owner.knownWords.length}<br>
+        edges: ${countEdges(owner)}<br>
+        archetype: ${escapeHtml(owner.archetype || "-")}<br>
+        wiki imports: ${owner.imports || 0}<br>
+        trades: ${owner.trades || 0}<br>
+        reinforcements: ${owner.reinforcements || 0}<br>
+        curations: ${owner.curations || 0}<br>
+        criticalAdds: ${owner.criticalAdds || 0}<br>
+        syntheses: ${owner.syntheses || 0}<br>
+        intelligence: ${owner.intelligence || 0}
+      </div>
+    </div>
+
+    ${
+      sel.ownerType === "agent"
+        ? `
+        <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div><b>テーマ</b></div>
+          <div style="margin-top:8px;">${(owner.theme || []).map(t => `<span class="pill">${escapeHtml(t)}</span>`).join("")}</div>
+        </div>
+
+        <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div><b>方針</b></div>
+          <div class="kv mono">
+            inputBias: ${owner.policy.inputBias.toFixed(2)}<br>
+            outputBias: ${owner.policy.outputBias.toFixed(2)}<br>
+            tradeAggression: ${owner.policy.tradeAggression.toFixed(2)}<br>
+            negativity: ${owner.policy.negativity.toFixed(2)}<br>
+            cooperation: ${owner.policy.cooperation.toFixed(2)}<br>
+            wikiBias: ${(owner.policy.wikiBias || 0).toFixed(2)}
+          </div>
+        </div>
+        `
+        : `
+        <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div><b>User知識追加</b></div>
+          <div class="kv">自作ノードと手入力リンク。</div>
+          <div style="margin-top:10px;display:grid;gap:8px;">
+            <input id="userFromInput" placeholder="from">
+            <select id="userRelInput">${RELS.map(r => `<option value="${r}">${r}</option>`).join("")}</select>
+            <input id="userToInput" placeholder="to">
+            <button id="userAddKnowledgeBtn">User知識追加</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">
+          <div><b>Wikipedia取込</b></div>
+          <div class="kv">右パネルからも追加可能。</div>
+          <div style="margin-top:10px;display:grid;gap:8px;">
+            <input id="wikiTermInput" placeholder="例: 富士山 / 猫 / 自動車">
+            <button id="wikiImportBtn">Wikipediaから追加</button>
+          </div>
+        </div>
+        `
+    }
+
+    <div>
+      <div><b>保存スロット</b></div>
+      <div style="margin-top:8px;">
+        ${Array.from({length:SLOT_COUNT}, (_,i) => `
+          <div class="list-row">
+            <div><b>Slot ${i+1}</b></div>
+            <div class="kv">${escapeHtml(getSlotInfo(i+1))}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+
+  const addBtn = document.getElementById("userAddKnowledgeBtn");
+  if(addBtn){
+    addBtn.onclick = () => {
+      const from = document.getElementById("userFromInput").value.trim();
+      const rel = document.getElementById("userRelInput").value;
+      const to = document.getElementById("userToInput").value.trim();
+
+      if(!from || !to){ addLog("from/to が空。", "warn"); return; }
+
+      const ok = addEdgeToOwner(appState.user, {
+        from, rel, to,
+        confidence:0.95,
+        evidence:"user manual",
+        weight:0.9,
+        sourceType:"user",
+        editable:true,
+        fromEditable:true,
+        toEditable:true
+      }, "user");
+
+      if(ok){
+        appState.user.handmade += 1;
+        addLog(`User知識追加: ${from} --${rel}--> ${to}`, "good");
+        renderAll();
+        saveAuto();
+      }else{
+        addLog("User知識追加失敗。重複か入力が雑。", "warn");
+      }
+    };
+  }
+
+  const wikiBtn = document.getElementById("wikiImportBtn");
+  if(wikiBtn){
+    wikiBtn.onclick = async () => {
+      const term = document.getElementById("wikiTermInput").value.trim();
+      if(!term){ addLog("Wikipedia検索語が空。", "warn"); return; }
+
+      try{
+        wikiBtn.disabled = true;
+        wikiBtn.textContent = "取得中...";
+        await importWikipediaToUser(term);
+        centerOnSelection();
+      }catch(err){
+        console.error(err);
+        addLog(`Wikipedia取込失敗: ${err.message}`, "danger");
+      }finally{
+        wikiBtn.disabled = false;
+        wikiBtn.textContent = "Wikipediaから追加";
+      }
+    };
+  }
+}
+
+/* =========================
+   描画総合
+========================= */
+function renderStatus(){
+  const team = TEAM_POLICIES[appState.teamPolicy]?.label || appState.teamPolicy;
+  const storageText = localStorageAvailable ? "localStorage:OK" : "localStorage:NG";
+  document.getElementById("statusText").textContent =
+    `tick=${appState.tick} / team=${team} / mode=${mode}${creativeMode ? "+creative" : ""} / ${storageText}`;
+}
+
+function renderToolbarState(){
+  document.getElementById("canvasViewBtn").classList.toggle("active", mode === "view");
+  document.getElementById("canvasEditBtn").classList.toggle("active", mode === "edit");
+  document.getElementById("canvasLinkBtn").classList.toggle("user-active", mode === "link");
+  document.getElementById("canvasCreativeBtn").classList.toggle("creative-active", creativeMode);
+}
+
+function renderAll(){
+  renderStatus();
+  renderStatePreview();
+  renderPreviewVisibility();
+  renderSlotPreview();
+  renderSidePanel();
+  renderToolbarState();
+  renderCanvas();
+}
+
+/* =========================
+   全体UIイベント
+========================= */
+function stopRunning(){
+  clearInterval(timer);
+  timer = null;
+}
+
+document.getElementById("startBtn").onclick = () => {
+  if(timer) return;
+  timer = setInterval(async () => {
+    try{
+      await stepSimulation(appState);
+      renderAll();
+      saveAuto();
+    }catch(err){
+      addLog(`自動進行エラー: ${err.message}`, "danger");
+      stopRunning();
+    }
+  }, 1400);
+  addLog("自動進行を開始しました。", "good");
+};
+
+document.getElementById("stopBtn").onclick = () => {
+  stopRunning();
+  addLog("自動進行を停止しました。", "warn");
+};
+
+document.getElementById("stepBtn").onclick = async () => {
+  await stepSimulation(appState);
+  addLog("1ステップ進行", "good");
+  renderAll();
+  saveAuto();
+};
+
+document.getElementById("tenStepBtn").onclick = async () => {
+  for(let i=0;i<10;i++) await stepSimulation(appState);
+  addLog("10ステップ進行", "good");
+  renderAll();
+  saveAuto();
+};
+
+document.getElementById("resetBtn").onclick = () => {
+  stopRunning();
+  appState = createInitialState();
+  previewCollapsed = true;
+  mode = "view";
+  creativeMode = false;
+  interaction.linkStart = null;
+  fitAll();
+  addLog("状態を初期化しました。", "warn");
+  renderAll();
+  saveAuto();
+};
+
+document.getElementById("centerBtn").onclick = () => {
+  camera.x = 0;
+  camera.y = 0;
+  camera.zoom = 0.55;
+  renderCanvas();
+};
+
+document.getElementById("fitBtn").onclick = fitAll;
+
+document.getElementById("autoSaveBtn").onclick = () => {
+  if(saveAuto()) addLog("オートセーブを保存しました。", "good");
+  else addLog("オートセーブ失敗。", "warn");
+  renderSlotPreview();
+};
+
+document.getElementById("loadAutoBtn").onclick = () => {
+  if(!loadAuto()){
+    addLog("オートセーブがありません。", "warn");
+    return;
+  }
+  stopRunning();
+  addLog("オートセーブを読込しました。", "good");
+  document.getElementById("teamPolicySelect").value = appState.teamPolicy || "balanced";
+  renderAll();
+};
+
+document.querySelectorAll("[data-save-slot]").forEach(btn => {
+  btn.onclick = () => {
+    try{
+      const slot = Number(btn.dataset.saveSlot);
+      saveSlot(slot);
+      addLog(`Slot ${slot} に保存しました。`, "good");
+      renderSlotPreview();
+      renderSidePanel();
+    }catch(err){
+      addLog(`保存失敗: ${err.message}`, "danger");
+    }
+  };
+});
+
+document.querySelectorAll("[data-load-slot]").forEach(btn => {
+  btn.onclick = () => {
+    try{
+      const slot = Number(btn.dataset.loadSlot);
+      loadSlot(slot);
+      stopRunning();
+      document.getElementById("teamPolicySelect").value = appState.teamPolicy || "balanced";
+      addLog(`Slot ${slot} を読込しました。`, "good");
+      renderAll();
+    }catch(err){
+      addLog(`読込失敗: ${err.message}`, "danger");
+    }
+  };
+});
+
+document.getElementById("exportJsonBtn").onclick = () => {
+  try{
+    downloadJson(`mindmap_tick_${appState.tick}.json`, exportStateAsJson());
+    addLog("JSONを書き出しました。", "good");
+  }catch(err){
+    addLog(`JSON書き出し失敗: ${err.message}`, "danger");
+  }
+};
+
+document.getElementById("importJsonBtn").onclick = () => {
+  document.getElementById("jsonFileInput").click();
+};
+
+document.getElementById("jsonFileInput").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  try{
+    await importJsonFile(file);
+    stopRunning();
+    document.getElementById("teamPolicySelect").value = appState.teamPolicy || "balanced";
+    addLog("JSONを読込しました。", "good");
+    renderAll();
+    saveAuto();
+  }catch(err){
+    addLog(`JSON読込失敗: ${err.message}`, "danger");
+  }finally{
+    e.target.value = "";
+  }
+});
+
+document.getElementById("pushJsonBinBtn").onclick = async () => {
+  try{
+    saveJsonBinConfigToSession();
+    await pushStateToJsonBin();
+    addLog("JSONBinへアップデートしました。", "good");
+  }catch(err){
+    addLog(`JSONBin更新失敗: ${err.message}`, "danger");
+  }
+};
+
+document.getElementById("pullJsonBinBtn").onclick = async () => {
+  try{
+    saveJsonBinConfigToSession();
+    await pullStateFromJsonBin();
+    stopRunning();
+    document.getElementById("teamPolicySelect").value = appState.teamPolicy || "balanced";
+    addLog("JSONBinから読込しました。", "good");
+    renderAll();
+    saveAuto();
+  }catch(err){
+    addLog(`JSONBin読込失敗: ${err.message}`, "danger");
+  }
+};
+
+document.getElementById("teamPolicySelect").onchange = e => {
+  appState.teamPolicy = e.target.value;
+  addLog(`チーム方針変更: ${TEAM_POLICIES[appState.teamPolicy].label}`, "good");
+  renderAll();
+  saveAuto();
+};
+
+document.getElementById("toggleLogBtn").onclick = () => {
+  const panel = document.getElementById("logPanel");
+  panel.classList.toggle("collapsed");
+  document.getElementById("toggleLogBtn").textContent =
+    panel.classList.contains("collapsed") ? "展開する" : "折りたたむ";
+};
+
+document.getElementById("clearLogBtn").onclick = () => {
+  uiLogs = [];
+  renderLogs();
+};
+
+document.getElementById("togglePreviewBtn").onclick = () => {
+  previewCollapsed = !previewCollapsed;
+  renderPreviewVisibility();
+};
+
+document.getElementById("canvasViewBtn").onclick = () => {
+  mode = "view";
+  interaction.linkStart = null;
+  addLog("閲覧モード", "good");
+  renderAll();
+};
+
+document.getElementById("canvasEditBtn").onclick = () => {
+  mode = "edit";
+  interaction.linkStart = null;
+  addLog("編集モード", "good");
+  renderAll();
+};
+
+document.getElementById("canvasLinkBtn").onclick = () => {
+  mode = "link";
+  interaction.linkStart = null;
+  addLog("リンクモード", "good");
+  renderAll();
+};
+
+document.getElementById("canvasCreativeBtn").onclick = () => {
+  creativeMode = !creativeMode;
+  interaction.linkStart = null;
+  addLog(`クリエイティブモード: ${creativeMode ? "ON" : "OFF"}`, creativeMode ? "good" : "warn");
+  renderAll();
+};
+
+window.addEventListener("beforeunload", () => {
+  try{ saveAuto(); }catch{}
+});
+
+/* =========================
+   Wikipedia上部UI
+========================= */
+function bindWikipediaQuickImport(){
+  const btn = document.getElementById("wikiQuickBtn");
+  const input = document.getElementById("wikiQuickInput");
+  if(!btn || !input) return;
+
+  btn.onclick = async () => {
+    const term = input.value.trim();
+    if(!term){
+      addLog("Wikipedia検索語が空。", "warn");
+      return;
+    }
+
+    try{
+      btn.disabled = true;
+      btn.textContent = "取得中...";
+      await importWikipediaToUser(term);
+      centerOnSelection();
+    }catch(err){
+      console.error(err);
+      addLog(`Wikipedia取込失敗: ${err.message}`, "danger");
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "Wikipedia追加";
+    }
+  };
+
+  input.addEventListener("keydown", e => {
+    if(e.key === "Enter") btn.click();
+  });
+}
+
+/* =========================
+   ポインタ / タッチ
+========================= */
+function pointerMidpoint(p1,p2){ return { x:(p1.x + p2.x) / 2, y:(p1.y + p2.y) / 2 }; }
+function pointerDistance(p1,p2){ return Math.hypot(p1.x - p2.x, p1.y - p2.y); }
+
+function cancelLongPress(){
+  if(longPressTimer){
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+function startLongPress(worldX, worldY){
+  cancelLongPress();
+  interaction.longPressTriggered = false;
+  longPressTimer = setTimeout(() => {
+    if(mode === "edit"){
+      suppressTapAfterLongPress = true;
+      interaction.longPressTriggered = true;
+      interaction.draggingCanvas = false;
+      interaction.draggingNode = false;
+      canvas.classList.remove("dragging");
+      openCreateNodeModal(worldX, worldY);
+    }
+  }, 520);
+}
+
+function startNodeDrag(hit, screenX, screenY){
+  if(mode === "view") return false;
+  if(!isEditableNode(hit.ownerType, hit.ownerId, hit.node)) return false;
+
+  const owner = getOwnerByTypeAndId(hit.ownerType, hit.ownerId);
+  const world = screenToWorld(screenX, screenY);
+  const p = owner.positions[hit.node];
+
+  interaction.draggingNode = true;
+  interaction.dragNodeOwnerType = hit.ownerType;
+  interaction.dragNodeOwnerId = hit.ownerId;
+  interaction.dragNodeName = hit.node;
+  interaction.nodeOffsetX = p.x - world.x;
+  interaction.nodeOffsetY = p.y - world.y;
+  canvas.classList.add("dragging");
+  return true;
+}
+
+function handleNodeTap(hit){
+  appState.selectedEdge = null;
+  appState.selected = { ...hit, mode:"node" };
+
+  const tapKey = `${hit.ownerType}:${hit.ownerId}:${hit.node}`;
+  const now = performance.now();
+  const isDoubleTap = interaction.lastTapKey === tapKey && (now - interaction.lastTapAt < 300);
+  interaction.lastTapKey = tapKey;
+  interaction.lastTapAt = now;
+
+  if(mode === "link"){
+    if(!isEditableNode(hit.ownerType, hit.ownerId, hit.node)){
+      addLog("このノードはリンク編集できない。", "warn");
+      renderAll();
+      return;
+    }
+
+    if(!interaction.linkStart){
+      interaction.linkStart = hit;
+      addLog(`リンク開始ノード: ${hit.node}`, "good");
+      renderAll();
+      return;
+    }
+
+    if(interaction.linkStart.ownerType === hit.ownerType &&
+       interaction.linkStart.ownerId === hit.ownerId &&
+       interaction.linkStart.node === hit.node){
+      interaction.linkStart = null;
+      addLog("同じノード同士は繋がない。", "warn");
+      renderAll();
+      return;
+    }
+
+    const startOwner = getOwnerByTypeAndId(interaction.linkStart.ownerType, interaction.linkStart.ownerId);
+    const ok = addEdgeToOwner(startOwner, {
+      from:interaction.linkStart.node,
+      rel:"related_to",
+      to:hit.node,
+      confidence:0.92,
+      evidence:"manual link",
+      weight:0.82,
+      sourceType:creativeMode ? "creative-link" : "user-link",
+      editable:true,
+      fromEditable:true,
+      toEditable:true
+    }, "manual-link");
+
+    let reverseOk = false;
+    if(creativeMode && (
+      interaction.linkStart.ownerType !== hit.ownerType ||
+      interaction.linkStart.ownerId !== hit.ownerId
+    )){
+      const targetOwner = getOwnerByTypeAndId(hit.ownerType, hit.ownerId);
+      reverseOk = addEdgeToOwner(targetOwner, {
+        from:hit.node,
+        rel:"related_to",
+        to:interaction.linkStart.node,
+        confidence:0.92,
+        evidence:"creative reciprocal link",
+        weight:0.82,
+        sourceType:"creative-link",
+        editable:true,
+        fromEditable:true,
+        toEditable:true
+      }, "creative-link");
+    }
+
+    if(ok || reverseOk){
+      addLog(`リンク作成: ${interaction.linkStart.node} → ${hit.node}${reverseOk ? "（相互）" : ""}`, "good");
+      saveAuto();
+    }else{
+      addLog("リンク作成失敗。", "warn");
+    }
+
+    interaction.linkStart = null;
+    renderAll();
+    return;
+  }
+
+  if(mode === "edit" && isDoubleTap && isEditableNode(hit.ownerType, hit.ownerId, hit.node)){
+    openNodeEditor(hit.ownerType, hit.ownerId, hit.node);
+    return;
+  }
+
+  renderAll();
+}
+
+canvas.addEventListener("pointerdown", e => {
+  if(suppressTapAfterLongPress) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const localX = e.clientX - rect.left;
+  const localY = e.clientY - rect.top;
+
+  interaction.pointers.set(e.pointerId, { x:localX, y:localY });
+  interaction.movedDuringPress = false;
+  interaction.longPressTriggered = false;
+
+  if(interaction.pointers.size === 2){
+    cancelLongPress();
+    const points = [...interaction.pointers.values()];
+    interaction.pinchActive = true;
+    interaction.draggingCanvas = false;
+    interaction.draggingNode = false;
+    interaction.pinchStartDist = pointerDistance(points[0], points[1]);
+    interaction.pinchStartZoom = camera.zoom;
+    const mid = pointerMidpoint(points[0], points[1]);
+    interaction.pinchWorldMid = screenToWorld(mid.x, mid.y);
+    return;
+  }
+
+  if(interaction.pinchActive) return;
+
+  const world = screenToWorld(localX, localY);
+  const nodeHit = findNodeAtScreen(localX, localY);
+  const edgeHit = findEdgeAtScreen(localX, localY);
+
+  interaction.pressInfo = { x:localX, y:localY, worldX:world.x, worldY:world.y, nodeHit, edgeHit };
+
+  if(!nodeHit && !edgeHit) startLongPress(world.x, world.y);
+
+  if(nodeHit){
+    handleNodeTap(nodeHit);
+    startNodeDrag(nodeHit, localX, localY);
+    canvas.setPointerCapture(e.pointerId);
+    return;
+  }
+
+  if(edgeHit){
+    appState.selected = { ownerType:edgeHit.ownerType, ownerId:edgeHit.ownerId, node:null, mode:"overview" };
+    appState.selectedEdge = edgeHit;
+    renderAll();
+    return;
+  }
+
+  appState.selectedEdge = null;
+  interaction.draggingCanvas = true;
+  interaction.dragStartX = e.clientX;
+  interaction.dragStartY = e.clientY;
+  interaction.dragCamX = camera.x;
+  interaction.dragCamY = camera.y;
+  canvas.classList.add("dragging");
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const localX = e.clientX - rect.left;
+  const localY = e.clientY - rect.top;
+
+  if(interaction.pointers.has(e.pointerId)){
+    interaction.pointers.set(e.pointerId, { x:localX, y:localY });
+  }
+
+  if(interaction.pressInfo){
+    const moveDist = Math.hypot(localX - interaction.pressInfo.x, localY - interaction.pressInfo.y);
+    if(moveDist > 10){
+      interaction.movedDuringPress = true;
+      cancelLongPress();
+    }
+  }
+
+  if(interaction.pointers.size >= 2 && interaction.pinchActive){
+    cancelLongPress();
+    const points = [...interaction.pointers.values()];
+    const dist = Math.max(10, pointerDistance(points[0], points[1]));
+    const mid = pointerMidpoint(points[0], points[1]);
+
+    camera.zoom = clamp(interaction.pinchStartZoom * (dist / interaction.pinchStartDist), 0.12, 2.4);
+
+    const after = screenToWorld(mid.x, mid.y);
+    camera.x += interaction.pinchWorldMid.x - after.x;
+    camera.y += interaction.pinchWorldMid.y - after.y;
+    renderCanvas();
+    return;
+  }
+
+  if(interaction.draggingNode){
+    const owner = getOwnerByTypeAndId(interaction.dragNodeOwnerType, interaction.dragNodeOwnerId);
+    const world = screenToWorld(localX, localY);
+    const p = owner.positions[interaction.dragNodeName];
+    if(p){
+      p.x = world.x + interaction.nodeOffsetX;
+      p.y = world.y + interaction.nodeOffsetY;
+      if(owner.nodeMeta?.[interaction.dragNodeName]){
+        owner.nodeMeta[interaction.dragNodeName].lastDraggedAt = Date.now();
+      }
+      renderCanvas();
+    }
+    return;
+  }
+
+  if(!interaction.draggingCanvas) return;
+
+  const dx = (e.clientX - interaction.dragStartX) / camera.zoom;
+  const dy = (e.clientY - interaction.dragStartY) / camera.zoom;
+  camera.x = interaction.dragCamX - dx;
+  camera.y = interaction.dragCamY - dy;
+  renderCanvas();
+});
+
+function endPointer(e){
+  interaction.pointers.delete(e.pointerId);
+  cancelLongPress();
+
+  if(interaction.pointers.size < 2) interaction.pinchActive = false;
+
+  if(interaction.draggingNode){
+    const owner = getOwnerByTypeAndId(interaction.dragNodeOwnerType, interaction.dragNodeOwnerId);
+    if(owner?.nodeMeta?.[interaction.dragNodeName]){
+      owner.nodeMeta[interaction.dragNodeName].lastDraggedAt = Date.now();
+    }
+    interaction.draggingNode = false;
+    interaction.dragNodeName = null;
+    saveAuto();
+  }
+
+  interaction.draggingCanvas = false;
+  interaction.pressInfo = null;
+  canvas.classList.remove("dragging");
+
+  if(suppressTapAfterLongPress){
+    setTimeout(() => { suppressTapAfterLongPress = false; }, 50);
+  }
+
+  interaction.longPressTriggered = false;
+  interaction.movedDuringPress = false;
+}
+
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", endPointer);
+canvas.addEventListener("pointerleave", endPointer);
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const before = screenToWorld(x, y);
+  const factor = e.deltaY < 0 ? 1.12 : 0.90;
+  camera.zoom = clamp(camera.zoom * factor, 0.12, 2.4);
+  const after = screenToWorld(x, y);
+  camera.x += before.x - after.x;
+  camera.y += before.y - after.y;
+  renderCanvas();
+}, { passive:false });
+
+/* =========================
+   起動
+========================= */
+(function boot(){
+  checkLocalStorageAvailable();
+  loadJsonBinConfigFromSession();
+
+  if(!localStorageAvailable){
+    addLog("localStorageが使えません。JSON / JSONBin保存を主に使って。", "warn");
+  }
+
+  const ok = loadAuto();
+  if(ok){
+    addLog("起動時にオートセーブから復元しました。", "good");
+  }else{
+    appState = createInitialState();
+    addLog("新規状態で起動しました。", "warn");
+    saveAuto();
+  }
+
+  previewCollapsed = true;
+  mode = "view";
+  creativeMode = false;
+  interaction.linkStart = null;
+
+  document.getElementById("teamPolicySelect").value = appState.teamPolicy || "balanced";
+
+  bindWikipediaQuickImport();
+  resizeCanvas();
+  fitAll();
+  renderAll();
+})();
+
+window.addEventListener("resize", resizeCanvas);
+</script>
+</body>
+</html>

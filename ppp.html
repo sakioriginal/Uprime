@@ -1,0 +1,4062 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+<title>autophagy50_協働AIマインドマップ 統合フル版</title>
+<style>
+
+:root{
+  --bg:#0d1117;
+  --panel:rgba(18,24,32,.92);
+  --line:rgba(255,255,255,.12);
+  --text:#eaf1ff;
+  --muted:#9eb0cc;
+  --shadow:0 10px 26px rgba(0,0,0,.28);
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+
+body{
+  position:fixed;
+  inset:0;
+  overscroll-behavior:none;
+}
+
+#app{
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(80,120,180,.08), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(80,180,160,.06), transparent 30%),
+    linear-gradient(180deg,#0d1117,#0a0f15);
+}
+
+canvas{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  touch-action:none;
+}
+
+.floatingPanel{
+  position:fixed;
+  z-index:50;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  backdrop-filter:blur(8px);
+  box-shadow:var(--shadow);
+  touch-action:none;
+}
+
+.panelHeader{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 8px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  cursor:grab;
+  user-select:none;
+}
+
+.panelHeader.dragging{
+  cursor:grabbing;
+}
+
+.panelTitle{
+  font-size:12px;
+  color:#dbe8ff;
+  font-weight:600;
+  flex:1;
+}
+
+.pinBtn{
+  width:22px;
+  height:22px;
+  border:none;
+  border-radius:999px;
+  font-size:11px;
+  cursor:pointer;
+  background:#243243;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.12);
+  padding:0;
+}
+
+.pinBtn.pinned{
+  background:#304763;
+  color:#ffd166;
+}
+
+#topBarPanel{
+  top:8px;
+  left:8px;
+  right:8px;
+}
+
+#topBarBody{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:8px;
+}
+
+#topBarBody button,
+#settingsPanel button,
+#settingsPanel select{
+  background:#1e2835;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:7px 10px;
+  font-size:16px;
+  cursor:pointer;
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+#topBarBody button.active,
+#settingsPanel button.active{
+  outline:2px solid rgba(125,176,255,.55);
+  background:#263448;
+}
+
+#topBarBody input{
+  min-width:180px;
+  flex:1 1 220px;
+  background:#1e2835;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:10px 12px;
+  font-size:16px;
+  line-height:1.2;
+  outline:none;
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+#topBarBody input:focus{
+  border-color:rgba(125,176,255,.55);
+  box-shadow:0 0 0 2px rgba(125,176,255,.18);
+}
+
+.spacer{
+  flex:1 1 auto;
+}
+
+#settingsPanel{
+  top:88px;
+  left:8px;
+  right:8px;
+  max-height:64vh;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  display:none;
+  z-index:48;
+}
+
+#settingsPanel.open{
+  display:block;
+}
+
+#settingsBody{
+  padding:12px;
+}
+
+.card{
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:10px;
+  margin-bottom:10px;
+}
+
+.card h4{
+  margin:0 0 8px;
+  font-size:14px;
+  color:#d9e8ff;
+}
+
+.row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:8px 0;
+}
+
+.row label{
+  flex:1;
+  font-size:13px;
+  color:var(--muted);
+}
+
+.row input[type="range"]{
+  flex:1;
+}
+
+.miniNote{
+  font-size:11px;
+  color:#9fb2cf;
+  line-height:1.45;
+}
+
+.tabRow{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+#hint{
+  position:fixed;
+  top:86px;
+  right:12px;
+  z-index:35;
+  max-width:min(760px,84vw);
+  background:rgba(5,10,18,.58);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:8px 10px;
+  font-size:11px;
+  line-height:1.5;
+  backdrop-filter:blur(6px);
+  pointer-events:none;
+}
+
+#modeBadge{
+  position:fixed;
+  left:12px;
+  top:86px;
+  z-index:34;
+  background:rgba(0,0,0,.28);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  padding:5px 10px;
+  font-size:12px;
+  pointer-events:none;
+}
+
+#miniInfo{
+  position:fixed;
+  left:12px;
+  bottom:176px;
+  z-index:34;
+  background:rgba(0,0,0,.32);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:7px 10px;
+  font-size:12px;
+  line-height:1.45;
+  min-width:300px;
+  pointer-events:none;
+}
+
+#zoomHud{
+  position:fixed;
+  right:24px;
+  bottom:124px;
+  z-index:61;
+  font-size:12px;
+  color:#dce8ff;
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:9px;
+  padding:4px 8px;
+  min-width:52px;
+  text-align:center;
+  pointer-events:none;
+}
+
+#zoomControls{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  z-index:60;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+#zoomControls button{
+  width:52px;
+  height:52px;
+  border:none;
+  border-radius:14px;
+  background:var(--panel);
+  color:#eaf1ff;
+  font-size:24px;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:var(--shadow);
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+#stickWrap{
+  position:fixed;
+  left:16px;
+  bottom:18px;
+  width:120px;
+  height:120px;
+  z-index:62;
+  touch-action:none;
+}
+
+#stickBase{
+  position:absolute;
+  inset:0;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:var(--shadow);
+}
+
+#stickKnob{
+  position:absolute;
+  width:56px;
+  height:56px;
+  left:32px;
+  top:32px;
+  border-radius:999px;
+  background:rgba(255,255,255,.35);
+  border:1px solid rgba(255,255,255,.18);
+}
+
+#logWrap{
+  position:fixed;
+  left:8px;
+  right:8px;
+  bottom:8px;
+  z-index:40;
+}
+
+#logPanel{
+  height:160px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+  transition:height .2s ease, opacity .2s ease, transform .2s ease;
+  opacity:1;
+}
+
+#logPanel.collapsed{
+  height:0;
+  opacity:0;
+  transform:translateY(6px);
+  border:none;
+}
+
+#log{
+  height:100%;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:10px 12px;
+  font-size:12px;
+  line-height:1.5;
+  white-space:pre-wrap;
+  color:#d7e4ff;
+}
+
+#nodeEditor{
+  position:fixed;
+  z-index:80;
+  min-width:260px;
+  max-width:340px;
+  background:rgba(16,22,30,.96);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:10px;
+  display:none;
+}
+
+#nodeEditor.open{
+  display:block;
+}
+
+#nodeEditor h3{
+  margin:0 0 8px;
+  font-size:14px;
+}
+
+#nodeEditor input,
+#nodeEditor textarea,
+#nodeEditor select{
+  width:100%;
+  background:#202a37;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:10px;
+  font-size:16px;
+  line-height:1.3;
+  margin-bottom:8px;
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+#nodeEditor textarea{
+  resize:vertical;
+  min-height:66px;
+}
+
+#nodeEditor .buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+#nodeEditor .buttons button{
+  flex:1;
+  min-width:70px;
+  background:#243243;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:8px;
+  cursor:pointer;
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+#nodeDetailPanel{
+  right:8px;
+  top:150px;
+  width:min(390px,90vw);
+  display:none;
+  z-index:46;
+}
+
+#nodeDetailBody{
+  padding:10px;
+  font-size:12px;
+  line-height:1.5;
+}
+
+#legend{
+  position:fixed;
+  left:12px;
+  bottom:12px;
+  z-index:32;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  font-size:11px;
+  pointer-events:none;
+}
+
+.legendItem{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:rgba(0,0,0,.24);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;
+  padding:4px 8px;
+}
+
+.dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:inline-block;
+}
+
+@media (max-width:700px){
+  #topBarBody{
+    padding:6px;
+    gap:5px;
+  }
+
+  #topBarBody button{
+    font-size:12px;
+    padding:7px 9px;
+  }
+
+  #topBarBody input{
+    min-width:140px;
+    font-size:16px;
+    padding:10px 12px;
+  }
+
+  #hint{
+    top:136px;
+    right:8px;
+    max-width:78vw;
+    font-size:11px;
+  }
+
+  #modeBadge{
+    top:136px;
+  }
+
+  #stickWrap{
+    width:108px;
+    height:108px;
+  }
+
+  #stickKnob{
+    width:50px;
+    height:50px;
+    left:29px;
+    top:29px;
+  }
+
+  #miniInfo{
+    min-width:unset;
+    max-width:78vw;
+  }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="canvas"></canvas>
+
+  <div id="topBarPanel" class="floatingPanel">
+    <div class="panelHeader">
+      <div class="panelTitle">メインUI</div>
+      <button id="pinTopBarBtn" class="pinBtn pinned">📌</button>
+    </div>
+    <div id="topBarBody">
+      <button id="startBtn">開始</button>
+      <button id="stopBtn">停止</button>
+      <button id="saveBtn">保存</button>
+      <button id="loadBtn">読込</button>
+      <button id="fitBtn">全体表示</button>
+      <button id="alignBtn">整列</button>
+      <button id="settingsBtn">設定</button>
+      <button id="toggleLogBtn">ログ▼</button>
+      <button id="followBtn">追従:OFF</button>
+
+      <input id="quickInput" type="text" placeholder="ノード名 / 編集名 / 検索語">
+
+      <button id="quickEditBtn">編集✏️</button>
+      <button id="quickAddBtn">新規＋✨</button>
+      <button id="quickSearchBtn">検索🔍</button>
+
+      <div class="spacer"></div>
+      <button id="viewModeBtn" class="active">閲覧</button>
+      <button id="editModeBtn">編集</button>
+      <button id="linkModeBtn">リンク</button>
+    </div>
+  </div>
+
+  <div id="settingsPanel" class="floatingPanel">
+    <div class="panelHeader">
+      <div class="panelTitle">設定</div>
+      <button id="pinSettingsBtn" class="pinBtn pinned">📌</button>
+    </div>
+    <div id="settingsBody">
+      <div class="tabRow">
+        <button id="tabAgentBtn" class="active">エージェント</button>
+        <button id="tabViewBtn">表示</button>
+        <button id="tabPhysicsBtn">物理</button>
+        <button id="tabDataBtn">データ</button>
+      </div>
+
+      <div id="settingsAgentSection" class="card"></div>
+      <div id="settingsViewSection" class="card" style="display:none;"></div>
+      <div id="settingsPhysicsSection" class="card" style="display:none;"></div>
+      <div id="settingsDataSection" class="card" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="nodeDetailPanel" class="floatingPanel">
+    <div class="panelHeader">
+      <div class="panelTitle">ノード詳細</div>
+      <button id="pinDetailBtn" class="pinBtn pinned">📌</button>
+    </div>
+    <div id="nodeDetailBody">未選択</div>
+  </div>
+
+  <div id="hint">
+    閲覧: エージェントを選択 → 行き先ノードをタップで移動指定<br>
+    編集: ダブルタップで編集 / 空白長押しで新規ノード / 画像ノードは右下ハンドルでサイズ変更<br>
+    リンク: 1個目のノード選択 → 2個目で接続
+  </div>
+
+  <div id="modeBadge">モード: 閲覧</div>
+
+  <div id="miniInfo">
+    ノード: <span id="nodeCount">0</span><br>
+    リンク: <span id="linkCount">0</span><br>
+    選択: <span id="selectedInfo">なし</span><br>
+    エージェント: <span id="agentCountMini">0</span><br>
+    追従: <span id="followMini">なし</span>
+  </div>
+
+  <div id="zoomHud">100%</div>
+
+  <div id="zoomControls">
+    <button id="zoomInBtn">＋</button>
+    <button id="zoomOutBtn">－</button>
+  </div>
+
+  <div id="stickWrap">
+    <div id="stickBase"></div>
+    <div id="stickKnob"></div>
+  </div>
+
+  <div id="logWrap">
+    <div id="logPanel" class="collapsed">
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <div id="nodeEditor">
+    <h3>ノード編集</h3>
+    <input id="nodeLabelInput" placeholder="表示名">
+    <textarea id="nodeMemoInput" placeholder="メモ"></textarea>
+    <select id="nodeColorInput">
+      <option value="#2b3344">標準</option>
+      <option value="#34495e">青灰</option>
+      <option value="#3d2f52">紫</option>
+      <option value="#324d3a">緑</option>
+      <option value="#5a3b32">茶</option>
+      <option value="#4e364f">桃紫</option>
+    </select>
+    <div class="buttons">
+      <button id="nodeSaveBtn">保存</button>
+      <button id="nodeDeleteBtn">削除</button>
+      <button id="nodeCloseBtn">閉じる</button>
+    </div>
+  </div>
+
+  <div id="legend">
+    <div class="legendItem"><span class="dot" style="background:#2b3344"></span>通常</div>
+    <div class="legendItem"><span class="dot" style="background:#ffd166"></span>5W2H</div>
+    <div class="legendItem"><span class="dot" style="background:#7bdff2"></span>学際</div>
+    <div class="legendItem"><span class="dot" style="background:#9cdcf0"></span>候補</div>
+    <div class="legendItem"><span class="dot" style="background:#ff8be6"></span>エージェント</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SAVE_KEY = "mindmap_full_integrated_v3";
+
+  const ROLE_DEFS = [
+    { key:"unassigned", label:"未配属", defaultCount:2, color:"#9aa4b2" },
+    { key:"adventurer", label:"冒険者", defaultCount:1, color:"#f28b82" },
+    { key:"interdisciplinary", label:"学際", defaultCount:2, color:"#7bdff2" },
+    { key:"editor", label:"編集者", defaultCount:3, color:"#c7b8ff" },
+    { key:"miner", label:"採掘", defaultCount:2, color:"#ffd166" },
+    { key:"painter", label:"画家", defaultCount:1, color:"#8ce99a" },
+    { key:"villager", label:"村人", defaultCount:1, color:"#a5d8ff" }
+  ];
+
+  const RSS_SOURCES = [
+    { name:"NHK", url:"https://www3.nhk.or.jp/rss/news/cat0.xml" },
+    { name:"Yahoo", url:"https://news.yahoo.co.jp/rss/topics/top-picks.xml" }
+  ];
+
+  const RSS_STOPWORDS = new Set([
+    "こと","もの","ため","これ","それ","など","よう",
+    "日本","東京","全国","速報","最新","発表","判明",
+    "ニュース","記事","動画","写真","会見","政府"
+  ]);
+
+  let roleCounts = Object.fromEntries(ROLE_DEFS.map(r => [r.key, r.defaultCount]));
+  let totalAgentCount = Object.values(roleCounts).reduce((a,b) => a + b, 0);
+
+  const uiState = {
+    showGrid:true,
+    fix5w2h:true,
+    showLinkType:false,
+    compactText:true,
+    physics:true,
+    repel:150,
+    spring:10,
+    damping:92,
+    inter:true,
+    autoExpand:true,
+    expandCount:2,
+    autoSave:true,
+    autoSaveSec:15,
+    rssEnabled:true,
+    rssRefreshMin:15,
+    showAgentLinks:true,
+    visibleNodeLimit:Infinity,
+    agentsIgnoreHiddenNodes:true
+  };
+
+  const rssState = {
+    items: [],
+    keywordCounts: new Map(),
+    lastFetchAt: 0,
+    fetching: false
+  };
+
+  let rssTimer = null;
+  let visibleNodeSet = new Set();
+
+  const DOUBLE_TAP_MS = 320;
+  const DOUBLE_TAP_DIST = 26;
+  const LONG_PRESS_MS = 420;
+
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const loadBtn = document.getElementById("loadBtn");
+  const fitBtn = document.getElementById("fitBtn");
+  const alignBtn = document.getElementById("alignBtn");
+  const settingsBtn = document.getElementById("settingsBtn");
+  const toggleLogBtn = document.getElementById("toggleLogBtn");
+  const followBtn = document.getElementById("followBtn");
+
+  const quickInput = document.getElementById("quickInput");
+  const quickEditBtn = document.getElementById("quickEditBtn");
+  const quickAddBtn = document.getElementById("quickAddBtn");
+  const quickSearchBtn = document.getElementById("quickSearchBtn");
+
+  const settingsPanel = document.getElementById("settingsPanel");
+  const logPanel = document.getElementById("logPanel");
+  const logEl = document.getElementById("log");
+
+  const viewModeBtn = document.getElementById("viewModeBtn");
+  const editModeBtn = document.getElementById("editModeBtn");
+  const linkModeBtn = document.getElementById("linkModeBtn");
+
+  const nodeCountEl = document.getElementById("nodeCount");
+  const linkCountEl = document.getElementById("linkCount");
+  const selectedInfoEl = document.getElementById("selectedInfo");
+  const agentCountMini = document.getElementById("agentCountMini");
+  const followMini = document.getElementById("followMini");
+  const zoomHud = document.getElementById("zoomHud");
+  const modeBadge = document.getElementById("modeBadge");
+
+  const stickWrap = document.getElementById("stickWrap");
+  const stickKnob = document.getElementById("stickKnob");
+
+  const nodeEditor = document.getElementById("nodeEditor");
+  const nodeLabelInput = document.getElementById("nodeLabelInput");
+  const nodeMemoInput = document.getElementById("nodeMemoInput");
+  const nodeColorInput = document.getElementById("nodeColorInput");
+  const nodeSaveBtn = document.getElementById("nodeSaveBtn");
+  const nodeDeleteBtn = document.getElementById("nodeDeleteBtn");
+  const nodeCloseBtn = document.getElementById("nodeCloseBtn");
+
+  const topBarPanel = document.getElementById("topBarPanel");
+  const pinTopBarBtn = document.getElementById("pinTopBarBtn");
+  const pinSettingsBtn = document.getElementById("pinSettingsBtn");
+  const zoomInBtn = document.getElementById("zoomInBtn");
+  const zoomOutBtn = document.getElementById("zoomOutBtn");
+
+  const nodeDetailPanel = document.getElementById("nodeDetailPanel");
+  const nodeDetailBody = document.getElementById("nodeDetailBody");
+  const pinDetailBtn = document.getElementById("pinDetailBtn");
+
+  const tabAgentBtn = document.getElementById("tabAgentBtn");
+  const tabViewBtn = document.getElementById("tabViewBtn");
+  const tabPhysicsBtn = document.getElementById("tabPhysicsBtn");
+  const tabDataBtn = document.getElementById("tabDataBtn");
+
+  const settingsAgentSection = document.getElementById("settingsAgentSection");
+  const settingsViewSection = document.getElementById("settingsViewSection");
+  const settingsPhysicsSection = document.getElementById("settingsPhysicsSection");
+  const settingsDataSection = document.getElementById("settingsDataSection");
+
+  let W = 0, H = 0, DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const view = { x:0, y:0, scale:1 };
+
+  let running = true;
+  let mode = "view";
+  let nodes = [];
+  let links = [];
+  let agents = [];
+  let agentCount = 0;
+  let followAgentId = null;
+  let selectedNodeId = null;
+  let hoveredNodeId = null;
+  let linkingFromId = null;
+  let editingNodeId = null;
+  let pendingAgentTargetId = null;
+
+  let autoSaveTimer = null;
+  let idCounter = 1;
+  let frame = 0;
+
+  let pointerDown = false;
+  let draggingNodeId = null;
+  let resizingNodeId = null;
+  let panning = false;
+  let dragOffsetWorldX = 0;
+  let dragOffsetWorldY = 0;
+  let lastPointer = {x:0,y:0};
+
+  let lastTapTime = 0;
+  let lastTapX = 0;
+  let lastTapY = 0;
+  let longPressTimer = null;
+
+  let searchResults = [];
+  let searchIndex = 0;
+  let lastSearchQuery = "";
+
+  const panelPins = { topBarPanel:true, settingsPanel:true, nodeDetailPanel:true };
+  const panelPositions = {
+    topBarPanel:{left:8,top:8},
+    settingsPanel:{left:8,top:88},
+    nodeDetailPanel:{left:Math.max(8, window.innerWidth - 388), top:150}
+  };
+
+  const stickState = { active:false, dx:0, dy:0, max:32 };
+  const FIVEW2H_LABELS = ["Who","What","When","Where","Why","How","HowMuch"];
+
+  function addLog(text){
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,"0");
+    const mm = String(now.getMinutes()).padStart(2,"0");
+    const ss = String(now.getSeconds()).padStart(2,"0");
+    logEl.textContent += `[${hh}:${mm}:${ss}] ${text}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function escHtml(str){
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function uniqueStrings(arr){
+    return [...new Set((arr || []).filter(Boolean))];
+  }
+
+  function resize(){
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    applyPanelLayout();
+    updateZoomHud();
+  }
+
+  function roleLabelJa(roleKey){
+    const found = ROLE_DEFS.find(r => r.key === roleKey);
+    return found ? found.label : roleKey;
+  }
+
+  function roleColor(roleKey){
+    const found = ROLE_DEFS.find(r => r.key === roleKey);
+    return found ? found.color : "#ff8be6";
+  }
+
+  function normalizeTitleKey(text){
+    return String(text || "")
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[0-9]/g, "")
+      .replace(/関連|入口|候補|編集|採掘|周辺|派生/g, "");
+  }
+
+  function sanitizeGeneratedLabel(text){
+    let s = String(text || "").trim();
+    s = s.replace(/[^\p{L}\p{N}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\s]/gu, "");
+    const chunks = s.match(/[A-Za-z]+[0-9]*|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+/gu) || [];
+    const result = [];
+    const seen = new Set();
+    for(const c of chunks){
+      if(seen.has(c)) continue;
+      seen.add(c);
+      result.push(c);
+      if(result.length >= 4) break;
+    }
+    s = result.join(" ");
+    if(!s) s = "未整理ノード";
+    if(s.length > 24) s = s.slice(0, 24);
+    return s;
+  }
+
+  function nextId(prefix="n"){ return `${prefix}_${idCounter++}`; }
+  function getNode(id){ return nodes.find(n => n.id === id) || null; }
+  function worldToScreen(x,y){ return { x:(x - view.x) * view.scale + W/2, y:(y - view.y) * view.scale + H/2 }; }
+  function screenToWorld(x,y){ return { x:(x - W/2) / view.scale + view.x, y:(y - H/2) / view.scale + view.y }; }
+
+  function syncQuickInputFromSelection(){
+    const node = getNode(selectedNodeId);
+    if(!node) return;
+    if(document.activeElement !== quickInput){
+      quickInput.value = node.title || node.label || "";
+    }
+  }
+
+  function clearLongPressTimer(){
+    if(longPressTimer){
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  function isNearPoint(x1, y1, x2, y2, dist = DOUBLE_TAP_DIST){
+    const dx = x1 - x2;
+    const dy = y1 - y2;
+    return dx * dx + dy * dy <= dist * dist;
+  }
+
+  function getNodeDegree(nodeId){
+    let c = 0;
+    for(const l of links){
+      if(l.source === nodeId || l.target === nodeId) c++;
+    }
+    return c;
+  }
+
+  function getLinkBias(linkType){
+    switch(linkType){
+      case "5w2h-bridge": return 1.25;
+      case "candidate": return 0.8;
+      case "explore": return 0.9;
+      case "agent-think": return 0.3;
+      case "related": return 1.0;
+      default: return 1.0;
+    }
+  }
+
+  function getBaseNodeWeight(node){
+    let w = 0;
+    if(typeof node.hensachi === "number") w += node.hensachi;
+    else w += 50;
+
+    if(typeof node.attentionScore === "number") w += node.attentionScore * 2;
+    if(typeof node.qualityScore === "number") w += node.qualityScore * 3;
+
+    if(node.is5w2h) w += 30;
+    if(node.isInterdisciplinary) w += 10;
+    if(node.imageSrc) w += 8;
+    if(node.tags?.includes("unverified")) w -= 12;
+    if(node.tags?.includes("wildcard")) w += 4;
+
+    return w;
+  }
+
+  function computeNodeDisplayWeight(node){
+    let weight = getBaseNodeWeight(node);
+    const relatedLinks = links.filter(l => l.source === node.id || l.target === node.id);
+    weight += relatedLinks.length * 2.5;
+
+    for(const l of relatedLinks){
+      const otherId = l.source === node.id ? l.target : l.source;
+      const other = getNode(otherId);
+      if(!other) continue;
+      const otherBase = getBaseNodeWeight(other);
+      const bias = getLinkBias(l.type);
+      weight += (otherBase * 0.05) * bias;
+    }
+
+    return weight;
+  }
+
+  function getVisibleNodeSet(){
+    const normalNodes = nodes.filter(n => !n.isAgentNode);
+    if(uiState.visibleNodeLimit === Infinity){
+      return new Set(normalNodes.map(n => n.id));
+    }
+    const scored = normalNodes.map(n => ({
+      id: n.id,
+      score: computeNodeDisplayWeight(n)
+    }));
+    scored.sort((a,b) => b.score - a.score);
+    const top = scored.slice(0, uiState.visibleNodeLimit);
+    return new Set(top.map(x => x.id));
+  }
+
+  function restoreImageNode(node){
+    if(!node.imageSrc) return;
+    node.imageLoaded = false;
+    node.imageEl = new Image();
+    node.imageEl.onload = () => { node.imageLoaded = true; };
+    node.imageEl.src = node.imageSrc;
+  }
+
+  function makeNode({
+    x=0,y=0,label="ノード",memo="",
+    r=24,width=120,height=80,shape="circle",
+    color="#2b3344",textColor="#eaf1ff",
+    fixed=false,is5w2h=false,isInterdisciplinary=false,isAutoCandidate=false,isAgentNode=false,
+    category="normal",baseNodeId=null,wNodeId=null,imageSrc=null
+  } = {}){
+    const node = {
+      id: nextId(is5w2h ? "5w2h" : isInterdisciplinary ? "inter" : isAutoCandidate ? "cand" : isAgentNode ? "agent" : "n"),
+      x,y,vx:0,vy:0,label,memo,r,width,height,shape,color,textColor,fixed,
+      is5w2h,isInterdisciplinary,isAutoCandidate,isAgentNode,
+      category,baseNodeId,wNodeId,createdAt:Date.now(),
+      imageSrc:imageSrc || null,
+      imageEl:null,
+      imageLoaded:false,
+      title:label,
+      keywords:[],
+      tags:[],
+      summary:"",
+      qualityScore:100,
+      attentionScore:0,
+      hensachi:null,
+      roleKey:null,
+      wikiBusy:false,
+
+      authorId:"localUser",
+      sourceNodeId:null,
+      rootNodeId:null,
+      copiedFromMapId:null,
+      visibility:"private",
+      status:"draft",
+      quoteCount:0,
+      pointScore:0,
+      updatedAt:Date.now()
+    };
+    if(imageSrc) restoreImageNode(node);
+    return node;
+  }
+
+  function makeLink(source,target,type="related",weight=1,auto=false){
+    return {
+      id:nextId("l"),
+      source,target,type,weight,auto,
+      authorId:"localUser",
+      sourceLinkId:null,
+      copiedFromMapId:null,
+      visibility:"private",
+      status:"draft",
+      quoteCount:0,
+      pointScore:0,
+      createdAt:Date.now(),
+      updatedAt:Date.now()
+    };
+  }
+
+  function linkExists(aId,bId){
+    return links.some(l =>
+      (l.source === aId && l.target === bId) ||
+      (l.source === bId && l.target === aId)
+    );
+  }
+
+  function nodeExistsByLabel(label){
+    const key = normalizeTitleKey(label);
+    return nodes.find(n => normalizeTitleKey(n.title || n.label) === key && !n.is5w2h && !n.isAgentNode) || null;
+  }
+
+  function ensure5W2HNodes(){
+    const y = -260;
+    const gap = 145;
+    FIVEW2H_LABELS.forEach((label, i) => {
+      let node = nodes.find(n => n.is5w2h && n.label === label);
+      const x = (i - 3) * gap;
+      if(!node){
+        node = makeNode({
+          x,y,label,r:28,color:"#2a3140",textColor:"#ffd166",
+          fixed:true,is5w2h:true,category:"5w2h"
+        });
+        node.id = `5w2h_${label}`;
+        node.title = label;
+        node.tags = [label];
+        nodes.push(node);
+      }else{
+        node.x = x;
+        node.y = y;
+        node.fixed = !!uiState.fix5w2h;
+      }
+    });
+  }
+
+  function extractHeadlineKeywords(text){
+    const raw = String(text || "")
+      .replace(/[【】\[\]（）()「」『』:：,，.。!！?？/／\-—]+/g, " ")
+      .trim();
+
+    const parts = raw.match(/[A-Za-z0-9]+|[\u3040-\u30ff\u3400-\u9fff]{2,}/g) || [];
+    const words = [];
+
+    for(const p of parts){
+      const w = p.trim();
+      if(!w) continue;
+      if(w.length < 2) continue;
+      if(RSS_STOPWORDS.has(w)) continue;
+      words.push(w);
+    }
+
+    return uniqueStrings(words).slice(0, 8);
+  }
+
+  async function fetchRssViaRss2Json(feedUrl){
+    const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
+    const res = await fetch(api);
+    if(!res.ok) throw new Error(`rss2json failed: ${feedUrl}`);
+    const data = await res.json();
+    if(data.status !== "ok") throw new Error(`rss2json bad status: ${feedUrl}`);
+    return (data.items || []).map(item => ({
+      title: item.title || "",
+      link: item.link || "",
+      pubDate: item.pubDate || "",
+      sourceFeed: feedUrl
+    }));
+  }
+
+  function rebuildRssKeywordCounts(){
+    const counts = new Map();
+    for(const item of rssState.items){
+      const words = extractHeadlineKeywords(item.title);
+      for(const w of words){
+        counts.set(w, (counts.get(w) || 0) + 1);
+      }
+    }
+    rssState.keywordCounts = counts;
+  }
+
+  function getRssHotKeywords(limit = 20){
+    return [...rssState.keywordCounts.entries()]
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([word, count]) => ({ word, count }));
+  }
+
+  async function refreshRssFeeds(force = false){
+    if(!uiState.rssEnabled) return;
+    if(rssState.fetching) return;
+
+    const now = Date.now();
+    const refreshMs = Math.max(1, uiState.rssRefreshMin) * 60 * 1000;
+    if(!force && now - rssState.lastFetchAt < refreshMs) return;
+
+    rssState.fetching = true;
+    try{
+const results = await Promise.allSettled(
+  RSS_SOURCES.map(src => fetchRss(src.url))
+);
+
+      const items = [];
+      results.forEach((r, i) => {
+        if(r.status === "fulfilled"){
+          r.value.forEach(item => {
+            items.push({
+              ...item,
+              sourceName: RSS_SOURCES[i].name
+            });
+          });
+        } else {
+          console.warn("RSS fetch failed:", RSS_SOURCES[i].name, r.reason);
+        }
+      });
+
+      rssState.items = items.slice(0, 120);
+      rssState.lastFetchAt = now;
+      rebuildRssKeywordCounts();
+      addLog(`RSS更新: ${rssState.items.length}件`);
+    } catch(err){
+      console.error(err);
+      addLog("RSS更新失敗");
+    } finally {
+      rssState.fetching = false;
+    }
+	for(const item of rssState.items.slice(0, 3)){
+ 	 spawnHeadlineNode(item.title);
+	}
+
+
+function spawnHeadlineNode(headline){
+  if(!headline) return;
+
+  let root = nodeExistsByLabel(headline);
+
+  if(!root){
+    root = makeNode({
+      x: view.x + (Math.random()-0.5)*200,
+      y: view.y + (Math.random()-0.5)*120,
+      label: headline,
+      memo: "RSS見出し",
+      r: 30,
+      color:"#34495e"
+    });
+
+    root.title = headline;
+    root.tags = ["rss","headline"];
+    nodes.push(root);
+  }
+
+  expandHeadline(root);
+}
+
+
+function expandHeadline(root){
+  const words = extractHeadlineKeywords(root.title);
+
+  for(const word of words){
+    let child = nodeExistsByLabel(word);
+
+    if(!child){
+      child = makeNode({
+        x: root.x + (Math.random()-0.5)*240,
+        y: root.y + 120 + Math.random()*100,
+        label: word,
+        memo:"見出し抽出",
+        r:20
+      });
+
+      child.title = word;
+      child.tags = ["rss-keyword"];
+      nodes.push(child);
+    }
+
+    if(!linkExists(root.id, child.id)){
+      links.push(makeLink(root.id, child.id, "explore", 1, true));
+    }
+  }
+
+  addLog("見出し展開: " + root.title);
+}
+
+
+
+
+  }
+
+
+
+async function fetchRss(feedUrl){
+  try{
+    const proxy = "https://api.allorigins.win/raw?url=";
+    const res = await fetch(proxy + encodeURIComponent(feedUrl));
+
+    if(!res.ok) throw new Error("fetch failed");
+
+    const text = await res.text();
+
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(text, "text/xml");
+
+    const items = [...xml.querySelectorAll("item")].map(item => ({
+      title: item.querySelector("title")?.textContent || "",
+      link: item.querySelector("link")?.textContent || ""
+    }));
+
+    return items;
+  }catch(e){
+    console.warn("RSS取得失敗", feedUrl, e);
+    return [];
+  }
+}
+
+
+
+
+
+
+
+
+
+  function restartRssTimer(){
+    if(rssTimer){
+      clearInterval(rssTimer);
+      rssTimer = null;
+    }
+    if(!uiState.rssEnabled) return;
+    const intervalMs = Math.max(1, uiState.rssRefreshMin) * 60 * 1000;
+    rssTimer = setInterval(() => {
+      refreshRssFeeds(false);
+    }, intervalMs);
+  }
+
+  async function wikiOpenSearch(query, limit = 5){
+    try{
+      const url = `https://ja.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=${limit}&namespace=0&format=json&origin=*`;
+      const res = await fetch(url);
+      if(!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data?.[1]) ? data[1] : [];
+    }catch(err){
+      console.error(err);
+      return [];
+    }
+  }
+
+  async function wikiSummary(title){
+    try{
+      const url = `https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+      const res = await fetch(url);
+      if(!res.ok) return null;
+      return await res.json();
+    }catch(err){
+      console.error(err);
+      return null;
+    }
+  }
+
+  async function wikiRelatedWords(title, limit = 6){
+    const list = await wikiOpenSearch(title, limit + 2);
+    return uniqueStrings(
+      list
+        .map(s => sanitizeGeneratedLabel(s))
+        .filter(s => s && normalizeTitleKey(s) !== normalizeTitleKey(title))
+        .slice(0, limit)
+    );
+  }
+
+  async function wikiImageForTitle(title){
+    const summary = await wikiSummary(title);
+    return summary?.thumbnail?.source || null;
+  }
+
+  async function webSuggestWords(title){
+    try{
+      const url = `https://duckduckgo.com/ac/?q=${encodeURIComponent(title)}&type=list`;
+      const res = await fetch(url);
+      if(!res.ok) return [];
+      const data = await res.json();
+      return uniqueStrings(
+        (data || [])
+          .map(x => sanitizeGeneratedLabel(x.phrase || ""))
+          .filter(Boolean)
+          .filter(s => normalizeTitleKey(s) !== normalizeTitleKey(title))
+      ).slice(0, 6);
+    }catch(err){
+      console.warn(err);
+      return [];
+    }
+  }
+
+  async function webSignalWeights(title){
+    const weights = { Who:0, What:0, When:0, Where:0, Why:0, How:0 };
+    const text = String(title || "");
+
+    if(/人|者|企業|会社|住民|政府|軍|作者|利用者|メーカー/.test(text)) weights.Who += 2;
+    if(/仕組み|方法|製造|設計|実装|手順|使い方|攻略/.test(text)) weights.How += 2;
+    if(/理由|原因|背景|目的/.test(text)) weights.Why += 2;
+    if(/場所|地域|都市|国|海峡|港|工場/.test(text)) weights.Where += 2;
+    if(/時期|年|月|日|歴史|戦後|速報/.test(text)) weights.When += 2;
+    if(/とは|意味|概要|性能|価格|構造|種類/.test(text)) weights.What += 2;
+
+    try{
+      const url = `https://duckduckgo.com/ac/?q=${encodeURIComponent(title)}&type=list`;
+      const res = await fetch(url);
+      if(res.ok){
+        const data = await res.json();
+        const phrases = (data || []).map(x => String(x.phrase || ""));
+        const joined = phrases.join(" ");
+        if(/誰|企業|メーカー|人物/.test(joined)) weights.Who += 2;
+        if(/どこ|場所|地域|拠点/.test(joined)) weights.Where += 2;
+        if(/いつ|時期|年/.test(joined)) weights.When += 2;
+        if(/なぜ|理由|原因/.test(joined)) weights.Why += 2;
+        if(/どうやって|方法|仕組み|使い方/.test(joined)) weights.How += 2;
+        if(/とは|意味|性能|価格|種類|構造/.test(joined)) weights.What += 2;
+      }
+    }catch(err){
+      console.warn("webSignalWeights suggest fetch failed", err);
+    }
+
+    return weights;
+  }
+
+  function chooseTopW(weights, count = 2){
+    return Object.entries(weights)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, count)
+      .map(([k]) => k);
+  }
+
+  function calcVerificationScore(node, wikiRelated, wikiSummaryOk, webRelated){
+    let score = 0;
+    const label = String(node.title || node.label || "");
+    const degree = getNodeDegree(node.id);
+
+    if(wikiSummaryOk) score += 3;
+    if((wikiRelated || []).length > 0) score += 2;
+    if((webRelated || []).length > 0) score += 2;
+    if(degree >= 3) score += 1;
+
+    if(label.length >= 16) score -= 2;
+    if((label.match(/関連|入口|周辺|派生/g) || []).length >= 2) score -= 2;
+    if((label.match(/Who|What|When|Where|Why|How/g) || []).length >= 2) score -= 2;
+
+    return score;
+  }
+
+  async function editorReviewNode(targetNode){
+    const base = targetNode.title || targetNode.label;
+    if(targetNode.wikiBusy) return "busy";
+    targetNode.wikiBusy = true;
+
+    try{
+      const wikiRelated = await wikiRelatedWords(base, 5);
+      const wikiSum = await wikiSummary(base);
+      const webRelated = await webSuggestWords(base);
+
+      const summaryOk = !!wikiSum?.extract;
+
+      targetNode.keywords = uniqueStrings([
+        ...(targetNode.keywords || []),
+        ...wikiRelated,
+        ...webRelated
+      ]);
+
+      targetNode.tags = uniqueStrings([
+        ...(targetNode.tags || []),
+        "edited"
+      ]);
+
+      if(summaryOk && !targetNode.summary){
+        targetNode.summary = wikiSum.extract.slice(0, 140);
+      }
+
+      const score = calcVerificationScore(targetNode, wikiRelated, summaryOk, webRelated);
+      targetNode.qualityScore = score;
+
+const degree = getNodeDegree(targetNode.id);
+
+if(score <= 0 && degree <= 1){
+  links = links.filter(l => l.source !== targetNode.id && l.target !== targetNode.id);
+  nodes = nodes.filter(n => n.id !== targetNode.id);
+  addLog(`編集者削除: ${base}`);
+  return "deleted";
+}
+
+
+
+if(score <= 1){
+  let removed = 0;
+  links = links.filter(l => {
+    const hit = l.source === targetNode.id || l.target === targetNode.id;
+    if(!hit) return true;
+
+    const weak =
+      l.type === "candidate" ||
+      l.type === "explore" ||
+      l.type === "agent-think";
+
+    if(weak){
+      removed++;
+      return false;
+    }
+    return true;
+  });
+
+  targetNode.tags = uniqueStrings([...(targetNode.tags || []), "unverified", "editor-held"]);
+  targetNode.qualityScore = score;
+
+  addLog(`編集者弱リンク整理: ${base} (${removed}本)`);
+  return "hold";
+}
+
+      if(score <= 3){
+        targetNode.tags = uniqueStrings([...(targetNode.tags || []), "unverified"]);
+        addLog(`編集者保留: ${base}`);
+        return "hold";
+      }
+
+      const candidates = [...wikiRelated, ...webRelated];
+      let added = 0;
+      for(const word of candidates){
+        if(nodeExistsByLabel(word)) continue;
+
+        const child = makeNode({
+          x: targetNode.x + (Math.random() - 0.5) * 160,
+          y: targetNode.y + 90 + Math.random() * 50,
+          label: word,
+          memo: "編集者が検証追加",
+          r: 18,
+          color: "#1f2e3a",
+          textColor: "#d7f3ff",
+          isAutoCandidate: true,
+          category: "auto-candidate",
+          baseNodeId: targetNode.id
+        });
+        child.title = word;
+        child.rootNodeId = child.id;
+        child.tags = ["editor", "verified-candidate"];
+        child.summary = `${base} の検証関連`;
+        nodes.push(child);
+        links.push(makeLink(targetNode.id, child.id, "candidate", 0.8, true));
+        added++;
+        if(added >= 2) break;
+      }
+
+      addLog(`編集者補強: ${base}`);
+      return "kept";
+    } finally {
+      targetNode.wikiBusy = false;
+    }
+  }
+
+async function minerFetchRelated(targetNode, agent){
+  const base = targetNode.title || targetNode.label;
+  if(targetNode.wikiBusy) return "busy";
+  targetNode.wikiBusy = true;
+
+  try{
+    const related = await wikiRelatedWords(base, 12);
+    const webRelated = await webSuggestWords(base);
+    const candidates = uniqueStrings([...related, ...webRelated]);
+
+    if(!agent.mineState){
+      agent.mineState = {
+        lockedNodeId: targetNode.id,
+        triedWords: [],
+        exhausted: false,
+        depth: 0
+      };
+    }
+
+    const tried = new Set(agent.mineState.triedWords || []);
+    const fresh = candidates.filter(word => {
+      if(tried.has(word)) return false;
+      if(nodeExistsByLabel(word)) return false;
+      return true;
+    });
+
+    if(fresh.length === 0){
+      agent.mineState.exhausted = true;
+      return "exhausted";
+    }
+if(agent.mineState.depth >= 12){
+  return "exhausted";
+}
+
+    const branchLimit =
+      targetNode.hensachi >= 60 ? 5 :
+      targetNode.hensachi >= 50 ? 4 : 3;
+
+    let added = 0;
+
+    for(const word of fresh){
+      const child = makeNode({
+        x: targetNode.x + (Math.random() - 0.5) * 220,
+        y: targetNode.y + 80 + Math.random() * 140,
+        label: word,
+        memo: "採掘者がWikipedia/Webから取得",
+        r: 20,
+        color: "#2b3344",
+        textColor: "#eaf1ff"
+      });
+
+      child.title = word;
+      child.rootNodeId = child.id;
+      child.keywords = [base, word];
+      child.tags = ["miner", "wiki", "fresh"];
+      child.summary = `${base} の関連要素`;
+      child.qualityScore = 4;
+      child.attentionScore = 1;
+
+      nodes.push(child);
+      links.push(makeLink(targetNode.id, child.id, "explore", 0.7, true));
+
+      agent.mineState.triedWords.push(word);
+      added++;
+      if(added >= branchLimit) break;
+    }
+
+    agent.mineState.depth += added;
+    targetNode.keywords = uniqueStrings([...(targetNode.keywords || []), ...fresh]);
+    targetNode.tags = uniqueStrings([...(targetNode.tags || []), "mined"]);
+
+    addLog(`採掘拡張: ${base} → ${added}本`);
+
+    return added > 0 ? "expanded" : "exhausted";
+  } finally {
+    targetNode.wikiBusy = false;
+  }
+}
+
+  async function painterFetchImage(targetNode){
+    if(targetNode.imageSrc || targetNode.wikiBusy) return false;
+    targetNode.wikiBusy = true;
+    try{
+      const base = targetNode.title || targetNode.label;
+      const imageUrl = await wikiImageForTitle(base);
+      if(!imageUrl) return false;
+      targetNode.imageSrc = imageUrl;
+      targetNode.shape = "rect";
+      targetNode.width = targetNode.width || 180;
+      targetNode.height = targetNode.height || 120;
+      targetNode.tags = uniqueStrings([...(targetNode.tags || []), "image", "wiki-image"]);
+      restoreImageNode(targetNode);
+      return true;
+    } finally {
+      targetNode.wikiBusy = false;
+    }
+  }
+
+  async function villagerAssignWFromWeb(targetNode){
+    const base = targetNode.title || targetNode.label;
+    await refreshRssFeeds(false);
+
+    const weights = await webSignalWeights(base);
+    const ws = chooseTopW(weights, 2);
+    targetNode.tags = uniqueStrings([...(targetNode.tags || []), ...ws, "web-weighted"]);
+
+    const rssCount = rssState.keywordCounts.get(base) || 0;
+    const webRelated = await webSuggestWords(base);
+    const webCount = webRelated.length;
+
+    const rawScore = rssCount * 2 + webCount;
+    targetNode.attentionScore = rawScore;
+
+    const scores = nodes
+      .filter(n => !n.isAgentNode && !n.is5w2h)
+      .map(n => Number(n.attentionScore || 0));
+    scores.push(rawScore);
+
+    const mean = scores.reduce((a,b)=>a+b,0) / Math.max(1, scores.length);
+    const variance = scores.reduce((a,b)=>a + Math.pow(b - mean, 2), 0) / Math.max(1, scores.length);
+    const std = Math.sqrt(variance) || 1;
+
+    const hensachi = 50 + 10 * ((rawScore - mean) / std);
+    targetNode.hensachi = Math.round(hensachi * 10) / 10;
+    targetNode.tags = uniqueStrings([...(targetNode.tags || []), "village"]);
+
+    if(!targetNode.summary){
+      targetNode.summary = `${base} に対するWeb/RSS由来の観点付与`;
+    }
+  }
+
+  async function adventurerAction(node){
+    await refreshRssFeeds(false);
+
+    const hot = getRssHotKeywords(20);
+    let candidate = null;
+
+    for(const item of hot){
+      if(!nodeExistsByLabel(item.word)){
+        candidate = item.word;
+        break;
+      }
+    }
+
+    if(!candidate){
+      const wildcards = ["未来","資源","戦争","市場","気候","衛星","電池","物流","教育","医療"];
+      candidate = wildcards[Math.floor(Math.random() * wildcards.length)];
+    }
+
+    if(nodeExistsByLabel(candidate)) return null;
+
+    const newNode = makeNode({
+      x: node.x + (Math.random()-0.5)*220,
+      y: node.y - 150,
+      label: candidate,
+      memo:"冒険者生成",
+      r:20,
+      color:"#2b3344",
+      textColor:"#eaf1ff",
+      category:"normal"
+    });
+    newNode.title = candidate;
+    newNode.rootNodeId = newNode.id;
+    newNode.tags = ["wildcard", "rss-adventure"];
+    newNode.summary = "冒険者がRSSまたはワイルドカードから発見";
+    nodes.push(newNode);
+    addLinkSmart(node, newNode);
+    addLog(`冒険者追加: ${candidate}`);
+    return newNode;
+  }
+
+  function createInterdisciplinaryNodeBetween(a,b){
+    const normalNode = a.is5w2h ? b : a;
+    const wNode = a.is5w2h ? a : b;
+    if(!normalNode || !wNode || !wNode.is5w2h || normalNode.is5w2h) return null;
+
+    let existing = nodes.find(n =>
+      n.isInterdisciplinary &&
+      n.baseNodeId === normalNode.id &&
+      n.wNodeId === wNode.id
+    );
+    if(existing) return existing;
+
+    const label = sanitizeGeneratedLabel(`${normalNode.title || normalNode.label} ${wNode.title || wNode.label}`);
+    const inter = makeNode({
+      x:(normalNode.x + wNode.x)/2,
+      y:(normalNode.y + wNode.y)/2,
+      label,
+      memo:`${normalNode.title || normalNode.label} と ${wNode.title || wNode.label} の学際`,
+      r:22,color:"#233848",textColor:"#7bdff2",
+      isInterdisciplinary:true,category:"interdisciplinary",
+      baseNodeId:normalNode.id,wNodeId:wNode.id
+    });
+    inter.title = label;
+    inter.rootNodeId = inter.id;
+    inter.tags = ["interdisciplinary", wNode.label];
+    inter.keywords = [normalNode.title || normalNode.label, wNode.label];
+    nodes.push(inter);
+    addLog(`学際ノード生成: ${inter.title}`);
+    return inter;
+  }
+
+  function addLinkSmart(a,b){
+    if(!a || !b || a.id === b.id) return;
+    const aIs5 = !!a.is5w2h;
+    const bIs5 = !!b.is5w2h;
+
+    if(uiState.inter && (aIs5 !== bIs5)){
+      const inter = createInterdisciplinaryNodeBetween(a,b);
+      if(inter){
+        if(!linkExists(a.id, inter.id)) links.push(makeLink(a.id, inter.id, "5w2h-bridge", 1, true));
+        if(!linkExists(inter.id, b.id)) links.push(makeLink(inter.id, b.id, "5w2h-bridge", 1, true));
+        return;
+      }
+    }
+
+    if(!linkExists(a.id,b.id)){
+      links.push(makeLink(a.id,b.id,"related",1,false));
+      addLog(`リンク追加: ${(a.title || a.label)} ↔ ${(b.title || b.label)}`);
+    }
+  }
+
+  function sumAssignedWithoutUnassigned(){
+    return Object.entries(roleCounts)
+      .filter(([k]) => k !== "unassigned")
+      .reduce((sum, [,v]) => sum + (v || 0), 0);
+  }
+
+  function rebalanceRoleCounts(){
+    const assigned = sumAssignedWithoutUnassigned();
+    roleCounts.unassigned = Math.max(0, totalAgentCount - assigned);
+  }
+
+  function expandRolesFromCounts(){
+    const roles = [];
+    ROLE_DEFS.forEach(r => {
+      const count = Number(roleCounts[r.key] || 0);
+      for(let i = 0; i < count; i++) roles.push(r.key);
+    });
+    return roles;
+  }
+
+  function pickTargetForAgent(agent){
+    const candidates = nodes.filter(n => {
+      if(n.is5w2h || n.isAgentNode) return false;
+      if(uiState.agentsIgnoreHiddenNodes && !visibleNodeSet.has(n.id)) return false;
+      return true;
+    });
+
+    if(candidates.length === 0) return null;
+
+    const scored = candidates.map(n => {
+      const score = computeNodeDisplayWeight(n);
+      return { node:n, score };
+    });
+
+    scored.sort((a,b) => b.score - a.score);
+    const top = scored.slice(0, Math.min(6, scored.length));
+    return top[Math.floor(Math.random() * top.length)].node;
+  }
+
+  function syncAgentsFromRoleCounts(){
+    rebalanceRoleCounts();
+    const expandedRoles = expandRolesFromCounts();
+    agentCount = expandedRoles.length;
+    totalAgentCount = agentCount;
+
+
+
+    const existing = nodes.filter(n => n.isAgentNode);
+
+    if(existing.length < agentCount){
+      for(let i = existing.length; i < agentCount; i++){
+        const roleKey = expandedRoles[i];
+        const node = makeNode({
+          x:-520 + (i % 4) * 95,
+          y:220 + Math.floor(i / 4) * 80,
+          label:`Agent${i+1}\n${roleLabelJa(roleKey)}`,
+          memo:`${roleLabelJa(roleKey)}エージェント`,
+          r:20,
+          color:"#402843",
+          textColor:"#ffd8fb",
+          category:"agent",
+          isAgentNode:true
+        });
+        node.roleKey = roleKey;
+        node.rootNodeId = node.id;
+        nodes.push(node);
+      }
+    } else if(existing.length > agentCount){
+      const remove = existing.slice(agentCount);
+      const removeSet = new Set(remove.map(n => n.id));
+      nodes = nodes.filter(n => !removeSet.has(n.id));
+      links = links.filter(l => !removeSet.has(l.source) && !removeSet.has(l.target));
+      agents = agents.filter(a => !removeSet.has(a.id));
+      if(followAgentId && removeSet.has(followAgentId)) followAgentId = null;
+      if(pendingAgentTargetId && removeSet.has(pendingAgentTargetId)) pendingAgentTargetId = null;
+    }
+
+    const agentNodes = nodes.filter(n => n.isAgentNode);
+    agents = agentNodes.map((n, i) => {
+      const prev = agents.find(a => a.id === n.id);
+      const roleKey = expandedRoles[i];
+      n.label = `Agent${i+1}\n${roleLabelJa(roleKey)}`;
+      n.memo = `${roleLabelJa(roleKey)}エージェント`;
+      n.roleKey = roleKey;
+      return {
+        id:n.id,
+        role:roleKey,
+        tickOffset:i * 41,
+        targetNodeId: prev?.targetNodeId || null,
+        mode: prev?.mode || "wander",
+        taskText: prev?.taskText || "待機",
+        workUntilFrame: prev?.workUntilFrame || 0,
+        busy: prev?.busy || false
+      };
+    });
+
+    agents.forEach(agent => {
+      if(!agent.targetNodeId){
+        const picked = pickTargetForAgent(agent);
+        if(picked) agent.targetNodeId = picked.id;
+      }
+    });
+
+    if(!followAgentId && agents[0]) followAgentId = agents[0].id;
+  }
+
+  async function roleAction(agent, targetNode){
+    const base = targetNode.title || targetNode.label;
+
+    if(agent.role === "unassigned"){
+      agent.taskText = "未配属";
+      return;
+    }
+
+    if(agent.role === "adventurer"){
+      await adventurerAction(targetNode);
+      agent.taskText = `${base} から冒険`;
+      return;
+    }
+
+if(agent.role === "miner"){
+  if(!agent.mineState){
+    agent.mineState = {
+      lockedNodeId: null,
+      triedWords: [],
+      exhausted: false,
+      depth: 0
+    };
+  }
+
+  if(!agent.mineState.lockedNodeId){
+    agent.mineState.lockedNodeId = targetNode.id;
+    agent.mineState.triedWords = [];
+    agent.mineState.exhausted = false;
+    agent.mineState.depth = 0;
+    addLog(`採掘固定開始: ${base}`);
+  }
+
+  const result = await minerFetchRelated(targetNode, agent);
+
+  if(result === "exhausted"){
+    addLog(`採掘完了: ${base}`);
+    agent.mineState.lockedNodeId = null;
+    agent.mineState.triedWords = [];
+    agent.mineState.exhausted = true;
+    agent.mineState.depth = 0;
+    agent.targetNodeId = null;
+    agent.taskText = `${base} を掘り尽くした`;
+  } else {
+    agent.taskText = `${base} を採掘中`;
+  }
+
+  return;
+}
+
+
+
+if(agent.role === "interdisciplinary"){
+  const wNodes = nodes.filter(n => n.is5w2h);
+
+  if(wNodes.length){
+    const scoredW = wNodes.map(w => ({
+      node: w,
+      score:
+        (targetNode.tags || []).includes(w.label) ? 8 :
+        (targetNode.keywords || []).includes(w.label) ? 6 : 0
+    })).sort((a,b) => b.score - a.score);
+
+    const pickedW = scoredW[0]?.node || wNodes[Math.floor(Math.random() * wNodes.length)];
+    addLinkSmart(targetNode, pickedW);
+  }
+
+  const others = nodes.filter(n =>
+    !n.is5w2h &&
+    !n.isAgentNode &&
+    n.id !== targetNode.id &&
+    !linkExists(targetNode.id, n.id)
+  );
+
+  const scored = others
+    .map(n => ({ node:n, score:calcNodeAffinity(targetNode, n) }))
+    .filter(x => x.score >= 4)
+    .sort((a,b) => b.score - a.score);
+
+  if(scored.length){
+    const other = scored[Math.floor(Math.random() * Math.min(3, scored.length))].node;
+    links.push(makeLink(targetNode.id, other.id, "related", 1, true));
+    addLog(`学際接続: ${targetNode.title || targetNode.label} ↔ ${other.title || other.label}`);
+  } else {
+    addLog(`学際見送り: ${targetNode.title || targetNode.label}`);
+  }
+
+  agent.taskText = `${base} を学際化`;
+  return;
+}
+
+    if(agent.role === "miner"){
+      await minerFetchRelated(targetNode);
+      agent.taskText = `${base} を採掘`;
+      addLog(`採掘者処理: ${base}`);
+      return;
+    }
+
+    if(agent.role === "painter"){
+      const ok = await painterFetchImage(targetNode);
+      agent.taskText = ok ? `${base} に画像` : `${base} 画像失敗`;
+      addLog(ok ? `画家取得: ${base}` : `画家失敗: ${base}`);
+      return;
+    }
+
+    if(agent.role === "villager"){
+      await villagerAssignWFromWeb(targetNode);
+      agent.taskText = `${base} にW/偏差値`;
+      addLog(`村人付与: ${base}`);
+      return;
+    }
+  }
+
+
+function pickTargetForAgent(agent){
+  if(agent.role === "miner" && agent.mineState?.lockedNodeId){
+    const locked = getNode(agent.mineState.lockedNodeId);
+    if(locked) return locked;
+  }
+
+  const candidates = nodes.filter(n => {
+    if(n.is5w2h || n.isAgentNode) return false;
+    if(uiState.agentsIgnoreHiddenNodes && !visibleNodeSet.has(n.id)) return false;
+    return true;
+  });
+
+  if(candidates.length === 0) return null;
+
+  const scored = candidates.map(n => ({
+    node:n,
+    score:computeNodeDisplayWeight(n)
+  }));
+
+  scored.sort((a,b) => b.score - a.score);
+  const top = scored.slice(0, Math.min(6, scored.length));
+  return top[Math.floor(Math.random() * top.length)].node;
+}
+
+
+
+function addRssHeadlineAsBranch(headline){
+  const rootLabel = String(headline || "").trim();
+  if(!rootLabel) return null;
+
+  let root = nodeExistsByLabel(rootLabel);
+  if(!root){
+    root = makeNode({
+      x: view.x + (Math.random() - 0.5) * 120,
+      y: view.y + (Math.random() - 0.5) * 80,
+      label: rootLabel,
+      memo: "RSS見出しノード",
+      r: 26,
+      color: "#34495e",
+      textColor: "#eaf1ff"
+    });
+    root.title = rootLabel;
+    root.tags = ["rss", "headline"];
+    root.summary = "RSS見出しから生成";
+    root.rootNodeId = root.id;
+    nodes.push(root);
+  }
+
+  const words = extractHeadlineKeywords(rootLabel).slice(0, 8);
+
+  for(const word of words){
+    let child = nodeExistsByLabel(word);
+
+    if(!child){
+      child = makeNode({
+        x: root.x + (Math.random() - 0.5) * 220,
+        y: root.y + 100 + Math.random() * 120,
+        label: word,
+        memo: "RSS見出しから抽出",
+        r: 20,
+        color: "#2b3344",
+        textColor: "#eaf1ff"
+      });
+      child.title = word;
+      child.rootNodeId = child.id;
+      child.keywords = [rootLabel, word];
+      child.tags = ["rss-keyword", "fresh"];
+      child.summary = `${rootLabel} から抽出`;
+      nodes.push(child);
+    }
+
+    if(!linkExists(root.id, child.id)){
+      links.push(makeLink(root.id, child.id, "explore", 0.9, true));
+    }
+  }
+
+  mergeDuplicateNodes();
+  addLog(`RSS枝生成: ${rootLabel}`);
+  return root;
+}
+
+
+
+
+function mergeDuplicateNodes(){
+  const map = new Map();
+
+  for(const node of [...nodes]){
+    if(node.is5w2h || node.isAgentNode) continue;
+
+    const key = normalizeTitleKey(node.title || node.label);
+    if(!key) continue;
+
+    if(!map.has(key)){
+      map.set(key, node);
+      continue;
+    }
+
+    const keeper = map.get(key);
+    const removeId = node.id;
+
+    for(const link of links){
+      if(link.source === removeId) link.source = keeper.id;
+      if(link.target === removeId) link.target = keeper.id;
+    }
+
+    keeper.tags = uniqueStrings([...(keeper.tags || []), ...(node.tags || [])]);
+    keeper.keywords = uniqueStrings([...(keeper.keywords || []), ...(node.keywords || [])]);
+    keeper.memo = [keeper.memo, node.memo].filter(Boolean).join("\n");
+    keeper.summary = keeper.summary || node.summary;
+    keeper.imageSrc = keeper.imageSrc || node.imageSrc;
+
+    links = links.filter(l => l.source !== l.target);
+
+    const seen = new Set();
+    links = links.filter(l => {
+      const a = l.source < l.target ? l.source : l.target;
+      const b = l.source < l.target ? l.target : l.source;
+      const k = `${a}__${b}__${l.type}`;
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    nodes = nodes.filter(n => n.id !== removeId);
+  }
+}
+
+
+
+function spawnFromHeadlineText(headline){
+  const root = addRssHeadlineAsBranch(headline);
+  if(!root) return;
+
+  // まず親ノード自体を村人が評価
+  villagerAssignWFromWeb(root);
+
+  // 子ノードたちも採掘対象にしやすくする
+  const children = links
+    .filter(l => l.source === root.id || l.target === root.id)
+    .map(l => getNode(l.source === root.id ? l.target : l.source))
+    .filter(Boolean);
+
+  for(const child of children){
+    child.attentionScore = Math.max(child.attentionScore || 0, 2);
+    child.tags = uniqueStrings([...(child.tags || []), "rss-seed"]);
+  }
+
+  addLog(`見出し展開: ${headline}`);
+}
+
+
+
+
+
+
+
+
+
+
+  function moveAgents(){
+    agents.forEach(agent => {
+      const agentNode = getNode(agent.id);
+      if(!agentNode) return;
+
+      let targetNode = agent.targetNodeId ? getNode(agent.targetNodeId) : null;
+
+      if(
+        targetNode &&
+        uiState.agentsIgnoreHiddenNodes &&
+        !targetNode.isAgentNode &&
+        !visibleNodeSet.has(targetNode.id)
+      ){
+        agent.targetNodeId = null;
+        targetNode = null;
+      }
+
+      if(!targetNode){
+        const picked = pickTargetForAgent(agent);
+        agent.targetNodeId = picked ? picked.id : null;
+        targetNode = picked || null;
+      }
+
+      if(!targetNode){
+        agent.mode = "wander";
+        agent.taskText = "待機";
+        return;
+      }
+
+      const dx = targetNode.x - agentNode.x;
+      const dy = targetNode.y - agentNode.y;
+      const dist = Math.hypot(dx, dy);
+
+      if(dist < 36){
+        agent.mode = "work";
+        if(frame > (agent.workUntilFrame || 0)){
+          agent.workUntilFrame = frame + 150;
+        }
+        return;
+      }
+
+      agent.mode = "move";
+      agent.taskText = `${targetNode.title || targetNode.label} へ移動`;
+      const speed = 1.5;
+      agentNode.x += (dx / Math.max(1, dist)) * speed;
+      agentNode.y += (dy / Math.max(1, dist)) * speed;
+    });
+  }
+
+  function updateAgentThinking(frame){
+    if(!running) return;
+
+    agents.forEach(agent => {
+      const agentNode = getNode(agent.id);
+      let targetNode = agent.targetNodeId ? getNode(agent.targetNodeId) : null;
+      if(!agentNode || agent.busy || agent.role === "unassigned") return;
+
+      if(targetNode && uiState.agentsIgnoreHiddenNodes && !visibleNodeSet.has(targetNode.id)){
+        targetNode = null;
+        agent.targetNodeId = null;
+      }
+
+      if(!targetNode){
+        const next = pickTargetForAgent(agent);
+        agent.targetNodeId = next ? next.id : null;
+        targetNode = next || null;
+        if(!targetNode) return;
+      }
+
+      if(!linkExists(agentNode.id, targetNode.id)){
+        links.push(makeLink(agentNode.id, targetNode.id, "agent-think", 0.5, true));
+      }
+
+      const dist = Math.hypot(targetNode.x - agentNode.x, targetNode.y - agentNode.y);
+
+      if(dist < 36 && frame >= (agent.workUntilFrame || 0)){
+        agent.busy = true;
+        Promise.resolve(roleAction(agent, targetNode))
+          .catch(err => {
+            console.error(err);
+            addLog(`役割処理エラー: ${agent.role}`);
+          })
+          .finally(() => {
+            agent.busy = false;
+            if(agent.targetNodeId === targetNode.id){
+              const next = pickTargetForAgent(agent);
+              agent.targetNodeId = next ? next.id : null;
+            }
+            agent.workUntilFrame = frame + 150;
+            scheduleAutoSave();
+            updateInfo();
+          });
+      }
+    });
+  }
+
+  function createImageNodeAtWorld(x, y, imageSrc, label = "画像"){
+    const n = makeNode({
+      x, y,
+      label,
+      memo:"画像ノード",
+      width:160,
+      height:120,
+      shape:"rect",
+      color:"#2b3344",
+      textColor:"#eaf1ff",
+      imageSrc
+    });
+
+    if(imageSrc){
+      restoreImageNode(n);
+      if(n.imageEl){
+        n.imageEl.onload = () => {
+          n.imageLoaded = true;
+          const iw = n.imageEl.width || 4;
+          const ih = n.imageEl.height || 3;
+          const baseW = 180;
+          n.width = baseW;
+          n.height = Math.max(80, Math.round(baseW * ih / iw));
+        };
+        n.imageEl.src = imageSrc;
+      }
+    }
+
+    n.title = label;
+    n.rootNodeId = n.id;
+    n.tags = ["image"];
+    nodes.push(n);
+    selectedNodeId = n.id;
+    addLog(`画像ノード追加: ${label}`);
+    updateInfo();
+    scheduleAutoSave();
+    return n;
+  }
+
+  function renderNodeDetail(){
+    const node = getNode(selectedNodeId);
+    nodeDetailPanel.style.display = "block";
+
+    if(!node){
+      nodeDetailBody.innerHTML = "未選択";
+      return;
+    }
+
+    const title = node.title || node.label || "";
+    const tags = Array.isArray(node.tags) ? node.tags : [];
+    const keywords = Array.isArray(node.keywords) ? node.keywords : [];
+    const summary = node.summary || "";
+    const memo = node.memo || "";
+    const degree = getNodeDegree(node.id);
+    const isPendingTarget = pendingAgentTargetId && node.id === pendingAgentTargetId;
+    const displayWeight = Math.round(computeNodeDisplayWeight(node) * 10) / 10;
+
+    nodeDetailBody.innerHTML = `
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">${escHtml(title)}</div>
+      <div style="margin-bottom:6px;"><b>種別:</b> ${escHtml(node.category || "normal")}</div>
+      <div style="margin-bottom:6px;"><b>リンク数:</b> ${degree}</div>
+      <div style="margin-bottom:6px;"><b>移動指定:</b> ${isPendingTarget ? "行き先選択中" : "なし"}</div>
+      <div style="margin-bottom:6px;"><b>注目度:</b> ${node.attentionScore ?? 0}</div>
+      <div style="margin-bottom:6px;"><b>偏差値:</b> ${node.hensachi ?? "なし"}</div>
+      <div style="margin-bottom:6px;"><b>品質:</b> ${node.qualityScore ?? "なし"}</div>
+      <div style="margin-bottom:6px;"><b>表示重み:</b> ${displayWeight}</div>
+      <div style="margin-bottom:6px;"><b>タグ:</b> ${tags.length ? escHtml(tags.join(", ")) : "なし"}</div>
+      <div style="margin-bottom:6px;"><b>キーワード:</b> ${keywords.length ? escHtml(keywords.join(", ")) : "なし"}</div>
+      <div style="margin-bottom:6px;"><b>概要:</b><br>${summary ? escHtml(summary) : "なし"}</div>
+      <div style="margin-bottom:6px;"><b>メモ:</b><br>${memo ? escHtml(memo) : "なし"}</div>
+      <div><b>画像:</b> ${node.imageSrc ? "あり" : "なし"}</div>
+    `;
+  }
+
+  function updateZoomHud(){
+    zoomHud.textContent = `${Math.round(view.scale * 100)}%`;
+  }
+
+  function updateFollowUI(){
+    const node = followAgentId ? getNode(followAgentId) : null;
+    followBtn.textContent = node ? "追従:ON" : "追従:OFF";
+    followBtn.classList.toggle("active", !!node);
+    followMini.textContent = node ? node.label.replace("\n"," ") : "なし";
+  }
+
+  function updateInfo(){
+    nodeCountEl.textContent = nodes.length;
+    linkCountEl.textContent = links.length;
+    const selected = getNode(selectedNodeId);
+    selectedInfoEl.textContent = selected ? (selected.title || selected.label).replace(/\n/g, " / ") : "なし";
+    agentCountMini.textContent = String(agentCount);
+    updateFollowUI();
+    renderNodeDetail();
+
+    if(selected && document.activeElement !== quickInput){
+      quickInput.value = selected.title || selected.label || "";
+    }
+  }
+
+  function setMode(next){
+    mode = next;
+    viewModeBtn.classList.toggle("active", mode === "view");
+    editModeBtn.classList.toggle("active", mode === "edit");
+    linkModeBtn.classList.toggle("active", mode === "link");
+    modeBadge.textContent = `モード: ${mode === "view" ? "閲覧" : mode === "edit" ? "編集" : "リンク"}`;
+    linkingFromId = null;
+    if(mode !== "view") pendingAgentTargetId = null;
+    updateInfo();
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function drawGrid(){
+    if(!uiState.showGrid) return;
+    const step = 80;
+    const worldLeft = view.x - W/(2*view.scale);
+    const worldRight = view.x + W/(2*view.scale);
+    const worldTop = view.y - H/(2*view.scale);
+    const worldBottom = view.y + H/(2*view.scale);
+    const startX = Math.floor(worldLeft / step) * step;
+    const endX = Math.ceil(worldRight / step) * step;
+    const startY = Math.floor(worldTop / step) * step;
+    const endY = Math.ceil(worldBottom / step) * step;
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,.05)";
+    ctx.lineWidth = 1;
+    for(let x = startX; x <= endX; x += step){
+      const p1 = worldToScreen(x, worldTop);
+      const p2 = worldToScreen(x, worldBottom);
+      ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    }
+    for(let y = startY; y <= endY; y += step){
+      const p1 = worldToScreen(worldLeft,y);
+      const p2 = worldToScreen(worldRight,y);
+      ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawLinks(){
+    for(const l of links){
+      const a = getNode(l.source);
+      const b = getNode(l.target);
+      if(!a || !b) continue;
+
+      const isAgentLink = l.type === "agent-think" || a.isAgentNode || b.isAgentNode;
+      if(isAgentLink && !uiState.showAgentLinks) continue;
+
+      const aVisible = a.isAgentNode || visibleNodeSet.has(a.id);
+      const bVisible = b.isAgentNode || visibleNodeSet.has(b.id);
+      if(!aVisible || !bVisible) continue;
+
+      const pa = worldToScreen(a.x,a.y);
+      const pb = worldToScreen(b.x,b.y);
+
+      ctx.save();
+      if(l.type === "5w2h-bridge"){
+        ctx.strokeStyle = "rgba(123,223,242,.78)";
+        ctx.lineWidth = 2.2;
+      }else if(l.type === "candidate" || l.type === "explore" || l.type === "hypothesis"){
+        ctx.strokeStyle = "rgba(156,220,240,.42)";
+        ctx.lineWidth = 1.2;
+      }else if(l.type === "agent-think"){
+        ctx.strokeStyle = "rgba(255,139,230,.28)";
+        ctx.lineWidth = 1.0;
+      }else{
+        ctx.strokeStyle = "rgba(180,210,255,.45)";
+        ctx.lineWidth = 1.6;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(pa.x,pa.y);
+      ctx.lineTo(pb.x,pb.y);
+      ctx.stroke();
+
+      if(uiState.showLinkType && view.scale > 0.7){
+        const mx = (pa.x + pb.x)/2;
+        const my = (pa.y + pb.y)/2;
+        const text = l.type;
+        ctx.font = "11px sans-serif";
+        const tw = ctx.measureText(text).width + 10;
+        ctx.fillStyle = "rgba(10,14,22,.75)";
+        ctx.strokeStyle = "rgba(255,255,255,.08)";
+        roundRect(mx - tw/2, my - 10, tw, 20, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#dce8ff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, mx, my);
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawNode(n){
+    if(!n.isAgentNode && !visibleNodeSet.has(n.id)) return;
+
+    const p = worldToScreen(n.x,n.y);
+
+    if(n.shape === "rect"){
+      const rw = (n.width || 120) * view.scale;
+      const rh = (n.height || 80) * view.scale;
+      if(p.x < -rw || p.y < -rh || p.x > W + rw || p.y > H + rh) return;
+
+      ctx.save();
+      ctx.beginPath();
+      roundRect(p.x - rw/2, p.y - rh/2, rw, rh, 12);
+      ctx.fillStyle = n.color || "#2b3344";
+      ctx.fill();
+
+      if(n.imageSrc && n.imageEl){
+        ctx.save();
+        ctx.beginPath();
+        roundRect(p.x - rw/2, p.y - rh/2, rw, rh, 12);
+        ctx.clip();
+        if(n.imageLoaded){
+          const iw = n.imageEl.width || 1;
+          const ih = n.imageEl.height || 1;
+          const scale = Math.max(rw / iw, rh / ih);
+          const dw = iw * scale;
+          const dh = ih * scale;
+          ctx.drawImage(n.imageEl, p.x - dw/2, p.y - dh/2, dw, dh);
+        }else{
+          ctx.fillStyle = "#334155";
+          ctx.fillRect(p.x - rw/2, p.y - rh/2, rw, rh);
+        }
+        ctx.restore();
+      }
+
+      ctx.strokeStyle = "rgba(255,255,255,.18)";
+      ctx.lineWidth = 1.5;
+      if(selectedNodeId === n.id){
+        ctx.strokeStyle = "#ffcc66";
+        ctx.lineWidth = 3;
+      }
+      roundRect(p.x - rw/2, p.y - rh/2, rw, rh, 12);
+      ctx.stroke();
+
+      if(view.scale >= 0.75){
+        ctx.font = `${Math.max(10, 12 * view.scale)}px sans-serif`;
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        const text = (n.title || n.label || "");
+        const shortText = view.scale < 1 ? text.slice(0, 8) : text;
+        ctx.fillText(shortText, p.x, p.y + rh/2 - 6);
+      }
+
+      if(mode === "edit" && selectedNodeId === n.id){
+        const hs = 16;
+        ctx.fillStyle = "#7db0ff";
+        ctx.fillRect(p.x + rw/2 - hs/2, p.y + rh/2 - hs/2, hs, hs);
+        ctx.strokeStyle = "#eaf1ff";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(p.x + rw/2 - hs/2, p.y + rh/2 - hs/2, hs, hs);
+      }
+      ctx.restore();
+      return;
+    }
+
+    const rr = n.r * view.scale;
+    if(p.x < -120 || p.y < -120 || p.x > W + 120 || p.y > H + 120) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,rr,0,Math.PI*2);
+
+    if(n.isAgentNode) ctx.fillStyle = roleColor(n.roleKey || "agent");
+    else if(n.is5w2h) ctx.fillStyle = "#2a3140";
+    else if(n.isInterdisciplinary) ctx.fillStyle = "#233848";
+    else if(n.isAutoCandidate) ctx.fillStyle = "#1f2e3a";
+    else ctx.fillStyle = n.color || "#2b3344";
+
+    ctx.fill();
+
+    if(n.is5w2h){
+      ctx.strokeStyle = "#ffd166";
+      ctx.lineWidth = 3;
+    }else if(n.isInterdisciplinary){
+      ctx.strokeStyle = "#7bdff2";
+      ctx.lineWidth = 2.2;
+    }else if(n.isAutoCandidate){
+      ctx.strokeStyle = "#9cdcf0";
+      ctx.lineWidth = 1.3;
+    }else if(n.isAgentNode){
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.8;
+    }else{
+      ctx.strokeStyle = "rgba(255,255,255,.18)";
+      ctx.lineWidth = 1.2;
+    }
+
+    if(selectedNodeId === n.id){
+      ctx.strokeStyle = "#ffcc66";
+      ctx.lineWidth += 2;
+    }
+    if(followAgentId === n.id){
+      ctx.strokeStyle = "#7db0ff";
+      ctx.lineWidth += 1.5;
+    }
+    if(pendingAgentTargetId === n.id){
+      ctx.strokeStyle = "#ff8f8f";
+      ctx.lineWidth += 2;
+    }
+    ctx.stroke();
+
+    const zoom = view.scale;
+    const title = String(n.title || n.label || "");
+    if(!uiState.compactText || zoom >= 0.9){
+      const lines = title.split("\n");
+      ctx.font = `${Math.max(10, 12 * zoom)}px sans-serif`;
+      ctx.fillStyle = n.textColor || "#eaf1ff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      lines.forEach((line, i) => {
+        ctx.fillText(line, p.x, p.y + (i - (lines.length - 1)/2) * 13);
+      });
+    } else if(zoom >= 0.55){
+      ctx.font = `${Math.max(9, 10 * zoom)}px sans-serif`;
+      ctx.fillStyle = n.textColor || "#eaf1ff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const shortText = title.length > 6 ? title.slice(0, 6) : title;
+      ctx.fillText(shortText, p.x, p.y);
+    }
+
+    if(n.isAgentNode && zoom > 0.75){
+      const agent = agents.find(a => a.id === n.id);
+      if(agent){
+        const status = `${roleLabelJa(agent.role)} | ${agent.mode === "move" ? "移動" : agent.mode === "work" ? "作業" : "待機"}`;
+        ctx.font = "10px sans-serif";
+        const tw = ctx.measureText(status).width + 12;
+        const tx = p.x - tw/2;
+        const ty = p.y - rr - 22;
+        ctx.fillStyle = "rgba(8,10,16,.82)";
+        ctx.strokeStyle = "rgba(255,255,255,.25)";
+        roundRect(tx, ty, tw, 18, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(status, p.x, ty + 9);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function draw(){
+    visibleNodeSet = getVisibleNodeSet();
+    ctx.clearRect(0,0,W,H);
+    drawGrid();
+    drawLinks();
+    nodes.forEach(drawNode);
+  }
+
+  function applyRepulsion(){
+    const repel = Number(uiState.repel);
+    for(let i = 0; i < nodes.length; i++){
+      const a = nodes[i];
+      for(let j = i + 1; j < nodes.length; j++){
+        const b = nodes[j];
+        if(a.isAgentNode || b.isAgentNode) continue;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        let d2 = dx * dx + dy * dy;
+        if(d2 < 1) d2 = 1;
+        const d = Math.sqrt(d2);
+        const force = repel / d2;
+        const fx = force * dx / d;
+        const fy = force * dy / d;
+        if(!a.fixed){ a.vx -= fx; a.vy -= fy; }
+        if(!b.fixed){ b.vx += fx; b.vy += fy; }
+      }
+    }
+  }
+
+  function physicsStep(){
+    if(!running || !uiState.physics) return;
+    const spring = Number(uiState.spring) / 1000;
+    const damping = Number(uiState.damping) / 100;
+
+    nodes.forEach(n => {
+      if(n.is5w2h && uiState.fix5w2h) n.fixed = true;
+    });
+
+    applyRepulsion();
+
+    for(const l of links){
+      const a = getNode(l.source);
+      const b = getNode(l.target);
+      if(!a || !b) continue;
+      if(a.isAgentNode || b.isAgentNode) continue;
+
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d = Math.max(1, Math.hypot(dx, dy));
+
+      let target = 160;
+      if(l.type === "5w2h-bridge") target = 140;
+      if(l.type === "candidate" || l.type === "explore" || l.type === "hypothesis") target = 95;
+
+      const force = (d - target) * spring;
+      const fx = force * dx / d;
+      const fy = force * dy / d;
+
+      if(!a.fixed){ a.vx += fx; a.vy += fy; }
+      if(!b.fixed){ b.vx -= fx; b.vy -= fy; }
+    }
+
+    nodes.forEach(n => {
+      if(n.fixed && !n.isAgentNode){
+        n.vx = 0;
+        n.vy = 0;
+        return;
+      }
+      if(!n.isAgentNode){
+        n.x += n.vx;
+        n.y += n.vy;
+        n.vx *= damping;
+        n.vy *= damping;
+      }
+    });
+
+    const panSpeed = 7 / view.scale;
+    if(stickState.active || Math.abs(stickState.dx) > 0.01 || Math.abs(stickState.dy) > 0.01){
+      view.x += stickState.dx * panSpeed;
+      view.y += stickState.dy * panSpeed;
+    }
+
+    moveAgents();
+    updateAgentThinking(frame);
+    updateCameraFollow();
+    ensure5W2HNodes();
+  }
+
+  function updateCameraFollow(){
+    if(!followAgentId) return;
+    const node = getNode(followAgentId);
+    if(!node) return;
+    view.x += (node.x - view.x) * 0.05;
+    view.y += (node.y - view.y) * 0.05;
+  }
+
+  function openEditor(node,screenX,screenY){
+    if(!node || node.is5w2h) return;
+    editingNodeId = node.id;
+    nodeLabelInput.value = node.title || node.label || "";
+    nodeMemoInput.value = node.memo || "";
+    nodeColorInput.value = node.color || "#2b3344";
+    nodeEditor.style.left = Math.min(W - 340, Math.max(8, screenX + 10)) + "px";
+    nodeEditor.style.top = Math.min(H - 240, Math.max(8, screenY + 10)) + "px";
+    nodeEditor.classList.add("open");
+  }
+
+  function closeEditor(){
+    nodeEditor.classList.remove("open");
+    editingNodeId = null;
+  }
+
+  function createNodeAtWorld(x,y,label="新規ノード"){
+    const clean = sanitizeGeneratedLabel(label);
+    const n = makeNode({ x,y,label:clean,memo:"",r:24,color:"#2b3344",textColor:"#eaf1ff",category:"normal" });
+    n.title = clean;
+    n.summary = "手動作成";
+    n.rootNodeId = n.id;
+    nodes.push(n);
+    selectedNodeId = n.id;
+    addLog(`ノード追加: ${clean}`);
+    updateInfo();
+    scheduleAutoSave();
+    return n;
+  }
+
+  function renameNode(node, newLabel){
+    if(!node || node.is5w2h) return false;
+    const clean = sanitizeGeneratedLabel(newLabel || "");
+    node.title = clean;
+    node.label = clean;
+    node.updatedAt = Date.now();
+    addLog(`ノード名更新: ${clean}`);
+    updateInfo();
+    scheduleAutoSave();
+    return true;
+  }
+
+  function findNodesByKeyword(keyword){
+    const q = String(keyword || "").trim().toLowerCase();
+    if(!q) return [];
+    return nodes.filter(n => {
+      if(n.isAgentNode) return false;
+      const t = String(n.title || n.label || "").toLowerCase();
+      const m = String(n.memo || "").toLowerCase();
+      return t.includes(q) || m.includes(q);
+    });
+  }
+
+  function focusNode(node){
+    if(!node) return;
+    selectedNodeId = node.id;
+    view.x = node.x;
+    view.y = node.y;
+    updateInfo();
+    syncQuickInputFromSelection();
+  }
+
+  function runQuickSearch(){
+    const q = quickInput.value.trim();
+    if(!q){
+      addLog("検索語が空です");
+      return;
+    }
+
+    if(lastSearchQuery !== q){
+      searchResults = findNodesByKeyword(q);
+      searchIndex = 0;
+      lastSearchQuery = q;
+    }else{
+      searchIndex++;
+    }
+
+    if(searchResults.length === 0){
+      addLog(`検索結果なし: ${q}`);
+      return;
+    }
+
+    if(searchIndex >= searchResults.length) searchIndex = 0;
+
+    const node = searchResults[searchIndex];
+    if(!node){
+      searchResults = [];
+      searchIndex = 0;
+      lastSearchQuery = "";
+      addLog("検索結果が無効になりました");
+      return;
+    }
+
+    focusNode(node);
+    addLog(`検索ヒット ${searchIndex + 1}/${searchResults.length}: ${node.title || node.label}`);
+  }
+
+
+
+
+
+
+
+function calcNodeAffinity(a, b){
+  if(!a || !b || a.id === b.id) return -Infinity;
+
+  let score = 0;
+
+  const aTitle = String(a.title || a.label || "");
+  const bTitle = String(b.title || b.label || "");
+
+  const aTags = new Set(a.tags || []);
+  const bTags = new Set(b.tags || []);
+  const aKeywords = new Set(a.keywords || []);
+  const bKeywords = new Set(b.keywords || []);
+
+  for(const t of aTags){
+    if(bTags.has(t)) score += 4;
+  }
+  for(const k of aKeywords){
+    if(bKeywords.has(k)) score += 3;
+  }
+
+  if(aTitle.includes(bTitle) || bTitle.includes(aTitle)) score += 3;
+
+  const sameCategory = a.category && b.category && a.category === b.category;
+  if(sameCategory) score += 2;
+
+  if(a.isAutoCandidate || b.isAutoCandidate) score -= 1;
+  if(a.tags?.includes("unverified")) score -= 3;
+  if(b.tags?.includes("unverified")) score -= 3;
+
+  return score;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  function deleteNode(nodeId){
+    const n = getNode(nodeId);
+    if(!n || n.is5w2h) return;
+    nodes = nodes.filter(x => x.id !== nodeId);
+    links = links.filter(l => l.source !== nodeId && l.target !== nodeId);
+    agents = agents.filter(a => a.id !== nodeId);
+    if(selectedNodeId === nodeId) selectedNodeId = null;
+    if(followAgentId === nodeId) followAgentId = null;
+    if(pendingAgentTargetId === nodeId) pendingAgentTargetId = null;
+    addLog(`ノード削除: ${n.title || n.label}`);
+    updateInfo();
+    scheduleAutoSave();
+  }
+
+  function pointerPosFromEvent(e){
+    const rect = canvas.getBoundingClientRect();
+    return { x:(e.clientX ?? 0) - rect.left, y:(e.clientY ?? 0) - rect.top };
+  }
+
+  function hitTestNode(worldX,worldY){
+    for(let i = nodes.length - 1; i >= 0; i--){
+      const n = nodes[i];
+      if(!n.isAgentNode && !visibleNodeSet.has(n.id)) continue;
+
+      if(n.shape === "rect"){
+        const w = n.width || 120;
+        const h = n.height || 80;
+        if(
+          worldX >= n.x - w/2 &&
+          worldX <= n.x + w/2 &&
+          worldY >= n.y - h/2 &&
+          worldY <= n.y + h/2
+        ) return n;
+        continue;
+      }
+      const dx = worldX - n.x;
+      const dy = worldY - n.y;
+      if(dx*dx + dy*dy <= n.r*n.r) return n;
+    }
+    return null;
+  }
+
+  function hitResizeHandle(node, worldX, worldY){
+    if(!node || node.shape !== "rect") return false;
+    const hw = (node.width || 120) / 2;
+    const hh = (node.height || 80) / 2;
+    const handleSize = 12 / view.scale;
+    const hx = node.x + hw;
+    const hy = node.y + hh;
+    return (
+      worldX >= hx - handleSize &&
+      worldX <= hx + handleSize &&
+      worldY >= hy - handleSize &&
+      worldY <= hy + handleSize
+    );
+  }
+
+  function onCanvasPointerDown(e){
+    const p = pointerPosFromEvent(e);
+    const w = screenToWorld(p.x,p.y);
+    const node = hitTestNode(w.x,w.y);
+
+    pointerDown = true;
+    lastPointer = p;
+    hoveredNodeId = node ? node.id : null;
+
+    clearLongPressTimer();
+
+    if(mode === "edit" && !node){
+      longPressTimer = setTimeout(() => {
+        const newNode = createNodeAtWorld(w.x, w.y, quickInput.value.trim() || "新規ノード");
+        selectedNodeId = newNode.id;
+        syncQuickInputFromSelection();
+        openEditor(newNode, p.x, p.y);
+        updateInfo();
+      }, LONG_PRESS_MS);
+    }
+
+    const now = Date.now();
+    const isDoubleTap =
+      now - lastTapTime <= DOUBLE_TAP_MS &&
+      isNearPoint(p.x, p.y, lastTapX, lastTapY);
+
+    lastTapTime = now;
+    lastTapX = p.x;
+    lastTapY = p.y;
+
+    if(mode === "edit"){
+      if(node){
+        selectedNodeId = node.id;
+
+        if(isDoubleTap && !node.is5w2h){
+          openEditor(node, p.x, p.y);
+          updateInfo();
+          syncQuickInputFromSelection();
+          return;
+        }
+
+        if(node.shape === "rect" && hitResizeHandle(node, w.x, w.y)){
+          resizingNodeId = node.id;
+        }else if(!node.fixed){
+          draggingNodeId = node.id;
+          dragOffsetWorldX = w.x - node.x;
+          dragOffsetWorldY = w.y - node.y;
+        }
+      }else{
+        selectedNodeId = null;
+        panning = true;
+      }
+    }else if(mode === "view"){
+      if(node){
+        if(pendingAgentTargetId && !node.isAgentNode){
+          const agent = agents.find(a => a.id === pendingAgentTargetId);
+          if(agent){
+            agent.targetNodeId = node.id;
+            agent.taskText = `${node.title || node.label} へ移動指定`;
+            addLog(`移動指定: ${getNode(agent.id)?.label || "Agent"} → ${node.title || node.label}`);
+          }
+          pendingAgentTargetId = null;
+          selectedNodeId = node.id;
+          updateInfo();
+          syncQuickInputFromSelection();
+          scheduleAutoSave();
+          return;
+        }
+
+        selectedNodeId = node.id;
+
+        if(node.isAgentNode){
+          followAgentId = node.id;
+          pendingAgentTargetId = node.id;
+          updateFollowUI();
+          addLog(`行き先指定待ち: ${node.label.replace("\n"," ")}`);
+        }
+      }else{
+        selectedNodeId = null;
+        if(!pendingAgentTargetId){
+          panning = true;
+        }
+      }
+    }else if(mode === "link"){
+      if(node){
+        selectedNodeId = node.id;
+        if(!linkingFromId){
+          linkingFromId = node.id;
+          addLog(`リンク開始: ${node.title || node.label}`);
+        }else if(linkingFromId === node.id){
+          linkingFromId = null;
+          addLog("リンク選択解除");
+        }else{
+          addLinkSmart(getNode(linkingFromId), node);
+          linkingFromId = null;
+          scheduleAutoSave();
+        }
+      }else{
+        linkingFromId = null;
+        selectedNodeId = null;
+      }
+    }
+
+    updateInfo();
+    syncQuickInputFromSelection();
+  }
+
+  function onCanvasPointerMove(e){
+    const p = pointerPosFromEvent(e);
+    const w = screenToWorld(p.x,p.y);
+    const hit = hitTestNode(w.x,w.y);
+    hoveredNodeId = hit ? hit.id : null;
+
+    if(pointerDown){
+      const dx = p.x - lastPointer.x;
+      const dy = p.y - lastPointer.y;
+
+      if(Math.abs(dx) > 6 || Math.abs(dy) > 6){
+        clearLongPressTimer();
+      }
+
+      if(resizingNodeId){
+        const node = getNode(resizingNodeId);
+        if(node && node.shape === "rect"){
+          node.width = Math.max(60, (w.x - node.x) * 2);
+          node.height = Math.max(40, (w.y - node.y) * 2);
+        }
+      }else if(draggingNodeId){
+        const node = getNode(draggingNodeId);
+        if(node && !node.fixed){
+          node.x = w.x - dragOffsetWorldX;
+          node.y = w.y - dragOffsetWorldY;
+          node.vx = 0;
+          node.vy = 0;
+        }
+      }else if(panning){
+        view.x -= dx / view.scale;
+        view.y -= dy / view.scale;
+      }
+    }
+    lastPointer = p;
+  }
+
+  function onCanvasPointerUp(){
+    clearLongPressTimer();
+    pointerDown = false;
+    if(draggingNodeId || resizingNodeId) scheduleAutoSave();
+    draggingNodeId = null;
+    resizingNodeId = null;
+    panning = false;
+  }
+
+  function onWheel(e){
+    e.preventDefault();
+    const mouse = pointerPosFromEvent(e);
+    const before = screenToWorld(mouse.x, mouse.y);
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    view.scale = Math.max(0.15, Math.min(4, view.scale * factor));
+    const after = screenToWorld(mouse.x, mouse.y);
+    view.x += before.x - after.x;
+    view.y += before.y - after.y;
+    updateZoomHud();
+  }
+
+  function handleStickMove(clientX, clientY){
+    const rect = stickWrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = clientX - cx;
+    let dy = clientY - cy;
+    const len = Math.hypot(dx, dy);
+    const max = stickState.max;
+    if(len > max){
+      dx = dx / len * max;
+      dy = dy / len * max;
+    }
+    stickState.dx = dx / max;
+    stickState.dy = dy / max;
+    stickState.active = true;
+
+    const knobRect = stickKnob.getBoundingClientRect();
+    const knobW = knobRect.width || 56;
+    const knobH = knobRect.height || 56;
+    stickKnob.style.left = rect.width/2 - knobW/2 + dx + "px";
+    stickKnob.style.top = rect.height/2 - knobH/2 + dy + "px";
+  }
+
+  function resetStick(){
+    stickState.active = false;
+    stickState.dx = 0;
+    stickState.dy = 0;
+    const baseSize = stickWrap.getBoundingClientRect();
+    const knobSize = stickKnob.getBoundingClientRect();
+    stickKnob.style.left = (baseSize.width - knobSize.width)/2 + "px";
+    stickKnob.style.top = (baseSize.height - knobSize.height)/2 + "px";
+  }
+
+  function setPinButtonState(btn, pinned){
+    btn.classList.toggle("pinned", pinned);
+    btn.textContent = pinned ? "📌" : "📍";
+  }
+
+  function applyPanelLayout(){
+    if(panelPins.topBarPanel){
+      topBarPanel.style.left = "8px";
+      topBarPanel.style.top = "8px";
+      topBarPanel.style.right = "8px";
+      topBarPanel.style.width = "";
+    } else {
+      topBarPanel.style.right = "auto";
+      topBarPanel.style.left = panelPositions.topBarPanel.left + "px";
+      topBarPanel.style.top = panelPositions.topBarPanel.top + "px";
+      topBarPanel.style.width = Math.min(W - 16, topBarPanel.offsetWidth || 700) + "px";
+    }
+
+    if(panelPins.settingsPanel){
+      settingsPanel.style.left = "8px";
+      settingsPanel.style.top = "88px";
+      settingsPanel.style.right = "8px";
+      settingsPanel.style.width = "";
+    } else {
+      settingsPanel.style.right = "auto";
+      settingsPanel.style.left = panelPositions.settingsPanel.left + "px";
+      settingsPanel.style.top = panelPositions.settingsPanel.top + "px";
+      settingsPanel.style.width = Math.min(W - 16, settingsPanel.offsetWidth || 700) + "px";
+    }
+
+    if(panelPins.nodeDetailPanel){
+      nodeDetailPanel.style.right = "8px";
+      nodeDetailPanel.style.left = "auto";
+      nodeDetailPanel.style.top = "150px";
+      nodeDetailPanel.style.width = "min(390px,90vw)";
+    } else {
+      nodeDetailPanel.style.right = "auto";
+      nodeDetailPanel.style.left = panelPositions.nodeDetailPanel.left + "px";
+      nodeDetailPanel.style.top = panelPositions.nodeDetailPanel.top + "px";
+      nodeDetailPanel.style.width = Math.min(W - 16, 390) + "px";
+    }
+
+    setPinButtonState(pinTopBarBtn, panelPins.topBarPanel);
+    setPinButtonState(pinSettingsBtn, panelPins.settingsPanel);
+    setPinButtonState(pinDetailBtn, panelPins.nodeDetailPanel);
+  }
+
+  function makePanelDraggable(panel, panelKey){
+    const header = panel.querySelector(".panelHeader");
+    let dragging = false;
+    let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+    header.addEventListener("pointerdown", (e) => {
+      if(panelPins[panelKey]) return;
+      if(e.target.classList.contains("pinBtn")) return;
+      dragging = true;
+      header.classList.add("dragging");
+      header.setPointerCapture(e.pointerId);
+      const rect = panel.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = rect.left;
+      startTop = rect.top;
+    });
+
+    header.addEventListener("pointermove", (e) => {
+      if(!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      let left = startLeft + dx;
+      let top = startTop + dy;
+      left = Math.max(0, Math.min(W - 80, left));
+      top = Math.max(0, Math.min(H - 40, top));
+      panelPositions[panelKey].left = left;
+      panelPositions[panelKey].top = top;
+      panel.style.left = left + "px";
+      panel.style.top = top + "px";
+      panel.style.right = "auto";
+    });
+
+    function endDrag(){
+      dragging = false;
+      header.classList.remove("dragging");
+      scheduleAutoSave();
+    }
+    header.addEventListener("pointerup", endDrag);
+    header.addEventListener("pointercancel", endDrag);
+  }
+
+  function openSettingsTab(tabName){
+    settingsAgentSection.style.display = tabName === "agent" ? "block" : "none";
+    settingsViewSection.style.display = tabName === "view" ? "block" : "none";
+    settingsPhysicsSection.style.display = tabName === "physics" ? "block" : "none";
+    settingsDataSection.style.display = tabName === "data" ? "block" : "none";
+
+    tabAgentBtn.classList.toggle("active", tabName === "agent");
+    tabViewBtn.classList.toggle("active", tabName === "view");
+    tabPhysicsBtn.classList.toggle("active", tabName === "physics");
+    tabDataBtn.classList.toggle("active", tabName === "data");
+  }
+
+  function renderAgentSettings(){
+    settingsAgentSection.innerHTML = `
+      <h4>エージェント</h4>
+      <div class="row">
+        <label>エージェント数: <span id="totalAgentCountLabel">${totalAgentCount}</span></label>
+        <div style="display:flex;gap:6px;">
+          <button id="totalAgentMinusBtn">－</button>
+          <button id="totalAgentPlusBtn">＋</button>
+        </div>
+      </div>
+      <div id="roleCountSettingsInner"></div>
+      <div class="miniNote">閲覧モードでエージェントをタップ後、行き先ノードをタップすると移動指定できます。</div>
+    `;
+
+    const roleWrap = settingsAgentSection.querySelector("#roleCountSettingsInner");
+    const minusBtn = settingsAgentSection.querySelector("#totalAgentMinusBtn");
+    const plusBtn = settingsAgentSection.querySelector("#totalAgentPlusBtn");
+
+    minusBtn.addEventListener("click", () => {
+      if(totalAgentCount <= 0) return;
+      totalAgentCount--;
+      rebalanceRoleCounts();
+      renderAgentSettings();
+      syncAgentsFromRoleCounts();
+      updateInfo();
+      scheduleAutoSave();
+    });
+
+    plusBtn.addEventListener("click", () => {
+      totalAgentCount++;
+      roleCounts.unassigned = (roleCounts.unassigned || 0) + 1;
+      renderAgentSettings();
+      syncAgentsFromRoleCounts();
+      updateInfo();
+      scheduleAutoSave();
+    });
+
+    ROLE_DEFS.forEach(role => {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const label = document.createElement("label");
+      label.textContent = `${role.label}: ${roleCounts[role.key] ?? 0}`;
+
+      const controls = document.createElement("div");
+      controls.style.display = "flex";
+      controls.style.gap = "6px";
+
+      const minus = document.createElement("button");
+      minus.textContent = "－";
+      const plus = document.createElement("button");
+      plus.textContent = "＋";
+
+      minus.addEventListener("click", () => {
+        if((roleCounts[role.key] || 0) <= 0) return;
+
+        if(role.key === "unassigned"){
+          roleCounts.unassigned = Math.max(0, (roleCounts.unassigned || 0) - 1);
+          totalAgentCount = Math.max(0, totalAgentCount - 1);
+        } else {
+          roleCounts[role.key]--;
+          roleCounts.unassigned = (roleCounts.unassigned || 0) + 1;
+        }
+
+        renderAgentSettings();
+        syncAgentsFromRoleCounts();
+        updateInfo();
+        scheduleAutoSave();
+      });
+
+      plus.addEventListener("click", () => {
+        if(role.key === "unassigned"){
+          roleCounts.unassigned++;
+          totalAgentCount++;
+        } else {
+          if((roleCounts.unassigned || 0) <= 0) return;
+          roleCounts[role.key] = (roleCounts[role.key] || 0) + 1;
+          roleCounts.unassigned = Math.max(0, (roleCounts.unassigned || 0) - 1);
+        }
+
+        renderAgentSettings();
+        syncAgentsFromRoleCounts();
+        updateInfo();
+        scheduleAutoSave();
+      });
+
+      controls.appendChild(minus);
+      controls.appendChild(plus);
+      row.appendChild(label);
+      row.appendChild(controls);
+      roleWrap.appendChild(row);
+    });
+  }
+
+  function renderViewSettings(){
+    settingsViewSection.innerHTML = `
+      <h4>表示</h4>
+      <div class="row"><label>グリッド表示</label><input type="checkbox" id="showGridChkProxy"></div>
+      <div class="row"><label>5W2H固定</label><input type="checkbox" id="fix5w2hChkProxy"></div>
+      <div class="row"><label>リンク種別表示</label><input type="checkbox" id="showLinkTypeChkProxy"></div>
+      <div class="row"><label>小ズームで文字省略</label><input type="checkbox" id="compactTextChkProxy"></div>
+      <div class="row"><label>エージェント線表示</label><input type="checkbox" id="showAgentLinksChkProxy"></div>
+      <div class="row">
+        <label>ノード表示上限</label>
+        <select id="visibleNodeLimitProxy">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="Infinity">∞</option>
+        </select>
+      </div>
+      <div class="row"><label>エージェントは非表示ノードを無視</label><input type="checkbox" id="agentsIgnoreHiddenNodesProxy"></div>
+      <div class="miniNote">表示上限は偏差値・接続数・接続先重み・リンクバイアスから計算した表示重みによって決まります。</div>
+    `;
+
+    const a = settingsViewSection.querySelector("#showGridChkProxy");
+    const b = settingsViewSection.querySelector("#fix5w2hChkProxy");
+    const c = settingsViewSection.querySelector("#showLinkTypeChkProxy");
+    const d = settingsViewSection.querySelector("#compactTextChkProxy");
+    const e = settingsViewSection.querySelector("#showAgentLinksChkProxy");
+    const f = settingsViewSection.querySelector("#visibleNodeLimitProxy");
+    const g = settingsViewSection.querySelector("#agentsIgnoreHiddenNodesProxy");
+
+    a.checked = uiState.showGrid;
+    b.checked = uiState.fix5w2h;
+    c.checked = uiState.showLinkType;
+    d.checked = uiState.compactText;
+    e.checked = uiState.showAgentLinks;
+    f.value = uiState.visibleNodeLimit === Infinity ? "Infinity" : String(uiState.visibleNodeLimit);
+    g.checked = uiState.agentsIgnoreHiddenNodes;
+
+    a.addEventListener("input", () => { uiState.showGrid = a.checked; scheduleAutoSave(); });
+    b.addEventListener("input", () => { uiState.fix5w2h = b.checked; scheduleAutoSave(); });
+    c.addEventListener("input", () => { uiState.showLinkType = c.checked; scheduleAutoSave(); });
+    d.addEventListener("input", () => { uiState.compactText = d.checked; scheduleAutoSave(); });
+    e.addEventListener("input", () => { uiState.showAgentLinks = e.checked; scheduleAutoSave(); });
+    f.addEventListener("change", () => {
+      uiState.visibleNodeLimit = f.value === "Infinity" ? Infinity : Number(f.value);
+      scheduleAutoSave();
+    });
+    g.addEventListener("input", () => {
+      uiState.agentsIgnoreHiddenNodes = g.checked;
+      scheduleAutoSave();
+    });
+  }
+
+  function renderPhysicsSettings(){
+    settingsPhysicsSection.innerHTML = `
+      <h4>物理</h4>
+      <div class="row"><label>物理ON</label><input type="checkbox" id="physicsChkProxy"></div>
+      <div class="row"><label>反発強度</label><input type="range" id="repelRangeProxy" min="10" max="300"></div>
+      <div class="row"><label>ばね強度</label><input type="range" id="springRangeProxy" min="1" max="80"></div>
+      <div class="row"><label>減衰</label><input type="range" id="dampingRangeProxy" min="70" max="99"></div>
+    `;
+
+    const a = settingsPhysicsSection.querySelector("#physicsChkProxy");
+    const b = settingsPhysicsSection.querySelector("#repelRangeProxy");
+    const c = settingsPhysicsSection.querySelector("#springRangeProxy");
+    const d = settingsPhysicsSection.querySelector("#dampingRangeProxy");
+
+    a.checked = uiState.physics;
+    b.value = uiState.repel;
+    c.value = uiState.spring;
+    d.value = uiState.damping;
+
+    a.addEventListener("input", () => { uiState.physics = a.checked; scheduleAutoSave(); });
+    b.addEventListener("input", () => { uiState.repel = Number(b.value); scheduleAutoSave(); });
+    c.addEventListener("input", () => { uiState.spring = Number(c.value); scheduleAutoSave(); });
+    d.addEventListener("input", () => { uiState.damping = Number(d.value); scheduleAutoSave(); });
+  }
+
+  function renderDataSettings(){
+    settingsDataSection.innerHTML = `
+      <h4>データ</h4>
+      <div class="row"><label>学際自動生成</label><input type="checkbox" id="interChkProxy"></div>
+      <div class="row"><label>自動展開</label><input type="checkbox" id="autoExpandChkProxy"></div>
+      <div class="row"><label>展開数</label><input type="range" id="expandCountRangeProxy" min="1" max="8"></div>
+      <div class="row"><label>自動保存</label><input type="checkbox" id="autoSaveChkProxy"></div>
+      <div class="row"><label>保存間隔(秒)</label><input type="range" id="autoSaveSecRangeProxy" min="5" max="60"></div>
+      <div class="row"><label>RSS連動</label><input type="checkbox" id="rssEnabledProxy"></div>
+      <div class="row"><label>RSS更新間隔(分)</label><input type="range" id="rssRefreshMinProxy" min="1" max="60"></div>
+      <button id="rssRefreshNowBtn">RSS今すぐ更新</button>
+      <div class="miniNote">冒険者はRSS見出しからも新ノードを拾います。村人はRSS出現頻度も使って注目度を計算します。</div>
+    `;
+
+    const a = settingsDataSection.querySelector("#interChkProxy");
+    const b = settingsDataSection.querySelector("#autoExpandChkProxy");
+    const c = settingsDataSection.querySelector("#expandCountRangeProxy");
+    const d = settingsDataSection.querySelector("#autoSaveChkProxy");
+    const e = settingsDataSection.querySelector("#autoSaveSecRangeProxy");
+    const f = settingsDataSection.querySelector("#rssEnabledProxy");
+    const g = settingsDataSection.querySelector("#rssRefreshMinProxy");
+    const h = settingsDataSection.querySelector("#rssRefreshNowBtn");
+
+    a.checked = uiState.inter;
+    b.checked = uiState.autoExpand;
+    c.value = uiState.expandCount;
+    d.checked = uiState.autoSave;
+    e.value = uiState.autoSaveSec;
+    f.checked = uiState.rssEnabled;
+    g.value = uiState.rssRefreshMin;
+
+    a.addEventListener("input", () => { uiState.inter = a.checked; scheduleAutoSave(); });
+    b.addEventListener("input", () => { uiState.autoExpand = b.checked; scheduleAutoSave(); });
+    c.addEventListener("input", () => { uiState.expandCount = Number(c.value); scheduleAutoSave(); });
+    d.addEventListener("input", () => { uiState.autoSave = d.checked; scheduleAutoSave(); });
+    e.addEventListener("input", () => { uiState.autoSaveSec = Number(e.value); scheduleAutoSave(); });
+    f.addEventListener("input", () => { uiState.rssEnabled = f.checked; restartRssTimer(); scheduleAutoSave(); });
+    g.addEventListener("input", () => { uiState.rssRefreshMin = Number(g.value); restartRssTimer(); scheduleAutoSave(); });
+    h.addEventListener("click", async () => {
+      await refreshRssFeeds(true);
+      updateInfo();
+      scheduleAutoSave();
+    });
+  }
+
+  function renderAllSettings(){
+    renderAgentSettings();
+    renderViewSettings();
+    renderPhysicsSettings();
+    renderDataSettings();
+  }
+
+
+function spawnHeadlineNode(headline){
+  if(!headline) return;
+
+  let root = nodeExistsByLabel(headline);
+
+  if(!root){
+    root = makeNode({
+      x: view.x + (Math.random()-0.5)*200,
+      y: view.y + (Math.random()-0.5)*120,
+      label: headline,
+      memo: "RSS見出し",
+      r: 28,
+      color:"#34495e"
+    });
+    root.title = headline;
+    root.tags = ["rss","headline"];
+    nodes.push(root);
+  }
+
+  // ←ここ重要
+  expandHeadline(root);
+
+  return root;
+}
+
+
+function expandHeadline(root){
+  const words = extractHeadlineKeywords(root.title);
+
+  for(const word of words){
+    let child = nodeExistsByLabel(word);
+
+    if(!child){
+      child = makeNode({
+        x: root.x + (Math.random()-0.5)*240,
+        y: root.y + 120 + Math.random()*100,
+        label: word,
+        memo:"見出し抽出",
+        r:20
+      });
+      child.title = word;
+      child.tags = ["rss-keyword"];
+      nodes.push(child);
+    }
+
+    if(!linkExists(root.id, child.id)){
+      links.push(makeLink(root.id, child.id, "explore", 1, true));
+    }
+  }
+
+  addLog("見出し展開: " + root.title);
+}
+
+
+
+function mergeDuplicateNodes(){
+  const map = new Map();
+
+  for(const node of [...nodes]){
+    if(node.is5w2h || node.isAgentNode) continue;
+
+    const key = normalizeTitleKey(node.title);
+
+    if(!map.has(key)){
+      map.set(key, node);
+      continue;
+    }
+
+    const base = map.get(key);
+    const removeId = node.id;
+
+    // リンク移動
+    for(const l of links){
+      if(l.source === removeId) l.source = base.id;
+      if(l.target === removeId) l.target = base.id;
+    }
+
+    // 情報統合
+    base.tags = uniqueStrings([...(base.tags||[]), ...(node.tags||[])]);
+    base.memo += "\n" + (node.memo || "");
+
+    nodes = nodes.filter(n => n.id !== removeId);
+  }
+}
+
+
+
+  function compactNode(n){
+    return {
+      id:n.id,
+      x:Math.round(n.x * 10) / 10,
+      y:Math.round(n.y * 10) / 10,
+      label:n.label || "",
+      title:n.title || n.label || "",
+      memo:n.memo || "",
+      summary:n.summary || "",
+      keywords:Array.isArray(n.keywords) ? n.keywords : [],
+      tags:Array.isArray(n.tags) ? n.tags : [],
+      qualityScore:typeof n.qualityScore === "number" ? n.qualityScore : 100,
+      attentionScore:typeof n.attentionScore === "number" ? n.attentionScore : 0,
+      hensachi:typeof n.hensachi === "number" ? n.hensachi : null,
+      r:n.r || 24,
+      width:n.width || 120,
+      height:n.height || 80,
+      shape:n.shape || "circle",
+      color:n.color || "#2b3344",
+      textColor:n.textColor || "#eaf1ff",
+      fixed:!!n.fixed,
+      is5w2h:!!n.is5w2h,
+      isInterdisciplinary:!!n.isInterdisciplinary,
+      isAutoCandidate:!!n.isAutoCandidate,
+      isAgentNode:!!n.isAgentNode,
+      category:n.category || "normal",
+      baseNodeId:n.baseNodeId || null,
+      wNodeId:n.wNodeId || null,
+      imageSrc:n.imageSrc || null,
+      roleKey:n.roleKey || null,
+
+      authorId:n.authorId || "localUser",
+      sourceNodeId:n.sourceNodeId || null,
+      rootNodeId:n.rootNodeId || null,
+      copiedFromMapId:n.copiedFromMapId || null,
+      visibility:n.visibility || "private",
+      status:n.status || "draft",
+      quoteCount:typeof n.quoteCount === "number" ? n.quoteCount : 0,
+      pointScore:typeof n.pointScore === "number" ? n.pointScore : 0,
+      createdAt:n.createdAt || Date.now(),
+      updatedAt:n.updatedAt || Date.now()
+    };
+  }
+
+  function compactLink(l){
+    return {
+      id:l.id,
+      source:l.source,
+      target:l.target,
+      type:l.type || "related",
+      weight:l.weight ?? 1,
+      auto:!!l.auto,
+      authorId:l.authorId || "localUser",
+      sourceLinkId:l.sourceLinkId || null,
+      copiedFromMapId:l.copiedFromMapId || null,
+      visibility:l.visibility || "private",
+      status:l.status || "draft",
+      quoteCount:typeof l.quoteCount === "number" ? l.quoteCount : 0,
+      pointScore:typeof l.pointScore === "number" ? l.pointScore : 0,
+      createdAt:l.createdAt || Date.now(),
+      updatedAt:l.updatedAt || Date.now()
+    };
+  }
+
+  function saveState(){
+    try{
+      const data = {
+        idCounter,
+        view:{...view},
+        followAgentId,
+        pendingAgentTargetId,
+        roleCounts:{...roleCounts},
+        totalAgentCount,
+        uiState:{...uiState},
+        nodes:nodes.map(compactNode),
+        links:links.map(compactLink),
+        agents:agents.map(a => ({
+          id:a.id,
+          role:a.role,
+          tickOffset:a.tickOffset,
+          targetNodeId:a.targetNodeId,
+          mode:a.mode,
+          taskText:a.taskText,
+          workUntilFrame:a.workUntilFrame,
+          busy:a.busy
+        })),
+        panelPins:{...panelPins},
+        panelPositions:{...panelPositions}
+      };
+
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      addLog("保存しました");
+      return true;
+    }catch(err){
+      console.error(err);
+      addLog("保存に失敗しました");
+      return false;
+    }
+  }
+
+  function loadState(showLog = true){
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+
+    try{
+      const data = JSON.parse(raw);
+
+      idCounter = data.idCounter || 1;
+      Object.assign(view, data.view || {x:0,y:0,scale:1});
+      followAgentId = data.followAgentId || null;
+      pendingAgentTargetId = data.pendingAgentTargetId || null;
+
+      if(data.roleCounts && typeof data.roleCounts === "object"){
+        roleCounts = {...roleCounts, ...data.roleCounts};
+      }
+      if(typeof data.totalAgentCount === "number"){
+        totalAgentCount = data.totalAgentCount;
+      }
+      if(data.uiState && typeof data.uiState === "object"){
+        Object.assign(uiState, data.uiState);
+      }
+
+      nodes = Array.isArray(data.nodes)
+        ? data.nodes.map(n => ({
+            ...n,
+            vx:0, vy:0,
+            createdAt:n.createdAt || Date.now(),
+            updatedAt:n.updatedAt || Date.now(),
+            imageEl:null,
+            imageLoaded:false,
+            wikiBusy:false,
+            title:n.title || n.label || "",
+            keywords:Array.isArray(n.keywords) ? n.keywords : [],
+            tags:Array.isArray(n.tags) ? n.tags : [],
+            summary:typeof n.summary === "string" ? n.summary : "",
+            qualityScore:typeof n.qualityScore === "number" ? n.qualityScore : 100,
+            attentionScore:typeof n.attentionScore === "number" ? n.attentionScore : 0,
+            hensachi:typeof n.hensachi === "number" ? n.hensachi : null,
+            authorId:n.authorId || "localUser",
+            sourceNodeId:n.sourceNodeId || null,
+            rootNodeId:n.rootNodeId || n.id,
+            copiedFromMapId:n.copiedFromMapId || null,
+            visibility:n.visibility || "private",
+            status:n.status || "draft",
+            quoteCount:typeof n.quoteCount === "number" ? n.quoteCount : 0,
+            pointScore:typeof n.pointScore === "number" ? n.pointScore : 0
+          }))
+        : [];
+
+      links = Array.isArray(data.links)
+        ? data.links.map(l => ({
+            ...l,
+            authorId:l.authorId || "localUser",
+            sourceLinkId:l.sourceLinkId || null,
+            copiedFromMapId:l.copiedFromMapId || null,
+            visibility:l.visibility || "private",
+            status:l.status || "draft",
+            quoteCount:typeof l.quoteCount === "number" ? l.quoteCount : 0,
+            pointScore:typeof l.pointScore === "number" ? l.pointScore : 0,
+            createdAt:l.createdAt || Date.now(),
+            updatedAt:l.updatedAt || Date.now()
+          }))
+        : [];
+      agents = Array.isArray(data.agents) ? data.agents : [];
+
+      if(data.panelPins) Object.assign(panelPins, data.panelPins);
+      if(data.panelPositions) Object.assign(panelPositions, data.panelPositions);
+
+      nodes.forEach(n => {
+        if(n.imageSrc) restoreImageNode(n);
+      });
+
+      renderAllSettings();
+      ensure5W2HNodes();
+      syncAgentsFromRoleCounts();
+      applyPanelLayout();
+      updateInfo();
+      updateZoomHud();
+
+      if(showLog) addLog("読込しました");
+      return true;
+    }catch(err){
+      console.error(err);
+      addLog("読込に失敗しました");
+      return false;
+    }
+  }
+
+  function scheduleAutoSave(){
+    if(!uiState.autoSave) return;
+    if(autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      saveState();
+    }, Number(uiState.autoSaveSec || 15) * 1000);
+  }
+
+  function resetMap(){
+    nodes = [];
+    links = [];
+    selectedNodeId = null;
+    hoveredNodeId = null;
+    linkingFromId = null;
+    editingNodeId = null;
+    followAgentId = null;
+    pendingAgentTargetId = null;
+    idCounter = 1;
+    searchResults = [];
+    searchIndex = 0;
+    lastSearchQuery = "";
+
+    ensure5W2HNodes();
+
+    const seeds = [
+      { label: "AI", x: 0, y: 0, memo: "中心テーマ" },
+      { label: "原油", x: -360, y: 180, memo: "資源・価格" },
+      { label: "ドローン", x: 360, y: 180, memo: "機体・用途" },
+      { label: "半導体", x: 0, y: 320, memo: "部品・産業" }
+    ];
+
+    seeds.forEach(s => {
+      const n = makeNode({
+        x: s.x, y: s.y, label: s.label, memo: s.memo,
+        r:24, color:"#2b3344", textColor:"#eaf1ff", category:"normal"
+      });
+      n.title = s.label;
+      n.summary = s.memo;
+      n.rootNodeId = n.id;
+      nodes.push(n);
+    });
+
+    syncAgentsFromRoleCounts();
+
+    const ai = nodeExistsByLabel("AI");
+    const oil = nodeExistsByLabel("原油");
+    const drone = nodeExistsByLabel("ドローン");
+    const semi = nodeExistsByLabel("半導体");
+
+    if(ai){
+      const why = getNode("5w2h_Why");
+      const how = getNode("5w2h_How");
+      if(why) addLinkSmart(ai, why);
+      if(how) addLinkSmart(ai, how);
+    }
+    if(oil){
+      const where = getNode("5w2h_Where");
+      if(where) addLinkSmart(oil, where);
+    }
+    if(drone){
+      const who = getNode("5w2h_Who");
+      if(who) addLinkSmart(drone, who);
+    }
+    if(semi){
+      const what = getNode("5w2h_What");
+      if(what) addLinkSmart(semi, what);
+    }
+
+    if(agents.length > 0) followAgentId = agents[0].id;
+
+    fitToAll();
+    updateInfo();
+    addLog("新規マップを作成");
+    scheduleAutoSave();
+  }
+
+
+function spawnHeadlineNode(headline){
+  if(!headline) return;
+
+  let root = nodeExistsByLabel(headline);
+
+  if(!root){
+    root = makeNode({
+      x: view.x + (Math.random()-0.5)*200,
+      y: view.y + (Math.random()-0.5)*120,
+      label: headline,
+      memo: "RSS見出し",
+      r: 30,
+      color:"#34495e"
+    });
+
+    root.title = headline;
+    root.tags = ["rss","headline"];
+    nodes.push(root);
+  }
+
+  expandHeadline(root);
+}
+
+
+
+function expandHeadline(root){
+  const words = extractHeadlineKeywords(root.title);
+
+  for(const word of words){
+    let child = nodeExistsByLabel(word);
+
+    if(!child){
+      child = makeNode({
+        x: root.x + (Math.random()-0.5)*240,
+        y: root.y + 120 + Math.random()*100,
+        label: word,
+        memo:"見出し抽出",
+        r:20
+      });
+
+      child.title = word;
+      child.tags = ["rss-keyword"];
+      nodes.push(child);
+    }
+
+    if(!linkExists(root.id, child.id)){
+      links.push(makeLink(root.id, child.id, "explore", 1, true));
+    }
+  }
+
+  addLog("見出し展開: " + root.title);
+}
+
+
+
+
+
+
+
+
+
+
+
+  function fitToAll(){
+    if(!nodes || nodes.length === 0) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+      const hw = n.shape === "rect" ? (n.width || 120)/2 : (n.r || 20);
+      const hh = n.shape === "rect" ? (n.height || 80)/2 : (n.r || 20);
+      minX = Math.min(minX, n.x - hw);
+      minY = Math.min(minY, n.y - hh);
+      maxX = Math.max(maxX, n.x + hw);
+      maxY = Math.max(maxY, n.y + hh);
+    });
+
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const ww = Math.max(200, maxX - minX + 140);
+    const hh = Math.max(200, maxY - minY + 140);
+
+    view.x = cx;
+    view.y = cy;
+    view.scale = Math.max(0.15, Math.min(2.5, Math.min(W / ww, H / hh)));
+    updateZoomHud();
+  }
+
+  function animate(){
+    frame++;
+    physicsStep();
+    draw();
+    requestAnimationFrame(animate);
+  }
+
+  startBtn.addEventListener("click", () => { running = true; addLog("開始"); });
+  stopBtn.addEventListener("click", () => { running = false; addLog("停止"); });
+  saveBtn.addEventListener("click", saveState);
+  loadBtn.addEventListener("click", () => { if(!loadState(true)) addLog("保存データがありません"); });
+  fitBtn.addEventListener("click", fitToAll);
+  alignBtn.addEventListener("click", () => {
+    addLog("整列は簡易版です");
+    fitToAll();
+  });
+
+  settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("open"));
+  toggleLogBtn.addEventListener("click", () => {
+    logPanel.classList.toggle("collapsed");
+    toggleLogBtn.textContent = logPanel.classList.contains("collapsed") ? "ログ▼" : "ログ▲";
+  });
+
+  followBtn.addEventListener("click", () => {
+    if(followAgentId){
+      followAgentId = null;
+    }else if(selectedNodeId){
+      const n = getNode(selectedNodeId);
+      if(n && n.isAgentNode) followAgentId = n.id;
+    }
+    updateFollowUI();
+    scheduleAutoSave();
+  });
+
+  quickAddBtn.addEventListener("click", () => {
+    const text = quickInput.value.trim();
+    const x = view.x + (Math.random() - 0.5) * 60;
+    const y = view.y + (Math.random() - 0.5) * 60;
+    const node = createNodeAtWorld(x, y, text || "新規ノード");
+    selectedNodeId = node.id;
+    syncQuickInputFromSelection();
+
+    if(!text){
+      const p = worldToScreen(node.x, node.y);
+      openEditor(node, p.x, p.y);
+    }
+
+    updateInfo();
+  });
+
+  quickEditBtn.addEventListener("click", () => {
+    const node = getNode(selectedNodeId);
+    if(!node){
+      addLog("編集対象ノードが未選択です");
+      return;
+    }
+
+    const text = quickInput.value.trim();
+
+    if(text){
+      renameNode(node, text);
+      syncQuickInputFromSelection();
+      return;
+    }
+
+    const p = worldToScreen(node.x, node.y);
+    openEditor(node, p.x, p.y);
+  });
+
+  quickSearchBtn.addEventListener("click", runQuickSearch);
+
+  viewModeBtn.addEventListener("click", () => setMode("view"));
+  editModeBtn.addEventListener("click", () => setMode("edit"));
+  linkModeBtn.addEventListener("click", () => setMode("link"));
+
+  tabAgentBtn.addEventListener("click", () => openSettingsTab("agent"));
+  tabViewBtn.addEventListener("click", () => openSettingsTab("view"));
+  tabPhysicsBtn.addEventListener("click", () => openSettingsTab("physics"));
+  tabDataBtn.addEventListener("click", () => openSettingsTab("data"));
+
+  pinTopBarBtn.addEventListener("click", () => {
+    panelPins.topBarPanel = !panelPins.topBarPanel;
+    applyPanelLayout();
+    scheduleAutoSave();
+  });
+
+  pinSettingsBtn.addEventListener("click", () => {
+    panelPins.settingsPanel = !panelPins.settingsPanel;
+    applyPanelLayout();
+    scheduleAutoSave();
+  });
+
+  pinDetailBtn.addEventListener("click", () => {
+    panelPins.nodeDetailPanel = !panelPins.nodeDetailPanel;
+    applyPanelLayout();
+    scheduleAutoSave();
+  });
+
+  zoomInBtn.addEventListener("click", () => {
+    view.scale = Math.min(4, view.scale * 1.15);
+    updateZoomHud();
+  });
+  zoomOutBtn.addEventListener("click", () => {
+    view.scale = Math.max(0.15, view.scale / 1.15);
+    updateZoomHud();
+  });
+
+  nodeSaveBtn.addEventListener("click", () => {
+    const node = getNode(editingNodeId);
+    if(!node) return;
+    const clean = sanitizeGeneratedLabel(nodeLabelInput.value.trim() || "無題");
+    node.title = clean;
+    node.label = clean;
+    node.memo = nodeMemoInput.value.trim();
+    node.color = nodeColorInput.value;
+    node.updatedAt = Date.now();
+    closeEditor();
+    addLog(`ノード更新: ${clean}`);
+    updateInfo();
+    syncQuickInputFromSelection();
+    scheduleAutoSave();
+  });
+
+  nodeDeleteBtn.addEventListener("click", () => {
+    const id = editingNodeId;
+    closeEditor();
+    deleteNode(id);
+  });
+
+  nodeCloseBtn.addEventListener("click", closeEditor);
+
+  canvas.addEventListener("pointerdown", onCanvasPointerDown);
+  canvas.addEventListener("pointermove", onCanvasPointerMove);
+  window.addEventListener("pointerup", onCanvasPointerUp);
+  canvas.addEventListener("wheel", onWheel, { passive:false });
+
+  window.addEventListener("keydown", (e) => {
+    if(e.key === "Escape"){
+      linkingFromId = null;
+      pendingAgentTargetId = null;
+      closeEditor();
+      updateInfo();
+    }
+
+    if(document.activeElement === quickInput && e.key === "Enter"){
+      if(mode === "edit"){
+        quickAddBtn.click();
+      }else{
+        runQuickSearch();
+      }
+    }
+  });
+
+  window.addEventListener("paste", (e) => {
+    const items = e.clipboardData?.items || [];
+    for(const item of items){
+      if(item.type && item.type.startsWith("image/")){
+        const file = item.getAsFile();
+        if(!file) continue;
+        const reader = new FileReader();
+        reader.onload = () => {
+          createImageNodeAtWorld(view.x, view.y, reader.result, "貼り付け画像");
+        };
+        reader.readAsDataURL(file);
+        e.preventDefault();
+        return;
+      }
+    }
+  });
+
+  window.addEventListener("dragover", (e) => {
+    e.preventDefault();
+  });
+
+  window.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const files = [...(e.dataTransfer?.files || [])];
+    const imageFile = files.find(f => f.type && f.type.startsWith("image/"));
+    if(!imageFile) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const w = screenToWorld(sx, sy);
+      createImageNodeAtWorld(w.x, w.y, reader.result, imageFile.name || "画像");
+    };
+    reader.readAsDataURL(imageFile);
+  });
+
+  window.addEventListener("resize", () => {
+    resize();
+    resetStick();
+    draw();
+  });
+
+  stickWrap.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    stickWrap.setPointerCapture(e.pointerId);
+    handleStickMove(e.clientX, e.clientY);
+  });
+  stickWrap.addEventListener("pointermove", (e) => {
+    if(!stickState.active) return;
+    handleStickMove(e.clientX, e.clientY);
+  });
+  stickWrap.addEventListener("pointerup", resetStick);
+  stickWrap.addEventListener("pointercancel", resetStick);
+
+  resize();
+  renderAllSettings();
+  openSettingsTab("agent");
+  makePanelDraggable(topBarPanel, "topBarPanel");
+  makePanelDraggable(settingsPanel, "settingsPanel");
+  makePanelDraggable(nodeDetailPanel, "nodeDetailPanel");
+
+  if(!loadState(false)){
+    resetMap();
+  }else{
+    syncAgentsFromRoleCounts();
+    renderAllSettings();
+    openSettingsTab("agent");
+    addLog("前回データを復元");
+  }
+
+  setMode("view");
+  updateInfo();
+  updateZoomHud();
+  refreshRssFeeds(true);
+  restartRssTimer();
+  animate();
+})();
+</script>
+</body>
+</html>

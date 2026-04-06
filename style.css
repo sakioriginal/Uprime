@@ -1,0 +1,319 @@
+/* =========================
+   Root / Base
+========================= */
+:root{
+  --bg:#0d1117;
+  --panel:rgba(18,24,32,.92);
+  --line:rgba(255,255,255,.12);
+  --text:#eaf1ff;
+  --muted:#9eb0cc;
+  --shadow:0 10px 26px rgba(0,0,0,.28);
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+
+body{
+  position:fixed;
+  inset:0;
+  overscroll-behavior:none;
+}
+
+/* =========================
+   Canvas / App
+========================= */
+#app{
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(80,120,180,.08), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(80,180,160,.06), transparent 30%),
+    linear-gradient(180deg,#0d1117,#0a0f15);
+}
+
+canvas{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  touch-action:none;
+}
+
+/* =========================
+   Panels
+========================= */
+.floatingPanel{
+  position:fixed;
+  z-index:50;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  backdrop-filter:blur(8px);
+  box-shadow:var(--shadow);
+}
+
+.panelHeader{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 8px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  cursor:grab;
+}
+
+.panelHeader.dragging{
+  cursor:grabbing;
+}
+
+.panelTitle{
+  font-size:12px;
+  font-weight:600;
+  flex:1;
+}
+
+.pinBtn{
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  background:#243243;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.12);
+  cursor:pointer;
+}
+
+.pinBtn.pinned{
+  background:#304763;
+  color:#ffd166;
+}
+
+/* =========================
+   TopBar
+========================= */
+#topBarPanel{
+  top:8px;
+  left:8px;
+  right:8px;
+}
+
+#topBarBody{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:8px;
+}
+
+#topBarBody button{
+  background:#1e2835;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:7px 10px;
+  cursor:pointer;
+}
+
+#topBarBody button.active{
+  outline:2px solid rgba(125,176,255,.55);
+}
+
+#topBarBody input{
+  min-width:180px;
+  flex:1;
+  background:#1e2835;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:10px;
+}
+
+.spacer{
+  flex:1;
+}
+
+/* =========================
+   Settings
+========================= */
+#settingsPanel{
+  top:88px;
+  left:8px;
+  right:8px;
+  max-height:64vh;
+  overflow:auto;
+  display:none;
+}
+
+#settingsPanel.open{
+  display:block;
+}
+
+.card{
+  background:rgba(255,255,255,.03);
+  border-radius:12px;
+  padding:10px;
+  margin-bottom:10px;
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  margin:8px 0;
+}
+
+/* =========================
+   HUD / Info
+========================= */
+#modeBadge{
+  position:fixed;
+  top:86px;
+  left:12px;
+  background:rgba(0,0,0,.3);
+  padding:5px 10px;
+  border-radius:999px;
+}
+
+#miniInfo{
+  position:fixed;
+  bottom:176px;
+  left:12px;
+  background:rgba(0,0,0,.3);
+  padding:8px;
+  border-radius:10px;
+}
+
+/* =========================
+   Zoom
+========================= */
+#zoomHud{
+  position:fixed;
+  right:24px;
+  bottom:124px;
+  background:rgba(0,0,0,.4);
+  padding:4px 8px;
+  border-radius:8px;
+}
+
+#zoomControls{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+}
+
+#zoomControls button{
+  width:52px;
+  height:52px;
+  border-radius:14px;
+  background:var(--panel);
+  color:#fff;
+  font-size:20px;
+}
+
+/* =========================
+   Stick
+========================= */
+#stickWrap{
+  position:fixed;
+  left:16px;
+  bottom:18px;
+  width:120px;
+  height:120px;
+}
+
+#stickBase{
+  width:100%;
+  height:100%;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+}
+
+#stickKnob{
+  position:absolute;
+  width:56px;
+  height:56px;
+  left:32px;
+  top:32px;
+  border-radius:999px;
+  background:rgba(255,255,255,.35);
+}
+
+/* =========================
+   Log
+========================= */
+#logWrap{
+  position:fixed;
+  left:8px;
+  right:8px;
+  bottom:8px;
+}
+
+#logPanel{
+  height:160px;
+  background:var(--panel);
+  border-radius:14px;
+  overflow:hidden;
+}
+
+#logPanel.collapsed{
+  height:0;
+}
+
+#log{
+  padding:10px;
+  font-size:12px;
+  overflow:auto;
+}
+
+/* =========================
+   Node Editor
+========================= */
+#nodeEditor{
+  position:fixed;
+  z-index:80;
+  background:rgba(16,22,30,.96);
+  border-radius:14px;
+  padding:10px;
+  display:none;
+}
+
+#nodeEditor.open{
+  display:block;
+}
+
+#nodeEditor input,
+#nodeEditor textarea,
+#nodeEditor select{
+  width:100%;
+  margin-bottom:8px;
+  padding:10px;
+  background:#202a37;
+  color:#fff;
+}
+
+/* =========================
+   Legend
+========================= */
+#legend{
+  position:fixed;
+  bottom:12px;
+  left:12px;
+  display:flex;
+  gap:8px;
+}
+
+.legendItem{
+  background:rgba(0,0,0,.3);
+  padding:4px 8px;
+  border-radius:999px;
+}

@@ -24,8 +24,7 @@
   ];
 
   App.RSS_SOURCES = [
-    { name:"NHK", url:"https://www3.nhk.or.jp/rss/news/cat0.xml" },
-    { name:"Yahoo", url:"https://news.yahoo.co.jp/rss/topics/top-picks.xml" }
+    { name:"NHK", url:"https://www3.nhk.or.jp/rss/news/cat0.xml" }
   ];
 
   App.RSS_STOPWORDS = new Set([

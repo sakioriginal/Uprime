@@ -11,7 +11,7 @@
     throw new Error("App が先に初期化されていません。app-state.js を先に読み込んでください。");
   }
 
-  console.log("NEW app-agents loaded");
+  console.log("app-agents loaded");
 
   /* =========================
      Role display helpers
@@ -442,12 +442,13 @@
     if (node.tags?.includes("rss-seed")) score += 18;
 
     if (depth === 1) score += 12;
-    if (depth === 2) score += 18;
-    if (depth >= 3) score -= depth * 8;
+    if (depth === 2) score += 20;
+    if (depth === 3) score += 12;
+    if (depth >= 4) score -= depth * 6;
 
-    score += Math.max(0, 20 - degree * 6);
+    score += Math.max(0, 24 - degree * 6);
     score -= hits * 20;
-    score -= exhaustion * 20;
+    score -= exhaustion * 24;
 
     if (typeof node.qualityScore === "number" && node.qualityScore < 2) {
       score -= 20;
@@ -466,8 +467,8 @@
     node.mineHits = hits + 1;
     node.mineExhaustion = exhaustion + (addedCount <= 0 ? 1 : 0);
 
-    let next = current - 18;
-    if (addedCount <= 0) next -= 20;
+    let next = current - 20;
+    if (addedCount <= 0) next -= 24;
 
     node.mineScore = Math.max(0, next);
 
@@ -482,12 +483,12 @@
     const parentScore = typeof parentNode?.mineScore === "number" ? parentNode.mineScore : 100;
     const depth = typeof node.depth === "number" ? node.depth : 0;
 
-    let score = 90;
+    let score = 95;
 
-    if (depth >= 1) score = Math.max(score, parentScore * 0.95 + 12);
-    if (depth >= 2) score += 8;
+    if (depth >= 1) score = Math.max(score, parentScore * 0.95 + 14);
+    if (depth >= 2) score += 10;
 
-    if (node.tags?.includes("fresh")) score += 8;
+    if (node.tags?.includes("fresh")) score += 10;
     if (node.tags?.includes("rss-seed")) score += 6;
 
     node.mineScore = Math.min(140, Math.round(score));
@@ -504,6 +505,7 @@
 
     try {
       if ((targetNode.depth || 0) >= 2) {
+        App.decayMineScoreAfterMining(targetNode, 0);
         return "exhausted";
       }
 
@@ -605,8 +607,8 @@
     }));
 
     scored.sort((a, b) => b.score - a.score);
-
     const top = scored.slice(0, Math.min(5, scored.length));
+
     return top[Math.floor(Math.random() * top.length)].node;
   };
 
@@ -658,11 +660,25 @@
 
       targetNode.imageSrc = imageUrl;
       targetNode.shape = "rect";
-      targetNode.width = 180;
-      targetNode.height = 120;
       targetNode.tags = App.uniqueStrings([...(targetNode.tags || []), "image", "wiki-image"]);
 
       App.restoreImageNode(targetNode);
+
+      if (targetNode.imageEl) {
+        targetNode.imageEl.onload = () => {
+          targetNode.imageLoaded = true;
+
+          const iw = targetNode.imageEl.width || 4;
+          const ih = targetNode.imageEl.height || 3;
+
+          const baseH = 120;
+          targetNode.height = baseH;
+          targetNode.width = Math.max(80, Math.round(baseH * (iw / ih)));
+          targetNode.imageAspect = iw / ih;
+        };
+
+        targetNode.imageEl.src = imageUrl;
+      }
 
       return true;
     } finally {
@@ -932,6 +948,7 @@
       } else {
         agent.taskText = `${base} を採掘中`;
       }
+
       return;
     }
 
@@ -1089,4 +1106,6 @@
       }
     });
   };
+
+  console.log("app-agents finished");
 })();

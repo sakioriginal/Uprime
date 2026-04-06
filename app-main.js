@@ -14,6 +14,8 @@
   const ctx = App.ctx;
   const d = App.dom;
 
+  console.log("app-main loaded");
+
   /* =========================
      Layout / Resize
   ========================= */
@@ -71,12 +73,12 @@
       d.nodeDetailPanel.style.right = "8px";
       d.nodeDetailPanel.style.left = "auto";
       d.nodeDetailPanel.style.top = "150px";
-      d.nodeDetailPanel.style.width = "min(390px,90vw)";
+      d.nodeDetailPanel.style.width = "min(280px,72vw)";
     } else {
       d.nodeDetailPanel.style.right = "auto";
       d.nodeDetailPanel.style.left = App.panelPositions.nodeDetailPanel.left + "px";
       d.nodeDetailPanel.style.top = App.panelPositions.nodeDetailPanel.top + "px";
-      d.nodeDetailPanel.style.width = Math.min(App.W - 16, 390) + "px";
+      d.nodeDetailPanel.style.width = Math.min(App.W - 16, 280) + "px";
     }
 
     App.setPinButtonState(d.pinTopBarBtn, App.panelPins.topBarPanel);
@@ -145,8 +147,23 @@
   };
 
   App.renderNodeDetail = function renderNodeDetail() {
-    const node = App.getNode(App.selectedNodeId);
+    if (!App.uiState.showNodeDetailPanel) {
+      d.nodeDetailPanel.style.display = "none";
+      return;
+    }
+
+    if (!App.uiState.autoShowNodeDetail && !App.selectedNodeId) {
+      d.nodeDetailPanel.style.display = "none";
+      return;
+    }
+
     d.nodeDetailPanel.style.display = "block";
+
+    const node = App.getNode(App.selectedNodeId);
+
+    if (d.toggleNodeDetailBtn) {
+      d.toggleNodeDetailBtn.textContent = App.uiState.nodeDetailCollapsed ? "▼" : "▲";
+    }
 
     if (!node) {
       d.nodeDetailBody.innerHTML = "未選択";
@@ -162,6 +179,13 @@
     const isPendingTarget = App.pendingAgentTargetId && node.id === App.pendingAgentTargetId;
     const displayWeight = Math.round(App.computeNodeDisplayWeight(node) * 10) / 10;
 
+    if (App.uiState.nodeDetailCollapsed) {
+      d.nodeDetailBody.innerHTML = `
+        <div style="font-size:14px;font-weight:700;">${App.escHtml(title)}</div>
+      `;
+      return;
+    }
+
     d.nodeDetailBody.innerHTML = `
       <div style="font-size:14px;font-weight:700;margin-bottom:8px;">${App.escHtml(title)}</div>
       <div style="margin-bottom:6px;"><b>種別:</b> ${App.escHtml(node.category || "normal")}</div>
@@ -170,17 +194,14 @@
       <div style="margin-bottom:6px;"><b>注目度:</b> ${node.attentionScore ?? 0}</div>
       <div style="margin-bottom:6px;"><b>偏差値:</b> ${node.hensachi ?? "なし"}</div>
       <div style="margin-bottom:6px;"><b>品質:</b> ${node.qualityScore ?? "なし"}</div>
+      <div style="margin-bottom:6px;"><b>採掘スコア:</b> ${node.mineScore ?? 0}</div>
+      <div style="margin-bottom:6px;"><b>採掘回数:</b> ${node.mineHits ?? 0}</div>
       <div style="margin-bottom:6px;"><b>表示重み:</b> ${displayWeight}</div>
       <div style="margin-bottom:6px;"><b>タグ:</b> ${tags.length ? App.escHtml(tags.join(", ")) : "なし"}</div>
       <div style="margin-bottom:6px;"><b>キーワード:</b> ${keywords.length ? App.escHtml(keywords.join(", ")) : "なし"}</div>
       <div style="margin-bottom:6px;"><b>概要:</b><br>${summary ? App.escHtml(summary) : "なし"}</div>
       <div style="margin-bottom:6px;"><b>メモ:</b><br>${memo ? App.escHtml(memo) : "なし"}</div>
       <div><b>画像:</b> ${node.imageSrc ? "あり" : "なし"}</div>
-
-<div style="margin-bottom:6px;"><b>採掘スコア:</b> ${node.mineScore ?? 0}</div>
-<div style="margin-bottom:6px;"><b>採掘回数:</b> ${node.mineHits ?? 0}</div>
-
-
     `;
   };
 
@@ -348,8 +369,16 @@
     const p = App.worldToScreen(n.x, n.y);
 
     if (n.shape === "rect") {
-      const rw = (n.width || 120) * App.view.scale;
-      const rh = (n.height || 80) * App.view.scale;
+      const isZoomedImage = App.zoomedImageNodeId === n.id;
+
+      let rw = (n.width || 120) * App.view.scale;
+      let rh = (n.height || 80) * App.view.scale;
+
+      if (isZoomedImage) {
+        rw *= 2;
+        rh *= 2;
+      }
+
       if (p.x < -rw || p.y < -rh || p.x > App.W + rw || p.y > App.H + rh) return;
 
       ctx.save();
@@ -368,14 +397,26 @@
         if (n.imageLoaded) {
           const iw = n.imageEl.width || 1;
           const ih = n.imageEl.height || 1;
-          const scale = Math.max(rw / iw, rh / ih);
+
+          const scale = Math.min(rw / iw, rh / ih);
           const dw = iw * scale;
           const dh = ih * scale;
-          ctx.drawImage(n.imageEl, p.x - dw / 2, p.y - dh / 2, dw, dh);
+
+          ctx.fillStyle = "#111827";
+          ctx.fillRect(p.x - rw / 2, p.y - rh / 2, rw, rh);
+
+          ctx.drawImage(
+            n.imageEl,
+            p.x - dw / 2,
+            p.y - dh / 2,
+            dw,
+            dh
+          );
         } else {
           ctx.fillStyle = "#334155";
           ctx.fillRect(p.x - rw / 2, p.y - rh / 2, rw, rh);
         }
+
         ctx.restore();
       }
 
@@ -387,6 +428,11 @@
         ctx.lineWidth = 3;
       }
 
+      if (isZoomedImage) {
+        ctx.strokeStyle = "#7db0ff";
+        ctx.lineWidth = Math.max(ctx.lineWidth, 3);
+      }
+
       App.roundRect(p.x - rw / 2, p.y - rh / 2, rw, rh, 12);
       ctx.stroke();
 
@@ -395,8 +441,10 @@
         ctx.fillStyle = "#ffffff";
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
+
         const text = (n.title || n.label || "");
         const shortText = App.view.scale < 1 ? text.slice(0, 8) : text;
+
         ctx.fillText(shortText, p.x, p.y + rh / 2 - 6);
       }
 
@@ -404,6 +452,7 @@
         const hs = 16;
         ctx.fillStyle = "#7db0ff";
         ctx.fillRect(p.x + rw / 2 - hs / 2, p.y + rh / 2 - hs / 2, hs, hs);
+
         ctx.strokeStyle = "#eaf1ff";
         ctx.lineWidth = 1;
         ctx.strokeRect(p.x + rw / 2 - hs / 2, p.y + rh / 2 - hs / 2, hs, hs);
@@ -449,10 +498,12 @@
       ctx.strokeStyle = "#ffcc66";
       ctx.lineWidth += 2;
     }
+
     if (App.followAgentId === n.id) {
       ctx.strokeStyle = "#7db0ff";
       ctx.lineWidth += 1.5;
     }
+
     if (App.pendingAgentTargetId === n.id) {
       ctx.strokeStyle = "#ff8f8f";
       ctx.lineWidth += 2;
@@ -478,6 +529,7 @@
       ctx.fillStyle = n.textColor || "#eaf1ff";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+
       const shortText = title.length > 6 ? title.slice(0, 6) : title;
       ctx.fillText(shortText, p.x, p.y);
     }
@@ -487,6 +539,7 @@
       if (agent) {
         const status =
           `${App.roleLabelJa(agent.role)} | ${agent.mode === "move" ? "移動" : agent.mode === "work" ? "作業" : "待機"}`;
+
         ctx.font = "10px sans-serif";
         const tw = ctx.measureText(status).width + 12;
         const tx = p.x - tw / 2;
@@ -687,6 +740,7 @@
         roleCounts: { ...App.roleCounts },
         totalAgentCount: App.totalAgentCount,
         uiState: { ...App.uiState },
+        zoomedImageNodeId: App.zoomedImageNodeId,
         nodes: App.nodes.map(App.compactNode),
         links: App.links.map(App.compactLink),
         agents: App.agents.map(a => ({
@@ -727,6 +781,7 @@
 
       App.followAgentId = data.followAgentId || null;
       App.pendingAgentTargetId = data.pendingAgentTargetId || null;
+      App.zoomedImageNodeId = data.zoomedImageNodeId || null;
 
       if (data.roleCounts && typeof data.roleCounts === "object") {
         App.roleCounts = { ...App.roleCounts, ...data.roleCounts };
@@ -763,15 +818,10 @@
             status: n.status || "draft",
             quoteCount: typeof n.quoteCount === "number" ? n.quoteCount : 0,
             pointScore: typeof n.pointScore === "number" ? n.pointScore : 0,
-
             depth: typeof n.depth === "number" ? n.depth : 0,
-
             mineScore: typeof n.mineScore === "number" ? n.mineScore : 100,
             mineHits: typeof n.mineHits === "number" ? n.mineHits : 0,
             mineExhaustion: typeof n.mineExhaustion === "number" ? n.mineExhaustion : 0
-
-
-
           }))
         : [];
 
@@ -940,16 +990,27 @@
         </select>
       </div>
       <div class="row"><label>エージェントは非表示ノードを無視</label><input type="checkbox" id="agentsIgnoreHiddenNodesProxy"></div>
-      <div class="miniNote">表示上限は偏差値・接続数・接続先重み・リンクバイアスから計算した表示重みによって決まります。</div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:10px 0;">
+
+      <div class="row"><label>ノード詳細パネル表示</label><input type="checkbox" id="showNodeDetailPanelProxy"></div>
+      <div class="row"><label>ノード選択時に自動表示</label><input type="checkbox" id="autoShowNodeDetailProxy"></div>
+      <div class="row"><label>初期状態で折りたたむ</label><input type="checkbox" id="nodeDetailCollapsedProxy"></div>
+
+      <div class="miniNote">詳細パネルは基本名前だけ表示にして、▼で展開できます。</div>
     `;
 
     const a = d.settingsViewSection.querySelector("#showGridChkProxy");
     const b = d.settingsViewSection.querySelector("#fix5w2hChkProxy");
     const c = d.settingsViewSection.querySelector("#showLinkTypeChkProxy");
+    const compact = d.settingsViewSection.querySelector("#compactTextChkProxy");
     const e = d.settingsViewSection.querySelector("#showAgentLinksChkProxy");
     const f = d.settingsViewSection.querySelector("#visibleNodeLimitProxy");
     const g = d.settingsViewSection.querySelector("#agentsIgnoreHiddenNodesProxy");
-    const compact = d.settingsViewSection.querySelector("#compactTextChkProxy");
+
+    const showDetail = d.settingsViewSection.querySelector("#showNodeDetailPanelProxy");
+    const autoShow = d.settingsViewSection.querySelector("#autoShowNodeDetailProxy");
+    const collapsed = d.settingsViewSection.querySelector("#nodeDetailCollapsedProxy");
 
     a.checked = App.uiState.showGrid;
     b.checked = App.uiState.fix5w2h;
@@ -958,6 +1019,10 @@
     e.checked = App.uiState.showAgentLinks;
     f.value = App.uiState.visibleNodeLimit === Infinity ? "Infinity" : String(App.uiState.visibleNodeLimit);
     g.checked = App.uiState.agentsIgnoreHiddenNodes;
+
+    showDetail.checked = !!App.uiState.showNodeDetailPanel;
+    autoShow.checked = !!App.uiState.autoShowNodeDetail;
+    collapsed.checked = !!App.uiState.nodeDetailCollapsed;
 
     a.addEventListener("input", () => { App.uiState.showGrid = a.checked; App.scheduleAutoSave(); });
     b.addEventListener("input", () => { App.uiState.fix5w2h = b.checked; App.scheduleAutoSave(); });
@@ -970,6 +1035,24 @@
     });
     g.addEventListener("input", () => {
       App.uiState.agentsIgnoreHiddenNodes = g.checked;
+      App.scheduleAutoSave();
+    });
+
+    showDetail.addEventListener("input", () => {
+      App.uiState.showNodeDetailPanel = showDetail.checked;
+      d.nodeDetailPanel.style.display = showDetail.checked ? "block" : "none";
+      App.scheduleAutoSave();
+    });
+
+    autoShow.addEventListener("input", () => {
+      App.uiState.autoShowNodeDetail = autoShow.checked;
+      App.renderNodeDetail();
+      App.scheduleAutoSave();
+    });
+
+    collapsed.addEventListener("input", () => {
+      App.uiState.nodeDetailCollapsed = collapsed.checked;
+      App.renderNodeDetail();
       App.scheduleAutoSave();
     });
   };
@@ -1098,6 +1181,7 @@
     App.editingNodeId = null;
     App.followAgentId = null;
     App.pendingAgentTargetId = null;
+    App.zoomedImageNodeId = null;
     App.idCounter = 1;
     App.searchResults = [];
     App.searchIndex = 0;
@@ -1198,11 +1282,18 @@
     App.lastTapX = p.x;
     App.lastTapY = p.y;
 
+    if (node && isDoubleTap && node.imageSrc) {
+      App.zoomedImageNodeId = App.zoomedImageNodeId === node.id ? null : node.id;
+      App.selectedNodeId = node.id;
+      App.updateInfo();
+      return;
+    }
+
     if (App.mode === "edit") {
       if (node) {
         App.selectedNodeId = node.id;
 
-        if (isDoubleTap && !node.is5w2h) {
+        if (isDoubleTap && !node.is5w2h && !node.imageSrc) {
           App.openEditor(node, p.x, p.y);
           App.updateInfo();
           App.syncQuickInputFromSelection();
@@ -1246,6 +1337,9 @@
           App.addLog(`行き先指定待ち: ${node.label.replace("\n", " ")}`);
         }
       } else {
+        if (App.zoomedImageNodeId) {
+          App.zoomedImageNodeId = null;
+        }
         App.selectedNodeId = null;
         if (!App.pendingAgentTargetId) {
           App.panning = true;
@@ -1507,6 +1601,14 @@
       App.scheduleAutoSave();
     });
 
+    if (d.toggleNodeDetailBtn) {
+      d.toggleNodeDetailBtn.addEventListener("click", () => {
+        App.uiState.nodeDetailCollapsed = !App.uiState.nodeDetailCollapsed;
+        App.renderNodeDetail();
+        App.scheduleAutoSave();
+      });
+    }
+
     d.zoomInBtn.addEventListener("click", () => {
       App.view.scale = Math.min(4, App.view.scale * 1.15);
       App.updateZoomHud();
@@ -1554,6 +1656,7 @@
       if (e.key === "Escape") {
         App.linkingFromId = null;
         App.pendingAgentTargetId = null;
+        App.zoomedImageNodeId = null;
         App.closeEditor();
         App.updateInfo();
       }
@@ -1666,4 +1769,6 @@
   };
 
   App.boot();
+
+  console.log("app-main finished");
 })();

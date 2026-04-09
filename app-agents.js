@@ -1,8 +1,3 @@
-/* =========================
-   app-agents.js
-   RSS / Web / Wikipedia / エージェント処理
-========================= */
-
 (() => {
   "use strict";
 
@@ -289,7 +284,7 @@
   };
 
   /* =========================
-     Verification / review
+     Review / score
   ========================= */
   App.calcVerificationScore = function calcVerificationScore(node, wikiRelated, wikiSummaryOk, webRelated) {
     let score = 0;
@@ -423,7 +418,7 @@
   };
 
   /* =========================
-     Miner score helpers
+     Mining priority
   ========================= */
   App.getMinePriority = function getMinePriority(node) {
     if (!node) return -Infinity;
@@ -440,6 +435,8 @@
 
     if (node.tags?.includes("fresh")) score += 25;
     if (node.tags?.includes("rss-seed")) score += 18;
+    if (node.isUserCreated) score += 22;
+    if ((node.userFocusScore || 0) > 0) score += node.userFocusScore;
 
     if (depth === 1) score += 12;
     if (depth === 2) score += 20;
@@ -591,8 +588,8 @@
     }
   };
 
-  App.pickTargetForMiner = function pickTargetForMiner() {
-    const candidates = App.nodes.filter(n => {
+  App.pickTargetForMiner = function pickTargetForMiner(candidatesOverride = null) {
+    const candidates = (candidatesOverride || App.nodes).filter(n => {
       if (n.is5w2h || n.isAgentNode) return false;
       if (App.uiState.agentsIgnoreHiddenNodes && !App.visibleNodeSet.has(n.id)) return false;
       if (n.tags?.includes("mined-out")) return false;
@@ -771,7 +768,81 @@
   };
 
   /* =========================
-     Agent target selection
+     Party / focus / target score
+  ========================= */
+  App.decayUserFocusScore = function decayUserFocusScore(node) {
+    if (!node || !node.lastSelectedAt) return;
+    const dt = Date.now() - node.lastSelectedAt;
+    const decay = Math.floor(dt / 5000);
+    if (decay <= 0) return;
+    node.userFocusScore = Math.max(0, (node.userFocusScore || 0) - decay);
+    node.lastSelectedAt = Date.now();
+  };
+
+  App.computeAgentTargetScore = function computeAgentTargetScore(agent, node) {
+    let score = App.computeNodeDisplayWeight(node);
+
+    if (agent.thinkingStyle === "supportUser") {
+      score += node.userFocusScore || 0;
+      if (node.isUserCreated) score += 40;
+    }
+
+    if (agent.thinkingStyle === "deepMine") {
+      score += App.getMinePriority(node) * 1.2;
+    }
+
+    if (agent.thinkingStyle === "imageFirst") {
+      if (!node.imageSrc) score += 30;
+      if (node.youtubeVideoId) score -= 10;
+    }
+
+    if (agent.thinkingStyle === "cleanup") {
+      if (node.tags?.includes("unverified")) score += 35;
+    }
+
+    if (agent.thinkingStyle === "balanced") {
+      score += (node.userFocusScore || 0) * 0.5;
+    }
+
+    return score;
+  };
+
+  App.createExplorationPartyAroundNode = function createExplorationPartyAroundNode(centerNodeId) {
+    const freeAgents = App.agents.filter(a => !a.partyId);
+    const picked = [];
+    const wantRoles = ["adventurer", "miner", "interdisciplinary", "painter"];
+
+    for (const role of wantRoles) {
+      const found = freeAgents.find(a => a.role === role && !picked.includes(a));
+      if (found) picked.push(found);
+    }
+
+    if (!picked.length) return null;
+
+    const party = App.makeParty({
+      name: "開拓パーティ",
+      memberIds: picked.map(a => a.id),
+      centerNodeId,
+      objective: "explore",
+      radius: 2
+    });
+
+    App.parties.push(party);
+
+    picked.forEach(agent => {
+      agent.partyId = party.id;
+      if (agent.role === "adventurer") agent.thinkingStyle = "supportUser";
+      if (agent.role === "miner") agent.thinkingStyle = "deepMine";
+      if (agent.role === "interdisciplinary") agent.thinkingStyle = "balanced";
+      if (agent.role === "painter") agent.thinkingStyle = "imageFirst";
+    });
+
+    App.addLog(`パーティ結成: ${party.name}`);
+    return party;
+  };
+
+  /* =========================
+     Agent roster / target selection
   ========================= */
   App.sumAssignedWithoutUnassigned = function sumAssignedWithoutUnassigned() {
     return Object.entries(App.roleCounts)
@@ -799,25 +870,38 @@
         const locked = App.getNode(agent.mineState.lockedNodeId);
         if (locked) return locked;
       }
-      return App.pickTargetForMiner();
     }
 
-    const candidates = App.nodes.filter(n => {
-      if (n.is5w2h || n.isAgentNode) return false;
-      if (App.uiState.agentsIgnoreHiddenNodes && !App.visibleNodeSet.has(n.id)) return false;
-      return true;
-    });
+    const party = agent.partyId
+      ? App.parties.find(p => p.id === agent.partyId && p.active)
+      : null;
+
+    let candidates = [];
+
+    if (party) {
+      candidates = App.getPartyNodes(party).filter(n => !n.is5w2h && !n.isAgentNode);
+    } else {
+      candidates = App.nodes.filter(n => !n.is5w2h && !n.isAgentNode);
+    }
+
+    if (App.uiState.agentsIgnoreHiddenNodes) {
+      candidates = candidates.filter(n => App.visibleNodeSet.has(n.id));
+    }
 
     if (candidates.length === 0) return null;
 
-    const scored = candidates.map(n => ({
-      node: n,
-      score: App.computeNodeDisplayWeight(n)
+    if (agent.role === "miner") {
+      return App.pickTargetForMiner(candidates);
+    }
+
+    const scored = candidates.map(node => ({
+      node,
+      score: App.computeAgentTargetScore(agent, node)
     }));
 
     scored.sort((a, b) => b.score - a.score);
     const top = scored.slice(0, Math.min(6, scored.length));
-    return top[Math.floor(Math.random() * top.length)].node;
+    return top[Math.floor(Math.random() * top.length)]?.node || null;
   };
 
   App.syncAgentsFromRoleCounts = function syncAgentsFromRoleCounts() {
@@ -861,6 +945,7 @@
     }
 
     const agentNodes = App.nodes.filter(n => n.isAgentNode);
+
     App.agents = agentNodes.map((n, i) => {
       const prev = App.agents.find(a => a.id === n.id);
       const roleKey = expandedRoles[i];
@@ -878,7 +963,9 @@
         taskText: prev?.taskText || "待機",
         workUntilFrame: prev?.workUntilFrame || 0,
         busy: prev?.busy || false,
-        mineState: prev?.mineState || null
+        mineState: prev?.mineState || null,
+        partyId: prev?.partyId || null,
+        thinkingStyle: prev?.thinkingStyle || "balanced"
       };
     });
 
@@ -1006,7 +1093,7 @@
   };
 
   /* =========================
-     Agent movement / thinking
+     Movement / thinking
   ========================= */
   App.moveAgents = function moveAgents() {
     App.agents.forEach(agent => {
@@ -1060,6 +1147,8 @@
 
   App.updateAgentThinking = function updateAgentThinking(frame) {
     if (!App.running) return;
+
+    App.nodes.forEach(n => App.decayUserFocusScore(n));
 
     App.agents.forEach(agent => {
       const agentNode = App.getNode(agent.id);

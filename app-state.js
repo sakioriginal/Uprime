@@ -1,30 +1,44 @@
-/* =========================
-   app-state.js
-   定数 / 状態 / DOM参照
-========================= */
-
 (() => {
   "use strict";
 
-  const App = window.App || (window.App = {});
+  const App = {};
+  window.App = App;
+
+  console.log("app-state loaded");
 
   /* =========================
-     Storage / Constants
+     Save key
   ========================= */
-  App.SAVE_KEY = "mindmap_full_integrated_v3";
+  App.SAVE_KEY = "mindmap_full_integrated_v64";
 
+  /* =========================
+     Constants
+  ========================= */
+  App.DOUBLE_TAP_MS = 320;
+  App.DOUBLE_TAP_DIST = 26;
+  App.LONG_PRESS_MS = 420;
+
+  App.FIVEW2H_LABELS = ["Who", "What", "When", "Where", "Why", "How", "HowMuch"];
+
+  /* =========================
+     Role definitions
+  ========================= */
   App.ROLE_DEFS = [
-    { key:"unassigned", label:"未配属", defaultCount:2, color:"#9aa4b2" },
-    { key:"adventurer", label:"冒険者", defaultCount:1, color:"#f28b82" },
-    { key:"interdisciplinary", label:"学際", defaultCount:2, color:"#7bdff2" },
-    { key:"editor", label:"編集者", defaultCount:3, color:"#c7b8ff" },
-    { key:"miner", label:"採掘", defaultCount:2, color:"#ffd166" },
-    { key:"painter", label:"画家", defaultCount:1, color:"#8ce99a" },
-    { key:"villager", label:"村人", defaultCount:1, color:"#a5d8ff" }
+    { key: "unassigned", label: "未配属", defaultCount: 2, color: "#9aa4b2" },
+    { key: "adventurer", label: "冒険者", defaultCount: 1, color: "#f28b82" },
+    { key: "interdisciplinary", label: "学際", defaultCount: 2, color: "#7bdff2" },
+    { key: "editor", label: "編集者", defaultCount: 2, color: "#c7b8ff" },
+    { key: "miner", label: "採掘", defaultCount: 2, color: "#ffd166" },
+    { key: "painter", label: "画家", defaultCount: 1, color: "#8ce99a" },
+    { key: "villager", label: "村人", defaultCount: 1, color: "#a5d8ff" }
   ];
 
+  /* =========================
+     RSS sources
+     Yahooは外す
+  ========================= */
   App.RSS_SOURCES = [
-    { name:"NHK", url:"https://www3.nhk.or.jp/rss/news/cat0.xml" }
+    { name: "NHK", url: "https://www3.nhk.or.jp/rss/news/cat0.xml" }
   ];
 
   App.RSS_STOPWORDS = new Set([
@@ -33,14 +47,8 @@
     "ニュース","記事","動画","写真","会見","政府"
   ]);
 
-  App.FIVEW2H_LABELS = ["Who","What","When","Where","Why","How","HowMuch"];
-
-  App.DOUBLE_TAP_MS = 320;
-  App.DOUBLE_TAP_DIST = 26;
-  App.LONG_PRESS_MS = 420;
-
   /* =========================
-     DOM
+     DOM references
   ========================= */
   App.dom = {
     canvas: document.getElementById("canvas"),
@@ -62,15 +70,15 @@
 
     settingsPanel: document.getElementById("settingsPanel"),
     logPanel: document.getElementById("logPanel"),
-    logEl: document.getElementById("log"),
+    log: document.getElementById("log"),
 
     viewModeBtn: document.getElementById("viewModeBtn"),
     editModeBtn: document.getElementById("editModeBtn"),
     linkModeBtn: document.getElementById("linkModeBtn"),
 
-    nodeCountEl: document.getElementById("nodeCount"),
-    linkCountEl: document.getElementById("linkCount"),
-    selectedInfoEl: document.getElementById("selectedInfo"),
+    nodeCount: document.getElementById("nodeCount"),
+    linkCount: document.getElementById("linkCount"),
+    selectedInfo: document.getElementById("selectedInfo"),
     agentCountMini: document.getElementById("agentCountMini"),
     followMini: document.getElementById("followMini"),
     zoomHud: document.getElementById("zoomHud"),
@@ -96,6 +104,7 @@
     nodeDetailPanel: document.getElementById("nodeDetailPanel"),
     nodeDetailBody: document.getElementById("nodeDetailBody"),
     pinDetailBtn: document.getElementById("pinDetailBtn"),
+    toggleNodeDetailBtn: document.getElementById("toggleNodeDetailBtn"),
 
     tabAgentBtn: document.getElementById("tabAgentBtn"),
     tabViewBtn: document.getElementById("tabViewBtn"),
@@ -105,54 +114,59 @@
     settingsAgentSection: document.getElementById("settingsAgentSection"),
     settingsViewSection: document.getElementById("settingsViewSection"),
     settingsPhysicsSection: document.getElementById("settingsPhysicsSection"),
-    settingsDataSection: document.getElementById("settingsDataSection")
+    settingsDataSection: document.getElementById("settingsDataSection"),
+
+    youtubeOverlay: document.getElementById("youtubeOverlay"),
+    youtubePlayerWrap: document.getElementById("youtubePlayerWrap"),
+    closeYoutubeOverlayBtn: document.getElementById("closeYoutubeOverlayBtn")
   };
 
   App.ctx = App.dom.canvas.getContext("2d");
 
   /* =========================
-     View / Canvas
+     View / canvas
   ========================= */
   App.W = 0;
   App.H = 0;
   App.DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
-  App.view = {
-    x: 0,
-    y: 0,
-    scale: 1
-  };
+  App.view = { x: 0, y: 0, scale: 1 };
 
   /* =========================
-     Core State
+     UI state
   ========================= */
-  App.roleCounts = Object.fromEntries(
-    App.ROLE_DEFS.map(r => [r.key, r.defaultCount])
-  );
-
-  App.totalAgentCount = Object.values(App.roleCounts).reduce((a, b) => a + b, 0);
-
   App.uiState = {
     showGrid: true,
     fix5w2h: true,
     showLinkType: false,
     compactText: true,
+
     physics: true,
     repel: 150,
     spring: 10,
     damping: 92,
+
     inter: true,
     autoExpand: true,
     expandCount: 2,
+
     autoSave: true,
     autoSaveSec: 15,
+
     rssEnabled: true,
     rssRefreshMin: 15,
+
     showAgentLinks: true,
     visibleNodeLimit: Infinity,
-    agentsIgnoreHiddenNodes: true
+    agentsIgnoreHiddenNodes: true,
+
+    showNodeDetailPanel: true,
+    autoShowNodeDetail: true,
+    nodeDetailCollapsed: true
   };
 
+  /* =========================
+     RSS state
+  ========================= */
   App.rssState = {
     items: [],
     keywordCounts: new Map(),
@@ -161,32 +175,45 @@
     seenHeadlines: new Set()
   };
 
+  App.rssTimer = null;
   App.visibleNodeSet = new Set();
+
+  /* =========================
+     Main graph state
+  ========================= */
+  App.roleCounts = Object.fromEntries(
+    App.ROLE_DEFS.map(r => [r.key, r.defaultCount])
+  );
+
+  App.totalAgentCount = Object.values(App.roleCounts).reduce((a, b) => a + b, 0);
 
   App.nodes = [];
   App.links = [];
   App.agents = [];
-
-  App.running = true;
-  App.mode = "view";
+  App.parties = [];
+  App.partyCounter = 1;
 
   App.agentCount = 0;
   App.followAgentId = null;
+  App.pendingAgentTargetId = null;
+
   App.selectedNodeId = null;
   App.hoveredNodeId = null;
   App.linkingFromId = null;
   App.editingNodeId = null;
-  App.pendingAgentTargetId = null;
+  App.zoomedImageNodeId = null;
+  App.playingYoutubeNodeId = null;
 
-  App.autoSaveTimer = null;
-  App.rssTimer = null;
-  App.longPressTimer = null;
+  App.running = true;
+  App.mode = "view";
 
   App.idCounter = 1;
   App.frame = 0;
 
+  App.autoSaveTimer = null;
+
   /* =========================
-     Pointer / Drag State
+     Pointer / interaction state
   ========================= */
   App.pointerDown = false;
   App.draggingNodeId = null;
@@ -195,22 +222,22 @@
 
   App.dragOffsetWorldX = 0;
   App.dragOffsetWorldY = 0;
-
   App.lastPointer = { x: 0, y: 0 };
 
   App.lastTapTime = 0;
   App.lastTapX = 0;
   App.lastTapY = 0;
+  App.longPressTimer = null;
 
   /* =========================
-     Search State
+     Search state
   ========================= */
   App.searchResults = [];
   App.searchIndex = 0;
   App.lastSearchQuery = "";
 
   /* =========================
-     Panel / UI Layout
+     Panel state
   ========================= */
   App.panelPins = {
     topBarPanel: true,
@@ -221,12 +248,12 @@
   App.panelPositions = {
     topBarPanel: { left: 8, top: 8 },
     settingsPanel: { left: 8, top: 88 },
-    nodeDetailPanel: {
-      left: Math.max(8, window.innerWidth - 388),
-      top: 150
-    }
+    nodeDetailPanel: { left: Math.max(8, window.innerWidth - 280), top: 150 }
   };
 
+  /* =========================
+     Stick / joystick state
+  ========================= */
   App.stickState = {
     active: false,
     dx: 0,
@@ -235,15 +262,17 @@
   };
 
   /* =========================
-     Simple helpers stored in state namespace
+     Debug safe checks
   ========================= */
-  App.resetTransientFlags = function resetTransientFlags() {
-    App.pointerDown = false;
-    App.draggingNodeId = null;
-    App.resizingNodeId = null;
-    App.panning = false;
-    App.hoveredNodeId = null;
-    App.linkingFromId = null;
-    App.editingNodeId = null;
-  };
+  if (!App.dom.canvas) {
+    console.error("canvas が見つかりません");
+  }
+  if (!App.dom.nodeCount) {
+    console.warn("nodeCount 要素が見つかりません");
+  }
+  if (!App.dom.linkCount) {
+    console.warn("linkCount 要素が見つかりません");
+  }
+
+  console.log("app-state finished");
 })();

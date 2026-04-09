@@ -1,59 +1,160 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>Uprime Menu</title>
-<style>
-  body {
-    background: #111;
-    color: white;
-    font-family: sans-serif;
-    text-align: center;
-    padding-top: 80px;
-  }
-  h1 { font-size: 32px; margin-bottom: 40px; }
-  .menu a {
-    display: block;
-    margin: 12px auto;
-    padding: 12px 18px;
-    width: 260px;
-    background: #222;
-    color: white;
-    border: 1px solid #444;
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 20px;
-  }
-  .menu a:hover {
-    background: #444;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no"
+  />
+  <title>autophagy64_協働AIマインドマップ</title>
+  <link rel="stylesheet" href="style.css?v=64" />
 </head>
 <body>
+  <div id="app">
+    <canvas id="canvas"></canvas>
 
-<h1>Uprime - Main Menu</h1>
+    <div id="topBarPanel" class="floatingPanel">
+      <div class="panelHeader">
+        <div class="panelTitle">メインUI</div>
+        <button id="pinTopBarBtn" class="pinBtn pinned" type="button">📌</button>
+      </div>
 
-<div class="menu">
-  <a href="uprime.html">🌍 Voxel Planet</a>
-  <a href="uprime1.html">🌍 Voxel Planet1</a>
-  <a href="rts.html">🏙 RTS Civilization</a>
-  <a href="dot.html">🎨 Dot Editor</a>
-  <a href="mrsample.html">🎨 mrcode</a>
-  <a href="brainmap.html">🎨 brainmap</a>
-  <a href="mrtest.html">🎨 mrtest</a>
-  <a href="mr_brainmap_xr.html">🎨 mrtest２</a> 
-  <a href="villager.html">🎨 villager</a>
-  <a href="mandara.html">🎨 mandara</a>
-  <a href="ppp.html">🎨 ppp</a>
-</div>
+      <div id="topBarBody">
+        <button id="startBtn" type="button">開始</button>
+        <button id="stopBtn" type="button">停止</button>
+        <button id="saveBtn" type="button">保存</button>
+        <button id="loadBtn" type="button">読込</button>
+        <button id="fitBtn" type="button">全体表示</button>
+        <button id="alignBtn" type="button">整列</button>
+        <button id="settingsBtn" type="button">設定</button>
+        <button id="toggleLogBtn" type="button">ログ▼</button>
+        <button id="followBtn" type="button">追従:OFF</button>
 
+        <input
+          id="quickInput"
+          type="text"
+          placeholder="ノード名 / 編集名 / 検索語 / YouTube URL"
+          autocomplete="off"
+          spellcheck="false"
+        />
+
+        <button id="quickEditBtn" type="button">編集✏️</button>
+        <button id="quickAddBtn" type="button">新規＋✨</button>
+        <button id="quickSearchBtn" type="button">検索🔍</button>
+
+        <div class="spacer"></div>
+
+        <button id="viewModeBtn" class="active" type="button">閲覧</button>
+        <button id="editModeBtn" type="button">編集</button>
+        <button id="linkModeBtn" type="button">リンク</button>
+      </div>
+    </div>
+
+    <div id="settingsPanel" class="floatingPanel">
+      <div class="panelHeader">
+        <div class="panelTitle">設定</div>
+        <button id="pinSettingsBtn" class="pinBtn pinned" type="button">📌</button>
+      </div>
+
+      <div id="settingsBody">
+        <div class="tabRow">
+          <button id="tabAgentBtn" class="active" type="button">エージェント</button>
+          <button id="tabViewBtn" type="button">表示</button>
+          <button id="tabPhysicsBtn" type="button">物理</button>
+          <button id="tabDataBtn" type="button">データ</button>
+        </div>
+
+        <div id="settingsAgentSection" class="card"></div>
+        <div id="settingsViewSection" class="card" style="display:none;"></div>
+        <div id="settingsPhysicsSection" class="card" style="display:none;"></div>
+        <div id="settingsDataSection" class="card" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div id="nodeDetailPanel" class="floatingPanel">
+      <div class="panelHeader">
+        <div class="panelTitle">ノード詳細</div>
+        <button id="toggleNodeDetailBtn" class="pinBtn" type="button">▼</button>
+        <button id="pinDetailBtn" class="pinBtn pinned" type="button">📌</button>
+      </div>
+      <div id="nodeDetailBody">未選択</div>
+    </div>
+
+    <div id="hint">
+      閲覧: エージェントを選択 → 行き先ノードをタップで移動指定<br />
+      編集: ダブルタップで編集 / 空白長押しで新規ノード / 画像ノードは右下ハンドルでサイズ変更<br />
+      リンク: 1個目のノード選択 → 2個目で接続<br />
+      YouTube: URLを入力して「新規＋✨」→ サムネ化、ダブルタップで再生
+    </div>
+
+    <div id="modeBadge">モード: 閲覧</div>
+
+    <div id="miniInfo">
+      ノード: <span id="nodeCount">0</span><br />
+      リンク: <span id="linkCount">0</span><br />
+      選択: <span id="selectedInfo">なし</span><br />
+      エージェント: <span id="agentCountMini">0</span><br />
+      追従: <span id="followMini">なし</span>
+    </div>
+
+    <div id="zoomHud">100%</div>
+
+    <div id="zoomControls">
+      <button id="zoomInBtn" type="button">＋</button>
+      <button id="zoomOutBtn" type="button">－</button>
+    </div>
+
+    <div id="stickWrap">
+      <div id="stickBase"></div>
+      <div id="stickKnob"></div>
+    </div>
+
+    <div id="logWrap">
+      <div id="logPanel" class="collapsed">
+        <div id="log"></div>
+      </div>
+    </div>
+
+    <div id="nodeEditor">
+      <h3>ノード編集</h3>
+      <input id="nodeLabelInput" placeholder="表示名" autocomplete="off" spellcheck="false" />
+      <textarea id="nodeMemoInput" placeholder="メモ"></textarea>
+      <select id="nodeColorInput">
+        <option value="#2b3344">標準</option>
+        <option value="#34495e">青灰</option>
+        <option value="#3d2f52">紫</option>
+        <option value="#324d3a">緑</option>
+        <option value="#5a3b32">茶</option>
+        <option value="#4e364f">桃紫</option>
+      </select>
+      <div class="buttons">
+        <button id="nodeSaveBtn" type="button">保存</button>
+        <button id="nodeDeleteBtn" type="button">削除</button>
+        <button id="nodeCloseBtn" type="button">閉じる</button>
+      </div>
+    </div>
+
+    <div id="legend">
+      <div class="legendItem"><span class="dot" style="background:#2b3344"></span>通常</div>
+      <div class="legendItem"><span class="dot" style="background:#ffd166"></span>5W2H</div>
+      <div class="legendItem"><span class="dot" style="background:#7bdff2"></span>学際</div>
+      <div class="legendItem"><span class="dot" style="background:#9cdcf0"></span>候補</div>
+      <div class="legendItem"><span class="dot" style="background:#ff8be6"></span>エージェント</div>
+    </div>
+  </div>
+
+  <!-- YouTube Overlay -->
+  <div id="youtubeOverlay" class="youtubeOverlay hidden">
+    <div class="youtubeOverlayInner">
+      <button id="closeYoutubeOverlayBtn" class="youtubeCloseBtn" type="button">✕</button>
+      <div id="youtubePlayerWrap" class="youtubePlayerWrap"></div>
+    </div>
+  </div>
+
+  <!-- 読み込み順は固定 -->
+  <script src="app-state.js?v=64"></script>
+  <script src="app-utils.js?v=64"></script>
+  <script src="app-agents.js?v=64"></script>
+  <script src="app-main.js?v=64"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-

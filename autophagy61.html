@@ -11,20 +11,17 @@
     <canvas id="canvas"></canvas>
 
     <div id="topBarPanel" class="floatingPanel">
-      <div class="panelHeader">
-        <div class="panelTitle">メインUI</div>
-        <button id="pinTopBarBtn" class="pinBtn pinned">📌</button>
-      </div>
 
       <div id="topBarBody">
         <button id="startBtn">▶</button>
         <button id="stopBtn">■</button>
         <button id="saveBtn">💾</button>
         <button id="loadBtn">読込</button>
-        <button id="fitBtn">全体</button>
-        <button id="alignBtn">整列</button>
+        <button id="fitBtn">🦅</button>
+        <button id="alignBtn">‥</button>
         <button id="settingsBtn">⚙</button>
         <button id="toggleLogBtn">ログ▼</button>
+        <button id="pinTopBarBtn" class="pinBtn pinned">📌</button>
         <button id="followBtn">追従:OFF</button>
 
         <input id="quickInput" type="text" placeholder="ノード名 / 編集名 / 検索語" />
@@ -123,13 +120,6 @@
       </div>
     </div>
 
-    <div id="legend">
-      <div class="legendItem"><span class="dot" style="background:#2b3344"></span>通常</div>
-      <div class="legendItem"><span class="dot" style="background:#ffd166"></span>5W2H</div>
-      <div class="legendItem"><span class="dot" style="background:#7bdff2"></span>学際</div>
-      <div class="legendItem"><span class="dot" style="background:#9cdcf0"></span>候補</div>
-      <div class="legendItem"><span class="dot" style="background:#ff8be6"></span>エージェント</div>
-    </div>
   </div>
 
   <script src="app-state.js"></script>

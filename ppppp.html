@@ -14,20 +14,17 @@
     <canvas id="canvas"></canvas>
 
     <div id="topBarPanel" class="floatingPanel">
-      <div class="panelHeader">
-        <div class="panelTitle">メインUI</div>
-        <button id="pinTopBarBtn" class="pinBtn pinned" type="button">📌</button>
-      </div>
 
       <div id="topBarBody">
         <button id="startBtn" type="button">▶</button>
         <button id="stopBtn" type="button">■</button>
         <button id="saveBtn" type="button">💾</button>
         <button id="loadBtn" type="button">📚</button>
-        <button id="fitBtn" type="button">全体</button>
-        <button id="alignBtn" type="button">整列</button>
+        <button id="fitBtn" type="button">🦅</button>
+        <button id="alignBtn" type="button">‥</button>
         <button id="settingsBtn" type="button">⚙</button>
         <button id="toggleLogBtn" type="button">ログ▼</button>
+        <button id="pinTopBarBtn" class="pinBtn pinned" type="button">📌</button>
         <button id="followBtn" type="button">追従:OFF</button>
 
         <input
@@ -40,7 +37,7 @@
 
         <button id="quickAddBtn" type="button">＋✨</button>
         <button id="quickEditBtn" type="button">✏️</button>
-        <button id="quickSearchBtn" type="button">検索🔍</button>
+        <button id="quickSearchBtn" type="button">🔍</button>
 
         <div class="spacer"></div>
 
@@ -78,13 +75,6 @@
         <button id="pinDetailBtn" class="pinBtn pinned" type="button">📌</button>
       </div>
       <div id="nodeDetailBody">未選択</div>
-    </div>
-
-    <div id="hint">
-      閲覧: エージェントを選択 → 行き先ノードをタップで移動指定<br />
-      編集: ダブルタップで編集 / 空白長押しで新規ノード / 画像ノードは右下ハンドルでサイズ変更<br />
-      リンク: 1個目のノード選択 → 2個目で接続<br />
-      YouTube: URLを入力して「新規＋✨」→ サムネ化、ダブルタップで再生
     </div>
 
     <div id="modeBadge">モード: 閲覧</div>
@@ -134,13 +124,6 @@
       </div>
     </div>
 
-    <div id="legend">
-      <div class="legendItem"><span class="dot" style="background:#2b3344"></span>通常</div>
-      <div class="legendItem"><span class="dot" style="background:#ffd166"></span>5W2H</div>
-      <div class="legendItem"><span class="dot" style="background:#7bdff2"></span>学際</div>
-      <div class="legendItem"><span class="dot" style="background:#9cdcf0"></span>候補</div>
-      <div class="legendItem"><span class="dot" style="background:#ff8be6"></span>エージェント</div>
-    </div>
   </div>
 
   <!-- YouTube Overlay -->

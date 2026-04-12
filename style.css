@@ -182,7 +182,7 @@ html,body{
 #miniInfo{
   position:absolute;
   right:8px;
-  top:40px;
+  top:150px;
   font-size:11px;
   color:var(--muted);
 }

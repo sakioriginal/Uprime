@@ -1391,6 +1391,23 @@
         if (n && n.isAgentNode) App.followAgentId = n.id;
       }
       App.updateFollowUI();
+
+      App.dom.canvas?.addEventListener("click", (e) => {
+  if (App.mode !== "edit") return;
+
+  const pos = App.pointerPosFromEvent(e);
+  const world = App.screenToWorld(pos.x, pos.y);
+
+  const node = App.createNodeAtWorld(world.x, world.y, "新規ノード");
+
+  App.selectedNodeId = node.id;
+  App.updateInfo();
+});
+
+
+
+
+      
     });
 
     d.quickAddBtn?.addEventListener("click", () => {

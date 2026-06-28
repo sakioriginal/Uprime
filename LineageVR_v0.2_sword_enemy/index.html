@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Lineage VR v0.2 - Sword & Enemy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+</head>
+<body>
+<div id="hud">
+  <b>Lineage VR v0.2</b><br>
+  Quest: VRに入る → 右手トリガーで剣を掴む → 振って攻撃<br>
+  PC: クリックで攻撃 / WASD移動 / 視点ドラッグ<br>
+  <span id="hudStats">HP 100 / Lv 1 / EXP 0</span>
+</div>
+
+<a-scene
+  renderer="antialias:true; colorManagement:true"
+  background="color:#9ed0ff"
+  vr-mode-ui="enabled:true"
+  lineage-game>
+
+  <a-entity light="type:ambient; intensity:0.55"></a-entity>
+  <a-entity light="type:directional; intensity:0.75" position="2 5 3"></a-entity>
+
+  <a-plane rotation="-90 0 0" width="70" height="70" color="#69b65a"></a-plane>
+
+  <!-- Village-ish props -->
+  <a-box position="-4 0.55 -6" width="2" height="1.1" depth="2" color="#9b6b3d"></a-box>
+  <a-cone position="-4 1.8 -6" radius-bottom="1.7" height="1.5" color="#6b3020"></a-cone>
+  <a-cylinder position="4 0.55 -7" radius="0.35" height="1.1" color="#8b5a2b"></a-cylinder>
+  <a-cone position="4 1.75 -7" radius-bottom="1.35" height="2.2" color="#2e8b45"></a-cone>
+  <a-cylinder position="6 0.55 -12" radius="0.35" height="1.1" color="#8b5a2b"></a-cylinder>
+  <a-cone position="6 1.75 -12" radius-bottom="1.35" height="2.2" color="#2e8b45"></a-cone>
+
+  <!-- Training dummy -->
+  <a-entity id="dummy" enemy="type:dummy; hp:45; speed:0" position="-1.8 0 -5.2">
+    <a-cylinder position="0 0.9 0" radius="0.28" height="1.4" color="#c8955d"></a-cylinder>
+    <a-sphere position="0 1.7 0" radius="0.32" color="#d9a36e"></a-sphere>
+    <a-text value="木人形" align="center" position="0 2.25 0" color="#222" scale="0.55 0.55 0.55"></a-text>
+  </a-entity>
+
+  <!-- Enemy -->
+  <a-entity id="enemy1" enemy="type:slime; hp:70; speed:0.55" position="1.7 0 -7.5">
+    <a-sphere class="enemyBody" position="0 0.55 0" radius="0.55" color="#9b72ff"></a-sphere>
+    <a-sphere position="-0.17 0.72 0.46" radius="0.06" color="#111"></a-sphere>
+    <a-sphere position="0.17 0.72 0.46" radius="0.06" color="#111"></a-sphere>
+    <a-text value="野生スライム" align="center" position="0 1.45 0" color="#222" scale="0.5 0.5 0.5"></a-text>
+  </a-entity>
+
+  <!-- Player Rig -->
+  <a-entity id="rig" position="0 0 0">
+    <a-entity id="camera" camera look-controls wasd-controls position="0 1.6 0">
+      <a-cursor color="#fff" fuse="false"></a-cursor>
+    </a-entity>
+
+    <a-entity id="leftHand" laser-controls="hand:left"></a-entity>
+
+    <a-entity id="rightHand"
+      laser-controls="hand:right"
+      sword-controller="hand:right">
+    </a-entity>
+  </a-entity>
+
+  <!-- Sword on pedestal -->
+  <a-entity id="sword" sword position="0.65 1.05 -1.2" rotation="0 0 -35">
+    <a-cylinder class="blade" position="0 0.45 0" radius="0.035" height="0.9" color="#d8e6f0"></a-cylinder>
+    <a-box position="0 0 0" width="0.35" height="0.06" depth="0.06" color="#c8a13c"></a-box>
+    <a-cylinder position="0 -0.22 0" radius="0.045" height="0.42" color="#4c2b18"></a-cylinder>
+    <a-sphere position="0 -0.46 0" radius="0.08" color="#c8a13c"></a-sphere>
+  </a-entity>
+
+  <a-text id="worldText" value="剣を掴んで振れ！" position="0 2.35 -3" align="center" color="#222" scale="0.65 0.65 0.65"></a-text>
+</a-scene>
+
+<script src="js/state.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/enemy.js"></script>
+<script src="js/sword.js"></script>
+<script src="js/player.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Planet Sandbox Engine v0.1</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="hud">PSE loading...</div>
+  <div id="infoPanel" class="mini-panel">現在地読み込み中...</div>
+  <div id="statusPanel" class="mini-panel">ステータス読み込み中...</div>
+
+  <details id="allyPanel" class="list-panel" open>
+    <summary>仲間</summary>
+    <div id="allyList"></div>
+  </details>
+  <details id="placePanel" class="list-panel">
+    <summary>場所</summary>
+    <div id="placeList"></div>
+  </details>
+
+  <div id="commandPopup" class="command-popup hidden"></div>
+
+  <div id="topbar">
+    <button id="settingsBtn">⚙️</button>
+    <button id="zoomOutBtn">−</button>
+    <button id="zoomInBtn">＋</button>
+    <button id="houseBtn">🏠</button>
+    <button id="buildMenuBtn">🧱</button>
+    <button id="teachBtn">⏺️</button>
+    <button id="inventoryBtn">🎒</button>
+    <button onclick="setInputProfile('PC')">PC</button>
+    <button onclick="setInputProfile('VR')">VR</button>
+    <button onclick="setInputProfile('MR')">MR</button>
+  </div>
+
+  <div id="settings" class="panel hidden">
+    <b>ABXY割当</b><br><small>PC/VR/MRでも同じCommandへ変換</small><br>
+    A <select data-bind="A"><option value="context">コンテキスト</option><option value="talk">会話</option><option value="gather">採集</option><option value="build">建築</option></select><br>
+    B <select data-bind="B"><option value="cancel">キャンセル</option><option value="jump">ジャンプ</option></select><br>
+    X <select data-bind="X"><option value="gather">採集</option><option value="talk">会話</option><option value="attack">攻撃</option></select><br>
+    Y <select data-bind="Y"><option value="build">建築</option><option value="teach">教える</option><option value="talk">会話</option></select>
+  </div>
+
+  <div id="dialog" class="hidden"></div>
+
+  <div id="moveStick" class="stick"><div class="knob"></div><span>移動</span></div>
+  <div id="lookStick" class="stick"><div class="knob"></div><span>視点</span></div>
+
+  <div id="pad">
+    <button id="btnY" class="act">📦</button>
+    <button id="btnX" class="act">⚔️</button>
+    <button id="btnB" class="act">💬</button>
+    <button id="btnA" class="act primary">⛏️</button>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

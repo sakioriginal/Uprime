@@ -1,350 +1,42 @@
-:root{
-  --bg:#0d1117;
-  --panel:rgba(18,24,32,.92);
-  --line:rgba(255,255,255,.12);
-  --text:#eaf1ff;
-  --muted:#9eb0cc;
-  --accent:#7db0ff;
-  --good:#67d48e;
-  --warn:#ffd166;
-  --danger:#ff8f8f;
-  --shadow:0 10px 26px rgba(0,0,0,.28);
-}
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Planet Sandbox Engine v0.1</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="hud">PSE loading...</div>
 
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
+  <div id="topbar">
+    <button id="settingsBtn">⚙️</button>
+    <button id="zoomOutBtn">−</button>
+    <button id="zoomInBtn">＋</button>
+    <button id="houseBtn">🏠</button>
+    <button id="teachBtn">🧠</button>
+  </div>
 
-html,body{
-  margin:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:var(--bg);
-  color:var(--text);
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
-}
+  <div id="settings" class="panel hidden">
+    <b>ABXY割当</b><br>
+    A <select data-bind="A"><option value="context">コンテキスト</option><option value="talk">会話</option><option value="gather">採集</option><option value="build">建築</option></select><br>
+    B <select data-bind="B"><option value="cancel">キャンセル</option><option value="jump">ジャンプ</option></select><br>
+    X <select data-bind="X"><option value="gather">採集</option><option value="talk">会話</option><option value="attack">攻撃</option></select><br>
+    Y <select data-bind="Y"><option value="build">建築</option><option value="teach">教える</option><option value="talk">会話</option></select>
+  </div>
 
-#app{
-  position:fixed;
-  inset:0;
-}
+  <div id="dialog" class="hidden"></div>
 
-/* ===== canvas ===== */
-#canvas{
-  width:100%;
-  height:100%;
-  display:block;
-  touch-action:none;
-}
+  <div id="moveStick" class="stick"><div class="knob"></div><span>移動</span></div>
+  <div id="lookStick" class="stick"><div class="knob"></div><span>視点</span></div>
 
-/* ===== floating panel ===== */
-.floatingPanel{
-  position:absolute;
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:12px;
-  box-shadow:var(--shadow);
-  backdrop-filter:blur(10px);
-  overflow:hidden;
-}
+  <div id="pad">
+    <button id="btnY" class="act">Y</button>
+    <button id="btnX" class="act">X</button>
+    <button id="btnB" class="act">B</button>
+    <button id="btnA" class="act primary">A</button>
+  </div>
 
-.panelHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:6px 8px;
-  border-bottom:1px solid var(--line);
-  font-size:12px;
-}
-
-.panelTitle{
-  font-weight:bold;
-}
-
-.pinBtn{
-  background:none;
-  border:none;
-  color:var(--muted);
-  cursor:pointer;
-}
-
-.pinBtn.pinned{
-  color:var(--accent);
-}
-
-/* ===== top bar ===== */
-#topBarPanel{
-  top:8px;
-  left:8px;
-  right:8px;
-}
-
-#topBarBody{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  padding:6px;
-}
-
-#topBarBody button{
-  background:#1f2633;
-  border:1px solid var(--line);
-  color:var(--text);
-  padding:4px 8px;
-  border-radius:6px;
-  cursor:pointer;
-}
-
-#topBarBody button.active{
-  background:var(--accent);
-  color:#000;
-}
-
-#quickInput{
-  flex:1;
-  min-width:160px;
-  padding:4px;
-  border-radius:6px;
-  border:1px solid var(--line);
-  background:#0f1520;
-  color:var(--text);
-}
-
-/* ===== settings ===== */
-#settingsPanel{
-  top:80px;
-  left:8px;
-  width:260px;
-  max-height:60%;
-  overflow:auto;
-}
-
-.card{
-  margin:6px;
-  padding:6px;
-  border:1px solid var(--line);
-  border-radius:8px;
-}
-
-.tabRow{
-  display:flex;
-  gap:4px;
-  padding:6px;
-}
-
-.tabRow button{
-  flex:1;
-  font-size:12px;
-}
-
-/* ===== node detail (重要改善) ===== */
-#nodeDetailPanel{
-  right:8px;
-  bottom:8px;
-  width:240px;
-  max-height:50%;
-}
-
-#nodeDetailBody{
-  padding:6px;
-  font-size:12px;
-  overflow:auto;
-}
-
-/* 折りたたみ */
-#nodeDetailPanel.collapsed #nodeDetailBody{
-  display:none;
-}
-
-/* ===== hint ===== */
-#hint{
-  position:absolute;
-  bottom:8px;
-  left:8px;
-  font-size:11px;
-  color:var(--muted);
-}
-
-/* ===== mode badge ===== */
-#modeBadge{
-  position:absolute;
-  top:100px;
-  right:8px;
-  background:#1f2633;
-  padding:4px 8px;
-  border-radius:6px;
-  font-size:12px;
-}
-
-/* ===== mini info ===== */
-#miniInfo{
-  position:absolute;
-  right:8px;
-  top:150px;
-  font-size:11px;
-  color:var(--muted);
-}
-
-/* ===== zoom ===== */
-#zoomHud{
-  position:absolute;
-  bottom:80px;
-  right:20px;
-  font-size:16px;
-}
-
-#zoomControls{
-  position:absolute;
-  bottom:40px;
-  right:20px;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-}
-
-#zoomControls button{
-  width:32px;
-  height:32px;
-}
-
-/* ===== stick ===== */
-#stickWrap{
-  position:absolute;
-  bottom:40px;
-  left:20px;
-  width:80px;
-  height:80px;
-}
-
-#stickBase{
-  position:absolute;
-  width:100%;
-  height:100%;
-  border-radius:50%;
-  background:rgba(255,255,255,.05);
-}
-
-#stickKnob{
-  position:absolute;
-  width:30px;
-  height:30px;
-  border-radius:50%;
-  background:var(--accent);
-  top:25px;
-  left:25px;
-}
-
-/* ===== log ===== */
-#logWrap{
-  position:absolute;
-  bottom:0;
-  left:0;
-  right:0;
-}
-
-#logPanel{
-  max-height:200px;
-  overflow:auto;
-  background:#000;
-  font-size:11px;
-}
-
-#logPanel.collapsed{
-  display:none;
-}
-
-#log{
-  padding:6px;
-}
-
-/* ===== node editor ===== */
-#nodeEditor{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  background:#1f2633;
-  padding:12px;
-  border-radius:12px;
-  display:none;
-  width:260px;
-}
-
-#nodeEditor input,
-#nodeEditor textarea{
-  width:100%;
-  margin-bottom:6px;
-}
-
-#nodeEditor .buttons{
-  display:flex;
-  gap:6px;
-}
-
-/* ===== legend ===== */
-#legend{
-  position:absolute;
-  bottom:8px;
-  right:8px;
-  font-size:11px;
-}
-
-.legendItem{
-  display:flex;
-  align-items:center;
-  gap:4px;
-}
-
-.dot{
-  width:10px;
-  height:10px;
-  border-radius:50%;
-}
-
-/* ===== YouTube overlay ===== */
-.youtubeOverlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.8);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.youtubeOverlay.hidden{
-  display:none;
-}
-
-.youtubeOverlayInner{
-  position:relative;
-  width:90%;
-  max-width:800px;
-}
-
-.youtubeCloseBtn{
-  position:absolute;
-  top:-30px;
-  right:0;
-}
-
-.youtubePlayerWrap iframe{
-  width:100%;
-  height:450px;
-}
-
-/* ===== スマホ最適化 ===== */
-@media (max-width:600px){
-  #topBarPanel{
-    font-size:11px;
-  }
-
-  #nodeDetailPanel{
-    width:180px;
-  }
-
-  #settingsPanel{
-    width:200px;
-  }
-}
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

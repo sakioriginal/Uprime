@@ -1,35 +1,50 @@
-# Planet Sandbox Engine v0.1 static
+# Planet Sandbox Engine static v0.1.1
 
-GitHub Pagesにそのまま置ける、ビルド不要版です。
+GitHub Pages へそのまま置けるビルド不要版です。
 
-配置:
+## 配置
 
-```text
+```
 Uprime/
 └─ PlanetSandboxEngine/
    ├─ index.html
    ├─ style.css
-   └─ main.js
+   ├─ main.js
+   └─ README.md
 ```
 
-URL:
+## v0.1.1 修正
 
-```text
-https://sakioriginal.github.io/Uprime/PlanetSandboxEngine/
-```
+- キャラクターの横倒し・傾き対策
+- 移動方向を必ず惑星表面の接線方向に投影
+- 赤道付近から抜け出せない問題を修正
+- TPV/FPVの背面追従を強化
+- RTS/Planetではデッドゾーン追従に変更
+- PC / VR / MR 操作仕様の土台を追加
 
-## 機能
+## 操作
 
-- Three.js球体惑星
-- 高低差、海、大気、雲、太陽、月、他惑星、星空
-- FPV / TPV / RTS / Planet Scaleズーム
-- PC操作: WASD、マウス、ホイール
-- スマホ操作: 左右スティック、＋−、ABXY
-- NPC 20人、会話、忠誠心、信仰心
-- 木・鉱石採集
-- 建売住宅建築
-- 教える/覚える/五感の土台
+### スマホ
 
-## 注意
+- 左スティック：移動
+- 右スティック：視点
+- ＋ / −：Scale変更
+- ABXY：行動
+- ⚙️：ボタン割当変更
 
-`file://` では一部ブラウザで制限されます。GitHub Pagesまたはローカルサーバーで開いてください。
+### PC
+
+- WASD：移動
+- マウス：視点
+- ホイール：Scale変更
+- Q/E：Scale変更
+- Space：ジャンプ予定
+
+### VR / MR 仕様
+
+現段階ではUI仕様と入力プロファイルの土台のみです。
+将来 WebXR で以下に接続します。
+
+- VR：左スティック移動、右スティック視点、トリガー選択
+- MR：卓上RTS、手元UI、空間への建築配置
+

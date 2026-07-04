@@ -13,6 +13,7 @@ let commandTarget = null, selected = null;
 let wood = 140, stone = 90, ore = 0, faith = 0;
 let teachingMode = false, teachingLog = [];
 const R = 95;
+let inputProfile = "SMARTPHONE"; // SMARTPHONE / PC / VR / MR
 
 const buttonMap = { A:"context", B:"cancel", X:"gather", Y:"build" };
 
@@ -215,40 +216,45 @@ function animate(){
 
 function updatePlayer(dt){
   const up = player.position.clone().normalize();
+
   yaw -= lookInput.x*dt*2.6;
   pitch -= lookInput.y*dt*1.1;
-  pitch = Math.max(-.85, Math.min(.62, pitch));
+  pitch = clamp(pitch,-.85,.62);
 
   const ix = (keys.d?1:0) - (keys.a?1:0) + moveInput.x;
   const iy = (keys.w?1:0) - (keys.s?1:0) - moveInput.y;
-  const forward = new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)).projectOnPlane(up).normalize();
-  const right = new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)).projectOnPlane(up).normalize();
+  const basis = getLocalBasis(up, yaw);
   let moved=false;
 
-  const mv = forward.clone().multiplyScalar(iy).add(right.clone().multiplyScalar(ix));
+  const mv = basis.forward.clone().multiplyScalar(iy).add(basis.right.clone().multiplyScalar(ix));
   if(mv.length()>.01){
-    player.position.add(mv.normalize().multiplyScalar(23*dt));
+    const dir = mv.normalize();
+    player.position.add(dir.multiplyScalar(23*dt));
+    yaw = lerpAngle(yaw, basis.yawFromDir(dir), .08);
     commandTarget=null; moved=true;
   }
   if(commandTarget){
     const dir = commandTarget.clone().sub(player.position).projectOnPlane(up);
     if(dir.length()<.85){ commandTarget=null; }
     else{
-      player.position.add(dir.normalize().multiplyScalar(18*dt));
-      yaw = lerpAngle(yaw, Math.atan2(dir.x, dir.z), .14);
+      const moveDir = dir.normalize();
+      player.position.add(moveDir.clone().multiplyScalar(18*dt));
+      yaw = lerpAngle(yaw, basis.yawFromDir(moveDir), .18);
       moved=true;
     }
   }
   const d = player.position.clone().normalize();
   player.position.copy(d.multiplyScalar(surfaceRadius(d)+3));
-  player.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d);
-  if(moved && zoom>2 && zoom<34){ /* TPVは進行方向が画面上へ寄る */ }
+
+  const finalBasis = getLocalBasis(d, yaw);
+  orientEntity(player, d, finalBasis.forward);
+  // TPV/FPVでは進行方向が画面上に来るよう、CameraRigがこのyawを追う
 }
 
 function updateNPCs(dt){
   for(const npc of npcs){
     const up = npc.position.clone().normalize();
-    npc.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),up);
+    orientEntity(npc, up, getLocalBasis(up, yaw).forward);
     npc.userData.wanderTimer -= dt;
     if(!npc.userData.command && npc.userData.wanderTimer<=0){
       npc.userData.wanderTimer = 3 + Math.random()*8;
@@ -270,33 +276,38 @@ function updateNPCs(dt){
 
 function updateCamera(){
   const up = player.position.clone().normalize();
-  const forward = new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)).projectOnPlane(up).normalize();
+  const basis = getLocalBasis(up, yaw);
+  const forward = basis.forward;
   let label = zoom<2 ? "FPV" : zoom<35 ? "TPV" : zoom<125 ? "RTS" : "PLANET";
 
   if(zoom<2){
+    // FPV: すぐに身体の向きへ追従。視線は地面接線方向＋ピッチ。
     const desired = player.position.clone().add(up.clone().multiplyScalar(2.35));
-    camera.position.lerp(desired,.38);
+    camera.position.lerp(desired,.42);
     const look = forward.clone().multiplyScalar(Math.cos(pitch)).add(up.clone().multiplyScalar(Math.sin(pitch))).normalize();
     camera.lookAt(camera.position.clone().add(look));
   }else if(zoom<35){
+    // TPV: 背面追従を強め、進行方向が画面上に来る。
     const desired = player.position.clone().add(up.clone().multiplyScalar(zoom*.42+4)).add(forward.clone().multiplyScalar(-zoom));
-    camera.position.lerp(desired,.24);
-    camera.lookAt(player.position.clone().add(up.clone().multiplyScalar(2.3)).add(forward.clone().multiplyScalar(4.5)));
+    camera.position.lerp(desired,.32);
+    camera.lookAt(player.position.clone().add(up.clone().multiplyScalar(2.3)).add(forward.clone().multiplyScalar(5.0)));
   }else{
+    // RTS/Planet: デッドゾーン追従。少し進んでからカメラが追いかける。
     const desired = player.position.clone().add(up.clone().multiplyScalar(zoom*.58+12)).add(forward.clone().multiplyScalar(-zoom));
-    camera.position.lerp(desired,.055);
+    const dead = zoom < 125 ? 10 : 25;
+    if(camera.position.distanceTo(desired) > dead) camera.position.lerp(desired,.045);
     camera.lookAt(player.position);
   }
-  hud.innerHTML = `PSE v0.1 / Scale:${label}<br>木:${wood} 石:${stone} 鉱:${ore} 信仰:${faith}<br>NPC:${npcs.length} 建物:${buildings.length}<br>A:${buttonMap.A} B:${buttonMap.B} X:${buttonMap.X} Y:${buttonMap.Y}<br>${selected?.userData?.name?"選択:"+selected.userData.name:"クリック/タップで移動・会話"}`;
+  hud.innerHTML = `PSE v0.1.1 / Scale:${label} / Input:${inputProfile}<br>木:${wood} 石:${stone} 鉱:${ore} 信仰:${faith}<br>NPC:${npcs.length} 建物:${buildings.length}<br>A:${buttonMap.A} B:${buttonMap.B} X:${buttonMap.X} Y:${buttonMap.Y}<br>${selected?.userData?.name?"選択:"+selected.userData.name:"クリック/タップで移動・会話"}`;
 }
 
 function setupEvents(){
   addEventListener("resize",()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
-  addEventListener("keydown",e=>{ keys[e.key.toLowerCase()]=true; if(e.key===" ") jump(); });
+  addEventListener("keydown",e=>{ keys[e.key.toLowerCase()]=true; inputProfile="PC"; if(e.key===" ") jump(); if(e.key.toLowerCase()==="q") zoom*=1.12; if(e.key.toLowerCase()==="e") zoom*=.89; zoom=clamp(zoom,.35,290); });
   addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
-  addEventListener("wheel",e=>{ zoom*=e.deltaY>0?1.12:.89; zoom=clamp(zoom,.35,290); },{passive:true});
+  addEventListener("wheel",e=>{ inputProfile="PC"; zoom*=e.deltaY>0?1.12:.89; zoom=clamp(zoom,.35,290); },{passive:true});
   addEventListener("mousemove",e=>{
-    if(document.pointerLockElement===renderer.domElement){ yaw-=e.movementX*.003; pitch-=e.movementY*.002; pitch=clamp(pitch,-.85,.62); }
+    if(document.pointerLockElement===renderer.domElement){ inputProfile="PC"; yaw-=e.movementX*.003; pitch-=e.movementY*.002; pitch=clamp(pitch,-.85,.62); }
   });
   renderer.domElement.addEventListener("click",e=>{ if(zoom<35) renderer.domElement.requestPointerLock?.(); handleTap(e.clientX,e.clientY); });
   renderer.domElement.addEventListener("pointerdown",e=>{ if(e.pointerType==="touch") handleTap(e.clientX,e.clientY); });
@@ -385,8 +396,8 @@ function press(actionButton){
 
 function setupUI(){
   document.getElementById("settingsBtn").onclick=()=>settings.classList.toggle("hidden");
-  document.getElementById("zoomInBtn").onclick=()=>{ zoom*=.82; zoom=clamp(zoom,.35,290); };
-  document.getElementById("zoomOutBtn").onclick=()=>{ zoom*=1.22; zoom=clamp(zoom,.35,290); };
+  document.getElementById("zoomInBtn").onclick=()=>{ inputProfile="SMARTPHONE"; zoom*=.82; zoom=clamp(zoom,.35,290); };
+  document.getElementById("zoomOutBtn").onclick=()=>{ inputProfile="SMARTPHONE"; zoom*=1.22; zoom=clamp(zoom,.35,290); };
   document.getElementById("houseBtn").onclick=buildHouse;
   document.getElementById("teachBtn").onclick=teachNearest;
   document.getElementById("btnA").onclick=()=>press("A");
@@ -405,6 +416,42 @@ function setupStick(id,out){
   function update(e){ let dx=e.clientX-cx, dy=e.clientY-cy; const max=45, len=Math.hypot(dx,dy); if(len>max){dx=dx/len*max; dy=dy/len*max;} out.x=dx/max; out.y=dy/max; knob.style.transform=`translate(${dx}px,${dy}px)`; }
   function reset(){ active=false; pid=null; out.x=0; out.y=0; knob.style.transform="translate(0,0)"; }
 }
+
+
+function getLocalBasis(up, yawValue){
+  // 惑星上の任意地点で安定する接線基底。
+  // これで赤道・極付近でも「前進」が必ず地面と平行になる。
+  const ref = Math.abs(up.dot(new THREE.Vector3(0,1,0))) > .92 ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,1,0);
+  const baseForward = ref.clone().projectOnPlane(up).normalize();
+  const q = new THREE.Quaternion().setFromAxisAngle(up, yawValue);
+  const forward = baseForward.clone().applyQuaternion(q).normalize();
+  const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+  return {
+    forward,
+    right,
+    yawFromDir(dir){
+      const d = dir.clone().projectOnPlane(up).normalize();
+      const x = d.dot(right);
+      const y = d.dot(forward);
+      return yawValue + Math.atan2(x, y);
+    }
+  };
+}
+
+function orientEntity(obj, up, forward){
+  // 横倒し防止：Y軸を地面法線、Z軸を進行方向へ固定する。
+  const z = forward.clone().projectOnPlane(up).normalize();
+  const x = new THREE.Vector3().crossVectors(up, z).normalize();
+  const y = up.clone().normalize();
+  const m = new THREE.Matrix4().makeBasis(x, y, z);
+  obj.quaternion.setFromRotationMatrix(m);
+}
+
+function setInputProfile(profile){
+  inputProfile = profile;
+  showDialog(`${profile}操作仕様に切替<br>PC: WASD/マウス/ホイール/QE<br>VR: 左スティック移動・右スティック視点・トリガー選択<br>MR: 卓上RTS/手元UI/空間配置`, 2600);
+}
+window.setInputProfile = setInputProfile;
 
 function showDialog(html, ms=3000){ dialog.innerHTML=html; dialog.classList.remove("hidden"); clearTimeout(dialog.timer); dialog.timer=setTimeout(()=>dialog.classList.add("hidden"),ms); }
 function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }

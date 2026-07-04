@@ -105,7 +105,7 @@ function init(){
   setupUI();
   activeUnit = player;
   updateLists();
-  showDialog("PSE v0.1.9 起動。VRスポーン補正、弓のΩ字化、弓/矢/剣の位相調整。", 3600);
+  showDialog("PSE v0.2.0 起動。VRスティック移動、家具/柵/畑/収納/照明/焚火/ベッド配置を追加。", 3600);
 }
 
 function createPlanet(){
@@ -897,9 +897,42 @@ function xrDirWorldToSim(dir){
   return dir.clone().applyQuaternion(inv).normalize();
 }
 
+
+function getXRGamepad(handed){
+  const session = renderer.xr.getSession?.();
+  if(!session) return null;
+  const src = Array.from(session.inputSources || []).find(s=>s.handedness===handed && s.gamepad);
+  return src?.gamepad || null;
+}
+function updateVRStickMovement(dt){
+  // Quest系：左スティックで移動、右スティックで視点/旋回。
+  // 地面法線の接平面上だけに投影するので、惑星中心へ落ちたり浮いたりしにくい。
+  const leftPad = getXRGamepad('left');
+  const rightPad = getXRGamepad('right');
+  const lx = leftPad?.axes?.[2] ?? leftPad?.axes?.[0] ?? 0;
+  const ly = leftPad?.axes?.[3] ?? leftPad?.axes?.[1] ?? 0;
+  const rx = rightPad?.axes?.[2] ?? rightPad?.axes?.[0] ?? 0;
+  const ry = rightPad?.axes?.[3] ?? rightPad?.axes?.[1] ?? 0;
+  if(Math.abs(rx)>.18) yaw -= rx * dt * 1.8;
+  if(Math.abs(ry)>.18) pitch = clamp(pitch - ry * dt * .9, -.85, .62);
+  if(Math.hypot(lx,ly) < .18) return;
+  const up = player.position.clone().normalize();
+  const basis = getLocalBasis(up, yaw);
+  const move = basis.right.clone().multiplyScalar(lx).add(basis.forward.clone().multiplyScalar(-ly));
+  if(move.lengthSq() < .001) return;
+  const dir = move.normalize();
+  player.userData.forward = dir.clone();
+  player.position.add(dir.multiplyScalar(getMoveSpeed(player, 2.05)*dt));
+  const d = player.position.clone().normalize();
+  player.position.copy(d.multiplyScalar(surfaceRadius(d)+HUMANOID_GROUND_OFFSET));
+  orientEntity(player, d, player.userData.forward);
+  commandTarget = null;
+}
+
 function updateXRHands(dt){
   if(!renderer.xr.isPresenting) return;
   inputProfile = "VR";
+  updateVRStickMovement(dt);
   const rightPos = getWorldPos(xr.right);
   xr.rightVelocity.copy(rightPos).sub(xr.lastRightPos).multiplyScalar(1/Math.max(dt,.001));
   xr.lastRightPos.copy(rightPos);
@@ -1049,7 +1082,7 @@ function updateCamera(){
     if(camera.position.distanceTo(desired) > dead) camera.position.lerp(desired,.045);
     camera.lookAt(player.position);
   }
-  hud.innerHTML = `PSE v0.1.9 / Scale:${label} / Input:${inputProfile}<br>Lv:${player.userData.stats.level} XP:${player.userData.stats.xp}/${xpToNext(player.userData.stats.level)} 撃破:${player.userData.stats.kills||0}<br>木:${wood} 石:${stone} 鉱:${ore} 信仰:${faith}<br>NPC:${npcs.length} クリーチャー:${creatures.length} 建物:${buildings.length}<br>A:${buttonMap.A} B:${buttonMap.B} X:${buttonMap.X} Y:${buttonMap.Y}<br>${selected?.userData?.name?"選択:"+selected.userData.name:"${dangerAlert} / クリックで移動・会話"}`;
+  hud.innerHTML = `PSE v0.2.0 / Scale:${label} / Input:${inputProfile}<br>Lv:${player.userData.stats.level} XP:${player.userData.stats.xp}/${xpToNext(player.userData.stats.level)} 撃破:${player.userData.stats.kills||0}<br>木:${wood} 石:${stone} 鉱:${ore} 信仰:${faith}<br>NPC:${npcs.length} クリーチャー:${creatures.length} 建物:${buildings.length}<br>A:${buttonMap.A} B:${buttonMap.B} X:${buttonMap.X} Y:${buttonMap.Y}<br>${selected?.userData?.name?"選択:"+selected.userData.name:"${dangerAlert} / クリックで移動・会話"}`;
 }
 
 function setupEvents(){
@@ -1121,6 +1154,89 @@ function buildHouse(){
   if(teachingMode) teachingLog.push({type:"build", target:"house"});
   showDialog("建売住宅を建築。スマホ建築なのでDIYより割高。",2200);
 }
+
+
+const buildRecipes = {
+  fence:{icon:"🚧", name:"柵", wood:6, stone:0, place:true},
+  field:{icon:"🌾", name:"畑", wood:12, stone:2, place:true},
+  house:{icon:"🏠", name:"小屋", wood:45, stone:22, place:true},
+  chest:{icon:"📦", name:"収納箱", wood:16, stone:0, place:true, storage:true},
+  torch:{icon:"🔥", name:"たいまつ", wood:3, stone:0, place:true, light:true},
+  campfire:{icon:"🪵", name:"焚火", wood:8, stone:6, place:true, light:true},
+  bed:{icon:"🛌", name:"ベッド", wood:18, stone:0, place:true, rest:true}
+};
+
+function openBuildMenu(){
+  const buttons = Object.keys(buildRecipes).map(k=>{
+    const r=buildRecipes[k];
+    return `<button onclick="buildObject('${k}')">${r.icon} ${r.name}<br><small>木${r.wood} 石${r.stone}</small></button>`;
+  }).join("");
+  commandPopup.innerHTML = `<button class="close" onclick="closeCommandPopup()">×</button><h3>🧱 建築・家具配置</h3><small>現在は建売式。PC/VRでは後でDIY配置へ拡張。</small><div class="build-grid">${buttons}</div>`;
+  commandPopup.classList.remove("hidden");
+}
+
+function buildObject(type){
+  const r = buildRecipes[type];
+  if(!r) return;
+  if(wood < r.wood || stone < r.stone){ showDialog(`${r.name}には木${r.wood}・石${r.stone}が必要。`,1700); return; }
+  wood -= r.wood; stone -= r.stone;
+  const up=player.position.clone().normalize();
+  const basis=getLocalBasis(up,yaw);
+  const dir=player.position.clone().add(basis.forward.multiplyScalar(type==='fence'?5.5:7.5)).normalize();
+  const pos=dir.clone().multiplyScalar(surfaceRadius(dir)+HUMANOID_GROUND_OFFSET+.02);
+  const obj=makeBuildObject(type);
+  obj.position.copy(pos);
+  obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), up);
+  // 前面をプレイヤーの向きに近づける
+  const forward=basis.forward.clone().projectOnPlane(up).normalize();
+  orientEntity(obj, up, forward);
+  obj.userData = {type:type==='field'?'field':type==='chest'?'storage':type, name:r.name, recipe:type, inventory:{wood:0,stone:0,ore:0,food:0,water:0}};
+  scene.add(obj); buildings.push(obj);
+  const placeId = `built_${type}_${buildings.length}`;
+  places.push({id:placeId,name:r.name,icon:r.icon,pos:pos.clone(),dir:dir.clone(),inventory:obj.userData.inventory || {wood:0,stone:0,ore:0,food:0,water:0}, object:obj});
+  updateLists();
+  showDialog(`${r.icon} ${r.name}を配置。場所リストから移動/収納/名称変更できます。`,2000);
+  closeCommandPopup();
+}
+
+function makeBuildObject(type){
+  const g=new THREE.Group();
+  const woodMat=new THREE.MeshStandardMaterial({color:0x8b5a2b,roughness:.9});
+  const darkWood=new THREE.MeshStandardMaterial({color:0x4b2c17,roughness:.9});
+  const stoneMat=new THREE.MeshStandardMaterial({color:0x777777,roughness:.95});
+  const soilMat=new THREE.MeshStandardMaterial({color:0x4a2b17,roughness:1});
+  const clothMat=new THREE.MeshStandardMaterial({color:0x3355aa,roughness:.8});
+  if(type==='fence'){
+    for(const x of [-1.2,1.2]){ const post=new THREE.Mesh(new THREE.BoxGeometry(.18,1.25,.18),woodMat); post.position.set(x,.62,0); g.add(post); }
+    for(const y of [.45,.9]){ const rail=new THREE.Mesh(new THREE.BoxGeometry(2.8,.16,.14),woodMat); rail.position.set(0,y,0); g.add(rail); }
+  }else if(type==='field'){
+    const soil=new THREE.Mesh(new THREE.BoxGeometry(5,.10,4),soilMat); soil.position.y=.05; g.add(soil);
+    for(let i=-2;i<=2;i++){ const row=new THREE.Mesh(new THREE.BoxGeometry(.08,.12,3.5),new THREE.MeshStandardMaterial({color:0x2e8b57})); row.position.set(i*.85,.18,0); g.add(row); }
+  }else if(type==='house'){
+    const body=new THREE.Mesh(new THREE.BoxGeometry(6,3.4,6),woodMat); body.position.y=1.7; g.add(body);
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(5.2,2.4,4),new THREE.MeshStandardMaterial({color:0x773322})); roof.position.y=4; roof.rotation.y=Math.PI/4; g.add(roof);
+    const door=new THREE.Mesh(new THREE.BoxGeometry(1.2,2,.12),darkWood); door.position.set(0,1,3.05); g.add(door);
+  }else if(type==='chest'){
+    const box=new THREE.Mesh(new THREE.BoxGeometry(1.6,.9,1.1),darkWood); box.position.y=.45; g.add(box);
+    const lid=new THREE.Mesh(new THREE.BoxGeometry(1.72,.18,1.2),woodMat); lid.position.y=.98; g.add(lid);
+    const band=new THREE.Mesh(new THREE.BoxGeometry(.16,1.05,1.24),stoneMat); band.position.y=.55; g.add(band);
+  }else if(type==='torch'){
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(.05,.06,1.8,8),woodMat); pole.position.y=.9; pole.rotation.z=.18; g.add(pole);
+    const flame=new THREE.Mesh(new THREE.SphereGeometry(.18,10,8),new THREE.MeshBasicMaterial({color:0xffaa22})); flame.position.set(.18,1.78,0); g.add(flame);
+    const light=new THREE.PointLight(0xffaa55,1.2,18); light.position.copy(flame.position); g.add(light);
+  }else if(type==='campfire'){
+    for(let i=0;i<5;i++){ const log=new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,1.2,8),woodMat); log.rotation.z=Math.PI/2; log.rotation.y=i*Math.PI/5; log.position.y=.16; g.add(log); }
+    const flame=new THREE.Mesh(new THREE.ConeGeometry(.35,.75,12),new THREE.MeshBasicMaterial({color:0xff7a22,transparent:true,opacity:.85})); flame.position.y=.65; g.add(flame);
+    const light=new THREE.PointLight(0xff8844,1.6,22); light.position.y=1.0; g.add(light);
+  }else if(type==='bed'){
+    const frame=new THREE.Mesh(new THREE.BoxGeometry(2.2,.35,3.2),woodMat); frame.position.y=.25; g.add(frame);
+    const mat=new THREE.Mesh(new THREE.BoxGeometry(2,.25,2.7),clothMat); mat.position.y=.58; g.add(mat);
+    const pillow=new THREE.Mesh(new THREE.BoxGeometry(1.5,.22,.55),new THREE.MeshStandardMaterial({color:0xffffff})); pillow.position.set(0,.82,1.0); g.add(pillow);
+  }
+  return g;
+}
+window.openBuildMenu=openBuildMenu;
+window.buildObject=buildObject;
 
 function teachNearest(){
   const npc = findNearestNPC();
@@ -1196,7 +1312,7 @@ function press(actionButton){
   else if(a==="talk"){ const npc=findNearestNPC(); npc?talkTo(npc):showDialog("近くに会話相手がいません。",1400); }
   else if(a==="gather") gatherNearest();
   else if(a==="attack") attackNearest();
-  else if(a==="build") buildHouse();
+  else if(a==="build") openBuildMenu();
   else if(a==="teach") teachNearest();
   else if(a==="storage") openStorageCommand();
   else if(a==="cancel"){ selected=null; commandTarget=null; teachingMode=false; showDialog("キャンセル",1000); }
@@ -1208,7 +1324,8 @@ function setupUI(){
   document.getElementById("settingsBtn").onclick=()=>settings.classList.toggle("hidden");
   document.getElementById("zoomInBtn").onclick=()=>{ inputProfile="SMARTPHONE"; zoom*=.82; zoom=clamp(zoom,.35,290); };
   document.getElementById("zoomOutBtn").onclick=()=>{ inputProfile="SMARTPHONE"; zoom*=1.22; zoom=clamp(zoom,.35,290); };
-  document.getElementById("houseBtn").onclick=buildHouse;
+  document.getElementById("houseBtn").onclick=()=>buildObject("house");
+  document.getElementById("buildMenuBtn").onclick=openBuildMenu;
   document.getElementById("teachBtn").onclick=teachNearest;
   document.getElementById("inventoryBtn").onclick=()=>showInventory();
   document.getElementById("btnA").onclick=()=>press("A");

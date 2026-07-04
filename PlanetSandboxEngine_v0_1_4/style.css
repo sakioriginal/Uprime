@@ -27,3 +27,5 @@ button:active{transform:scale(.96);background:#31577c}
 .command-popup{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#000d;border:1px solid #ffffff30;border-radius:14px;z-index:80;padding:12px;min-width:230px;max-width:88vw;box-shadow:0 8px 40px #000a;backdrop-filter:blur(10px);font-size:13px}.command-popup h3{margin:0 0 8px;font-size:15px}.command-popup button{font-size:13px;margin:4px;padding:8px 10px}.command-popup .close{float:right;background:#633}
 #inventoryBtn{background:#264b3f}
 @media(max-width:700px){#topbar{max-width:72vw}#hud{font-size:13px;max-width:55vw}.mini-panel{font-size:10px;max-width:47vw}.list-panel{width:150px}.act{font-size:22px}.stick{width:118px;height:118px}.knob{left:34px;top:34px;width:50px;height:50px}#pad{right:22px;bottom:166px}}
+
+.build-grid{display:grid;grid-template-columns:repeat(2,minmax(90px,1fr));gap:6px;margin-top:8px}.build-grid button{text-align:center}

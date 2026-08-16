@@ -1,19 +1,18 @@
-html,body{margin:0;overflow:hidden;background:#07101c;color:white;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:none;user-select:none}
-canvas{display:block}
-#hud{position:fixed;top:10px;left:10px;background:#0009;padding:10px 12px;border-radius:12px;z-index:10;font-size:13px;line-height:1.45;max-width:64vw;backdrop-filter:blur(6px)}
-#topbar{position:fixed;top:10px;right:10px;z-index:30;display:flex;gap:6px}
-button{border:0;border-radius:12px;background:#22384f;color:white;font-size:16px;padding:9px 12px;box-shadow:0 2px 10px #0005}
-button:active{transform:scale(.96);background:#31577c}
-.panel{position:fixed;right:10px;top:60px;background:#000c;padding:12px;border-radius:12px;z-index:40;font-size:13px;line-height:1.8;backdrop-filter:blur(8px)}
-.panel select{font-size:13px;margin:3px;padding:4px;border-radius:8px}
-.hidden{display:none!important}
-#dialog{position:fixed;left:50%;bottom:178px;transform:translateX(-50%);background:#000c;padding:12px 14px;border-radius:14px;z-index:50;max-width:82vw;font-size:14px;line-height:1.5;backdrop-filter:blur(8px)}
-.stick{position:fixed;bottom:25px;width:130px;height:130px;border-radius:50%;background:#ffffff22;border:1px solid #ffffff55;z-index:20;touch-action:none;box-shadow:inset 0 0 25px #fff1}
-#moveStick{left:25px}#lookStick{right:25px}
-.stick span{position:absolute;top:-24px;left:0;right:0;text-align:center;font-size:12px;color:#ddd;text-shadow:0 1px 4px #000}
-.knob{position:absolute;left:38px;top:38px;width:54px;height:54px;border-radius:50%;background:#ffffff88;box-shadow:0 0 16px #0006}
-#pad{position:fixed;right:28px;bottom:165px;width:150px;height:150px;z-index:25}
-.act{position:absolute;width:54px;height:54px;border-radius:50%;background:#2d4568;font-weight:700}
-.primary{background:#2f6cff!important}
-#btnY{left:48px;top:0}#btnX{left:0;top:48px}#btnB{right:0;top:48px}#btnA{left:48px;bottom:0}
-@media (pointer:fine){.stick,#pad{opacity:.75}}
+# Universe Engine Relay Server
+
+PC/スマホ/タブレットを同じUniverse Engine Roomへ接続するWebSocket Relayです。
+
+## ローカルLAN
+```bash
+cd server
+npm install
+npm start
+```
+既定ポートは8787。PCが `192.168.1.10` の場合、別端末は `ws://192.168.1.10:8787` へ接続します。
+
+## Render
+リポジトリルートの `render.yaml` からWeb Serviceとしてデプロイできます。
+Render URLが `https://example.onrender.com` の場合、Universe EngineのRelay URLには `wss://example.onrender.com` を指定します。
+
+## Health check
+`GET /health` は `{ ok: true, ... }` を返します。

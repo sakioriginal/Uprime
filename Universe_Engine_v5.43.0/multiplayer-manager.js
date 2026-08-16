@@ -29,14 +29,16 @@ export class MultiplayerManager{
     this.state=state;this.scene=scene;this.serializeProject=serializeProject;this.applyProject=applyProject;
     this.onStatus=onStatus;this.onPeers=onPeers;this.onGameEvent=onGameEvent;this.clientId=makeClientId();this.socket=null;this.room='';this.name='Player';this.isHost=false;
     this.connected=false;this.applyingRemote=false;this.lastCanonical='';this.lastSeq=0;this.peers=new Map();this.remoteVisuals=new Map();this.playMode='coop';this.team='A';
-    this._lastConnectOptions=null;this._manualDisconnect=false;this._reconnectTimer=null;this._reconnectAttempt=0;this._lastPresenceSentAt=0;this._lastRxAt=0;
+    this._lastConnectOptions=null;this._manualDisconnect=false;this._reconnectTimer=null;this._reconnectAttempt=0;this._lastPresenceSentAt=0;this._lastRxAt=0;this._lastPeerUiAt=0;this._peerUiDirty=false;
     // v5.44: realtime movement is lightweight presence; full world snapshots are slow background saves only.
-    this._pollTimer=setInterval(()=>this._pollSharedState(),30000);
-    this._presenceTimer=setInterval(()=>this._sendPresence(),100);
+    // v5.45: do not serialize/rebuild the whole world during realtime play. Shared world saves are explicit.
+    this._pollTimer=null;
+    this._presenceTimer=setInterval(()=>this._sendPresence(),80);
     this._keepAliveTimer=setInterval(()=>this._keepAlive(),10000);
-    this._visualTimer=setInterval(()=>this._interpolateRemoteVisuals(),33);
+    this._peerUiTimer=setInterval(()=>this._flushPeerUi(),750);
+    this._visualRaf=0;this._startVisualLoop();
   }
-  destroy(){clearInterval(this._pollTimer);clearInterval(this._presenceTimer);clearInterval(this._keepAliveTimer);clearInterval(this._visualTimer);clearTimeout(this._reconnectTimer);this.disconnect();}
+  destroy(){if(this._pollTimer)clearInterval(this._pollTimer);clearInterval(this._presenceTimer);clearInterval(this._keepAliveTimer);clearInterval(this._peerUiTimer);if(this._visualRaf)cancelAnimationFrame(this._visualRaf);clearTimeout(this._reconnectTimer);this.disconnect();}
   connect({url,room,name,wantsHost=false,playMode='coop',team='A'}={}){
     this._manualDisconnect=false;clearTimeout(this._reconnectTimer);
     this._lastConnectOptions={url:String(url||''),room,name,wantsHost:!!wantsHost,playMode,team};
@@ -85,21 +87,21 @@ export class MultiplayerManager{
     if(msg.type==='welcome'){
       this.connected=true;this.isHost=!!msg.isHost;this.lastSeq=msg.hasSnapshot?Math.max(0,Number(msg.seq||0)-1):Number(msg.seq||0);
       this.peers.clear();for(const p of msg.peers||[])if(p.clientId!==this.clientId)this.peers.set(p.clientId,p);
-      this._emitPeers();this.onStatus(`${this.room} に接続 / ${this.isHost?'HOST':'GUEST'} / ${this.peers.size+1}人`,'ok');
+      for(const presence of msg.presences||[])if(presence?.clientId&&presence.clientId!==this.clientId)this._ingestPresence(presence,false);
+      this._emitPeers(true);this.onStatus(`${this.room} に接続 / ${this.isHost?'HOST':'GUEST'} / ${this.peers.size+1}人`,'ok');
       if(this.isHost&&!msg.hasSnapshot)this.publishNow();this._sendPresence(true);return;
     }
     if(msg.type==='host-changed'){this.isHost=!!msg.isHost;this._emitPeers();this.onStatus(this.isHost?'HOST権限を引き継ぎました':'HOSTが変更されました','info');return;}
     if(msg.type==='peer-joined'){
-      if(msg.peer?.clientId&&msg.peer.clientId!==this.clientId)this.peers.set(msg.peer.clientId,msg.peer);this._emitPeers();
+      if(msg.peer?.clientId&&msg.peer.clientId!==this.clientId)this.peers.set(msg.peer.clientId,msg.peer);this._emitPeers(true);
       if(this.isHost&&!msg.hasSnapshot)this.publishNow();return;
     }
     if(msg.type==='peer-left'){
-      this.peers.delete(msg.clientId);this._removeRemoteVisual(msg.clientId);this._emitPeers();return;
+      this.peers.delete(msg.clientId);this._removeRemoteVisual(msg.clientId);this._emitPeers(true);return;
     }
     if(msg.type==='presence'){
       if(!msg.clientId||msg.clientId===this.clientId)return;
-      const previous=this.peers.get(msg.clientId)||{};this.peers.set(msg.clientId,{...previous,clientId:msg.clientId,name:msg.name||previous.name||'Player',playMode:msg.playMode||previous.playMode||this.playMode,team:msg.team||previous.team||'A',hp:Number(msg.hp??previous.hp??100),maxHp:Number(msg.maxHp??previous.maxHp??100),dead:!!msg.dead,kos:Number(msg.kos??previous.kos??0),deaths:Number(msg.deaths??previous.deaths??0),vehicleSeat:msg.vehicleSeat||null,carryIds:msg.carryIds||[],selection:msg.selection||[],primaryId:msg.primaryId||null});
-      this._updateRemoteVisual(msg);this._emitPeers();return;
+      this._ingestPresence(msg,true);return;
     }
     if(msg.type==='game-event'){this.onGameEvent(msg);return;}
     if(msg.type==='project-snapshot'){
@@ -138,7 +140,14 @@ export class MultiplayerManager{
     if(!force&&text===this._lastPresence&&now-this._lastPresenceSentAt<3000)return;
     this._lastPresence=text;this._lastPresenceSentAt=now;this._send(payload);
   }
-  _emitPeers(){this.onPeers([...this.peers.values()].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))))}
+  _ingestPresence(msg,markUi=true){
+    const previous=this.peers.get(msg.clientId)||{};
+    const next={...previous,clientId:msg.clientId,name:msg.name||previous.name||'Player',playMode:msg.playMode||previous.playMode||this.playMode,team:msg.team||previous.team||'A',hp:Number(msg.hp??previous.hp??100),maxHp:Number(msg.maxHp??previous.maxHp??100),dead:!!msg.dead,kos:Number(msg.kos??previous.kos??0),deaths:Number(msg.deaths??previous.deaths??0),vehicleSeat:msg.vehicleSeat||null,carryIds:msg.carryIds||[],selection:msg.selection||[],primaryId:msg.primaryId||null,lastSeenAt:Date.now()};
+    this.peers.set(msg.clientId,next);this._updateRemoteVisual(msg);if(markUi)this._peerUiDirty=true;
+  }
+  _emitPeers(force=false){if(!force){this._peerUiDirty=true;return}this._peerUiDirty=false;this._lastPeerUiAt=Date.now();this.onPeers([...this.peers.values()].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))))}
+  _flushPeerUi(){if(this._peerUiDirty)this._emitPeers(true)}
+  _startVisualLoop(){const tick=()=>{this._interpolateRemoteVisuals();this._visualRaf=requestAnimationFrame(tick)};this._visualRaf=requestAnimationFrame(tick)}
   _makeRemoteVisual(id,name){
     const group=new THREE.Group();group.name=`remote-player:${id}`;
     const body=new THREE.Mesh(new THREE.CapsuleGeometry(14,44,6,10),new THREE.MeshStandardMaterial({roughness:.65,metalness:.02}));body.position.y=36;body.raycast=()=>{};group.add(body);
@@ -153,7 +162,7 @@ export class MultiplayerManager{
     const root=this.scene?.scene;if(root&&group.parent!==root)root.add(group);
     const wp=msg.worldPosition;let targetPos=null;if(Array.isArray(wp)&&wp.length>=3)targetPos=new THREE.Vector3(Number(wp[0])||0,Number(wp[1])||0,Number(wp[2])||0);
     else if(Array.isArray(msg.position)&&msg.position.length>=3)targetPos=new THREE.Vector3(Number(msg.position[0])||0,Number(msg.position[2])||0,Number(msg.position[1])||0);
-    if(targetPos){if(!group.userData.netReady){group.position.copy(targetPos);group.userData.netReady=true}group.userData.netTargetPosition=targetPos}
+    if(targetPos){if(!group.userData.netReady||group.position.distanceTo(targetPos)>5000){group.position.copy(targetPos);group.userData.netReady=true}group.userData.netTargetPosition=targetPos;group.userData.netUpdatedAt=performance.now()}
     if(Array.isArray(msg.worldQuaternion)&&msg.worldQuaternion.length>=4){const q=new THREE.Quaternion(...msg.worldQuaternion.map(Number));if(!group.userData.netQuaternionReady){group.quaternion.copy(q);group.userData.netQuaternionReady=true}group.userData.netTargetQuaternion=q}
     else{const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-(Number(msg.yaw)||0)*Math.PI/180);group.userData.netTargetQuaternion=q}
     group.visible=true;
@@ -162,7 +171,7 @@ export class MultiplayerManager{
     for(const group of this.remoteVisuals.values()){
       const root=this.scene?.scene;if(root&&group.parent!==root)root.add(group);
       const p=group.userData?.netTargetPosition,q=group.userData?.netTargetQuaternion;
-      if(p)group.position.lerp(p,.32);if(q)group.quaternion.slerp(q,.32);
+      if(p){const d=group.position.distanceTo(p);if(d>2500)group.position.copy(p);else group.position.lerp(p,d>250?.48:.24)}if(q)group.quaternion.slerp(q,.28);
     }
   }
   _removeRemoteVisual(id){const g=this.remoteVisuals.get(id);if(!g)return;g.traverse?.(o=>{o.geometry?.dispose?.();if(Array.isArray(o.material))o.material.forEach(m=>m?.dispose?.());else o.material?.dispose?.()});g.parent?.remove?.(g);this.remoteVisuals.delete(id)}

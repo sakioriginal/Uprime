@@ -4,29 +4,42 @@ export class MobileControls{
   setSpacecraftFlight(manager){this.spacecraftFlight=manager;return this}
 
   installMobileLayout(){
-    const isLandscape=()=>{
-      const angle=Number(screen?.orientation?.angle);
-      const byAngle=Number.isFinite(angle)&&(Math.abs(angle)%180===90);
-      const vv=window.visualViewport;
-      const w=vv?.width||window.innerWidth,h=vv?.height||window.innerHeight;
-      return byAngle||w>h;
+    const vvSize=()=>{const vv=window.visualViewport;return {w:Number(vv?.width||window.innerWidth||0),h:Number(vv?.height||window.innerHeight||0)}};
+    const legacyAngle=()=>{const a=Number(window.orientation);return Number.isFinite(a)?a:null};
+    const physicalLandscape=()=>{
+      const legacy=legacyAngle();if(legacy!==null&&Math.abs(legacy)%180===90)return true;
+      const a=Number(screen?.orientation?.angle);if(Number.isFinite(a)&&Math.abs(a)%180===90)return true;
+      const {w,h}=vvSize();return w>h;
+    };
+    const isTouchDevice=()=>{
+      const touch=(navigator.maxTouchPoints||0)>0||('ontouchstart' in window);
+      const mobileUA=/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent||'');
+      const coarse=window.matchMedia?.('(pointer: coarse)')?.matches||false;
+      return !!(touch&&(mobileUA||coarse||Math.min(screen?.width||9999,screen?.height||9999)<900));
     };
     const update=()=>{
-      const coarse=matchMedia?.('(pointer: coarse)')?.matches??false,land=isLandscape(),active=!!(coarse&&land);
+      const touch=isTouchDevice(),land=physicalLandscape(),{w,h}=vvSize();
+      const active=!!(touch&&land),forced=!!(active&&h>w);
+      document.body.classList.toggle('mobileTouch',touch);
       document.body.classList.toggle('mobileLandscapeGame',active);
-      document.documentElement.style.setProperty('--mobile-vw',`${window.visualViewport?.width||innerWidth}px`);
-      document.documentElement.style.setProperty('--mobile-vh',`${window.visualViewport?.height||innerHeight}px`);
+      document.body.classList.toggle('mobileForcedRotate',forced);
+      document.documentElement.style.setProperty('--mobile-vw',`${w}px`);
+      document.documentElement.style.setProperty('--mobile-vh',`${h}px`);
+      if(forced){document.documentElement.style.setProperty('--ue-forced-w',`${h}px`);document.documentElement.style.setProperty('--ue-forced-h',`${w}px`)}
       if(active){
         const dial=document.querySelector('#universalDialOverlay');
         if(dial&&!dial.dataset.mobileCollapsed){dial.classList.add('collapsed');dial.dataset.mobileCollapsed='1'}
         if(!document.body.dataset.mobileConsoleInit){document.body.classList.remove('consoleMobileOpen');document.body.dataset.mobileConsoleInit='1'}
       }
+      // iOS Safari can report the old viewport for a few frames after rotation.
+      requestAnimationFrame(()=>window.dispatchEvent(new CustomEvent('ue:mobile-layout',{detail:{touch,land,forced,w,h}})));
     };
-    update();
+    this._mobileLayoutUpdate=update;update();
     window.addEventListener('resize',update,{passive:true});
     window.visualViewport?.addEventListener?.('resize',update,{passive:true});
-    window.addEventListener('orientationchange',()=>setTimeout(update,80),{passive:true});
-    screen?.orientation?.addEventListener?.('change',()=>setTimeout(update,40));
+    window.addEventListener('orientationchange',()=>{setTimeout(update,30);setTimeout(update,180);setTimeout(update,500)},{passive:true});
+    screen?.orientation?.addEventListener?.('change',()=>{setTimeout(update,30);setTimeout(update,250)});
+    window.addEventListener('pageshow',()=>setTimeout(update,50),{passive:true});
   }
   installConsolePanel(){
     const panel=document.querySelector('#consolePanel'),toggle=document.querySelector('#consoleToggle'),handle=document.querySelector('#consoleResizeHandle');
@@ -41,12 +54,16 @@ export class MobileControls{
       toggle.textContent=collapsed?'⇧':'⇩';
       toggle.title=collapsed?'Consoleを復帰':'Consoleを折り畳む';
     };
-    toggle.addEventListener('click',e=>{
-      e.preventDefault();e.stopPropagation();
+    if(toggle.dataset.ueConsoleBound==='1'){sync();return;}
+    toggle.dataset.ueConsoleBound='1';
+    const toggleConsole=e=>{
+      e?.preventDefault?.();e?.stopPropagation?.();
       if(document.body.classList.contains('mobileLandscapeGame'))document.body.classList.toggle('consoleMobileOpen');
       else document.body.classList.toggle('consoleCollapsed');
       sync();setTimeout(()=>window.dispatchEvent(new Event('resize')),20);
-    });
+    };
+    toggle.style.pointerEvents='auto';toggle.style.touchAction='manipulation';
+    toggle.addEventListener('click',toggleConsole);
     let pid=null,startY=0,startH=0;
     const move=e=>{
       if(pid!==e.pointerId)return;

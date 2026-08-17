@@ -1,0 +1,9 @@
+import * as THREE from 'three';
+export class PlacementManager{
+  constructor(state,scene,canvas,onChange=()=>{}){this.state=state;this.scene=scene;this.canvas=canvas;this.onChange=onChange;this.enabled=false;this.dragging=false;this._down=e=>this.down(e);this._move=e=>this.move(e);this._up=()=>this.up();canvas.addEventListener('pointerdown',this._down,true);canvas.addEventListener('pointermove',this._move,true);addEventListener('pointerup',this._up,true)}
+  setEnabled(v){this.enabled=!!v;this.canvas.style.cursor=this.enabled?'grab':'';return this.enabled}
+  primary(){return this.state.primary?.()||this.state.objects.find(o=>o.id===this.state.primaryId)}
+  down(e){const part=this.primary();if(!this.enabled||e.button!==0||!part||part.locked)return;this.dragging=true;this.canvas.setPointerCapture?.(e.pointerId);e.preventDefault();e.stopImmediatePropagation()}
+  move(e){if(!this.enabled||!this.dragging)return;const part=this.primary();if(!part)return;const rect=this.canvas.getBoundingClientRect(),pointer=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);this.scene.raycaster.setFromCamera(pointer,this.scene.camera);const targets=[...(this.scene.workspacePlacementSurfaces||[]),...this.state.objects.filter(o=>o!==part&&o.visible!==false).map(o=>o.mesh).filter(Boolean)];const hit=this.scene.raycaster.intersectObjects(targets,true)[0];if(!hit)return;const bounds=this.scene.partBounds(part),halfZ=(bounds.max[2]-bounds.min[2])*(part.scale?.[2]||1)/2;const cad=this.scene.worldPointToCad?this.scene.worldPointToCad(hit.point):[hit.point.x,hit.point.z,hit.point.y];part.position=[cad[0],cad[1],cad[2]+halfZ];this.scene.sync(part);this.onChange(false);e.preventDefault();e.stopImmediatePropagation()}
+  up(){if(this.dragging){this.dragging=false;this.onChange(true)}if(this.enabled)this.canvas.style.cursor='grab'}
+}

@@ -1,3 +1,0 @@
-
-export function createGroup(state,name){const members=state.selectedObjects();if(members.length<2)throw new Error("2つ以上選択してください");const id=`group-${Date.now()}`;const groupCode=`G${String(state.groups.length+1).padStart(3,"0")}`;const g={id,groupCode,name:name||"Group",memberIds:members.map(o=>o.id)};state.groups.push(g);members.forEach(o=>{o.groupId=id;o.groupCode=groupCode});return g}
-export function ungroup(state){const ids=new Set(state.selectedObjects().map(o=>o.groupId).filter(Boolean));state.groups=state.groups.filter(g=>!ids.has(g.id));state.objects.forEach(o=>{if(ids.has(o.groupId)){o.groupId=null;o.groupCode=null}});return ids.size}

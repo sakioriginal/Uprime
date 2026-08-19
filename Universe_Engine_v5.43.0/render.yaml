@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: universe-engine-relay
-    runtime: node
-    rootDir: server
-    buildCommand: npm install
-    startCommand: npm start
-    healthCheckPath: /health
-    autoDeploy: true

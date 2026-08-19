@@ -5,9 +5,9 @@ export class MobileGameUI{
   ensureState(){
     this.state.controls=this.state.controls||{};
     const defaults=[
-      {label:'JUMP',action:'jump'},{label:'USE',action:'interact'},{label:'INV',action:'inventory'},{label:'VIEW',action:'view'}
+      {label:'VIEW',action:'view'},{label:'USE',action:'interact'},{label:'JUMP',action:'jump'},{label:'INV',action:'inventory'}
     ];
-    if(!Array.isArray(this.state.controls.mobileActions))this.state.controls.mobileActions=defaults;
+    if(!Array.isArray(this.state.controls.mobileActions)||Number(this.state.controls.mobileLayoutVersion||0)<2){this.state.controls.mobileActions=defaults.map(x=>({...x}));this.state.controls.mobileLayoutVersion=2;}
     while(this.state.controls.mobileActions.length<4)this.state.controls.mobileActions.push(defaults[this.state.controls.mobileActions.length]);
     this.state.controls.mobileHud=this.state.controls.mobileHud!==false;
   }
@@ -61,7 +61,7 @@ export class MobileGameUI{
   icon(it){if(it?.type==='workbench')return '▣';if(it?.type==='weapon')return '⚔️';if(it?.type==='tool')return '🔧';if(it?.type==='consumable'||it?.type==='food')return '🍎';if(it?.type==='equipment')return '🛡️';return '◆'}
   openCraft(){this.renderCraft();this.$('#mobileCraftDialog')?.classList.add('show')}
   renderCraft(){const root=this.$('#mobileCraftList');if(!root||!this.itemCrafting)return;const recipes=this.itemCrafting.recipes(),res=this.itemCrafting.resources();const rr=this.$('#mobileCraftResources');if(rr)rr.textContent=`木 ${res.wood||0} / 石 ${res.stone||0} / 鉄鉱石 ${res.ironOre||0} / 鉄 ${res.iron||0} / 繊維 ${res.fiber||0} / 木材 ${res.plank||0} / 石材 ${res.stoneBlock||0} / 機械部品 ${res.metalPart||0}`;root.innerHTML=recipes.map(r=>`<div class="mobileInventoryItem"><b>${r.icon||'◆'} ${this.escape(r.name)}</b><small>${Object.entries(r.cost||{}).map(([k,v])=>`${k}:${v}`).join(' / ')}</small><button data-craft="${r.id}" ${this.itemCrafting.canCraft(r.id)?'':'disabled'}>${r.station==='workbench'?'作業台で加工':'クラフト'}</button></div>`).join('');root.querySelectorAll('[data-craft]').forEach(b=>b.onclick=()=>{this.itemCrafting.craft(b.dataset.craft);this.renderCraft();this.renderHotbar()})}
-  renderActions(){this.ensureState();this.root.querySelectorAll('.mobileActionBtn').forEach((b,i)=>{const a=this.state.controls.mobileActions[i];b.textContent=a?.label||`A${i+1}`;b.dataset.action=a?.action||''})}
+  renderActions(){this.ensureState();const keys=['Y','B','A','X'];this.root.querySelectorAll('.mobileActionBtn').forEach((b,i)=>{const a=this.state.controls.mobileActions[i];b.innerHTML=`<b>${keys[i]}</b><small>${this.escape(a?.label||'ACTION')}</small>`;b.dataset.action=a?.action||''})}
   render(){this.renderActions();this.renderHotbar();this.renderCombatHud();const hud=this.$('#mobileGameHud');if(hud)hud.classList.toggle('hidden',this.state.controls.mobileHud===false)}
   renderCombatHud(){const g=this.state.multiplayer?.gameplay||{},hp=Number(g.hp??100),max=Math.max(1,Number(g.maxHp??100)),mode=this.state.multiplayer?.playMode==='versus'?`VS / ${this.state.multiplayer?.team||'A'}`:'CO-OP';const t=this.$('#mobileHpText'),f=this.$('#mobileHpFill'),m=this.$('#mobileModeLabel');if(t)t.textContent=`HP ${Math.round(hp)}/${Math.round(max)}${g.dead?' DOWN':''}`;if(f)f.style.width=`${Math.max(0,Math.min(100,hp/max*100))}%`;if(m)m.textContent=mode}
   escape(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}

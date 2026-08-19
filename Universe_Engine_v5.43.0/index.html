@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%2317222f%22/><path d=%22M12 46V18h8l12 17 12-17h8v28h-8V30L32 47 20 30v16z%22 fill=%22%2388a9bf%22/></svg>">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111820">
+<title>Universe Engine Mechanical Modeler v5.49.0 UI Customizer / RTS Share</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+:root{--bg:#0e141b;--panel:#17212c;--panel2:#111922;--line:#344454;--text:#e8f0f6;--muted:#91a4b4;--accent:#53a9ee;--green:#4dc58a;--danger:#d85d68}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+button,input,select{font:inherit;color:inherit;background:#1b2936;border:1px solid var(--line);border-radius:7px;padding:7px 9px}
+button{cursor:pointer}button:hover{border-color:var(--accent)}button.active{background:#315f85}
+#app{display:grid;grid-template-rows:auto minmax(0,1fr) var(--console-height,104px);height:100%}
+.top{display:flex;gap:5px;align-items:center;padding:7px;background:var(--panel);border-bottom:1px solid var(--line);overflow:auto}.top button{min-width:38px;height:40px;padding:5px 8px;font-size:0;position:relative}.top button .ribbonIcon{font-size:19px;line-height:1}.top button::after{content:attr(data-tooltip);position:fixed;z-index:3000;pointer-events:none;background:#081018;color:#eef7ff;border:1px solid #496276;border-radius:6px;padding:5px 8px;font-size:12px;white-space:nowrap;opacity:0;transform:translate(-50%,46px);transition:opacity .12s}.top button:hover::after{opacity:1}.top .chip{white-space:nowrap}
+.workspace{position:relative;display:grid;grid-template-columns:var(--left-width,260px) 6px minmax(0,1fr) 6px var(--right-width,300px);min-height:0}.workspace.leftCollapsed{grid-template-columns:0 0 minmax(0,1fr) 6px var(--right-width,300px)}.workspace.rightCollapsed{grid-template-columns:var(--left-width,260px) 6px minmax(0,1fr) 0 0}.workspace.leftCollapsed.rightCollapsed{grid-template-columns:0 0 minmax(0,1fr) 0 0}
+.panel{background:var(--panel);overflow:auto;padding:10px;min-width:0}.panel.left{border-right:1px solid var(--line);grid-column:1}.panel.right{border-left:1px solid var(--line);grid-column:5}.workspace.leftCollapsed .panel.left,.workspace.rightCollapsed .panel.right{display:none}.panelHeader{display:flex;align-items:center;gap:6px;position:sticky;top:-10px;background:var(--panel);z-index:2;padding:6px 0}.panelHeader h3{margin:0;flex:1}.panelCollapse{padding:3px 7px}.splitter{background:#22313e;cursor:col-resize;touch-action:none}.splitter:hover,.splitter.dragging{background:var(--accent)}#leftSplitter{grid-column:2}#rightSplitter{grid-column:4}
+#viewport{position:relative;min-width:0;min-height:0}canvas{display:block;width:100%;height:100%}
+.bottom{position:relative;display:grid;grid-template-columns:minmax(220px,1fr) auto auto auto;gap:8px;padding:10px 6px 6px;background:var(--panel);border-top:1px solid var(--line);font-size:12px;align-items:center;height:var(--console-height,104px);min-height:34px;overflow:hidden}.consoleResizeHandle{position:absolute;left:0;right:0;top:0;height:7px;cursor:ns-resize;touch-action:none;background:transparent}.consoleResizeHandle:hover,.consoleResizeHandle.dragging{background:#53a9ee66}.consoleToggle{position:absolute;right:7px;top:7px;z-index:4;width:30px;height:28px;padding:0;border-radius:7px;font-size:17px;line-height:1}.consoleCollapsed #app{grid-template-rows:auto minmax(0,1fr) 34px}.consoleCollapsed .bottom{height:34px;padding:3px 40px 3px 6px;display:block}.consoleCollapsed .bottom>.commandConsole,.consoleCollapsed .bottom>#status,.consoleCollapsed .bottom>#selectionHud,.consoleCollapsed .bottom>#subSelectionHud,.consoleCollapsed .bottom>.versionChip,.consoleCollapsed .consoleResizeHandle{display:none}.consoleCollapsed .consoleToggle{top:3px;right:7px}.consoleCollapsed .bottom::before{content:"Console";color:#79c9ff;font:700 11px ui-monospace,monospace;line-height:27px;opacity:.85}.commandLine{display:flex;align-items:center;gap:6px;min-width:0}.commandPrompt{color:#72c1f4;font-family:ui-monospace,monospace;font-weight:700}.commandInput{width:100%;padding:5px 8px;font-family:ui-monospace,monospace;background:#0d1720}
+.treeBranchHeader,.treeItem,.groupHeader{display:flex;gap:6px;align-items:center;padding:7px;border:1px solid transparent;border-radius:7px;margin-bottom:4px}
+.treeBranchHeader:hover,.treeItem:hover,.groupHeader:hover{background:#1d2b37}.treeItem.selected{border-color:var(--accent);background:#17354c}.treeItem.multi{border-color:var(--green);background:#153226}.treeItem.hidden{opacity:.45}
+.treeItem .name,.groupHeader .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.selectionMode.active{background:#315f85;border-color:#73bff5}
+.selectionInfo{display:grid;grid-template-columns:110px 1fr;gap:6px;font-size:12px}
+.selectionInfo strong{color:#a9ddff}
+.featureTree{display:grid;gap:5px;margin-top:8px}
+.featureNode{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:5px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:7px;background:#111922}
+.featureNode.selected{border-color:#58a9e8;background:#16354b}
+.featureNode.suppressed{opacity:.45}
+.featureNode.dirty{border-left:3px solid #d59a3a}
+.featureNode.rollback{box-shadow:0 0 0 2px #8e6cdb inset}
+.featureNode button{padding:3px 6px;min-width:28px}
+.featureStatus{font-size:10px;color:var(--muted)}
+.rollbackBar{height:6px;border-radius:999px;background:#273746;margin:8px 0;position:relative}
+.rollbackHandle{position:absolute;top:-5px;width:12px;height:16px;border-radius:4px;background:#8f72d9;transform:translateX(-50%)}
+.featureEditorGrid{display:grid;grid-template-columns:120px 1fr;gap:7px;align-items:center}
+.edgeFeatureNote{padding:8px;border:1px solid #705d2d;background:#2b2516;border-radius:8px;color:#ffd98c;font-size:12px;line-height:1.5}
+.edgeToken{display:inline-block;padding:2px 5px;margin:2px;border:1px solid #5e7890;border-radius:5px;font-size:10px}
+.ruleStatus{padding:8px;border:1px solid var(--line);border-radius:8px;background:#111922;font-size:12px}
+.faceToken{display:inline-block;padding:2px 6px;border:1px solid #4f8f74;border-radius:5px;color:#9ee9c4;font-size:10px}
+.sketchToolbar{position:absolute;left:12px;top:12px;display:none;gap:6px;flex-wrap:wrap;z-index:20;max-width:min(90%,760px)}
+.sketchToolbar.show{display:flex}
+.sketchToolbar button.active{background:#356f93}
+.sketchHud{position:absolute;left:12px;bottom:12px;display:none;padding:7px 10px;background:#121b24e8;border:1px solid var(--line);border-radius:8px;font-size:12px;z-index:20}
+.sketchHud.show{display:block}
+.profileBadge{padding:2px 6px;border:1px solid #42835f;border-radius:999px;color:#9be7b8}
+.constraintBadge{display:inline-block;padding:1px 5px;margin-left:4px;border-radius:4px;border:1px solid #6e7690;color:#cbd2ff;font-size:10px}
+.constraintStatus{color:#79dca3}
+.constraintConflict{color:#ff7a83}
+.dimensionLabel{padding:2px 5px;border-radius:4px;background:#0d1720dd;border:1px solid #5b7890;color:#e7f4ff;font-size:11px}
+.profileList{display:grid;gap:7px}
+.profileItem{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:7px;background:#111922}
+.profileItem.selected{border-color:#55b88a;background:#16382a}
+.profileIcon{font-size:22px}
+.profileWarning{padding:7px;border:1px solid #7c642c;background:#2c2515;border-radius:7px;color:#ffdc91;font-size:11px}
+.profileError{padding:7px;border:1px solid #7f3940;background:#2c171a;border-radius:7px;color:#ffabb2;font-size:11px}
+.loopPreview{font-size:10px;color:var(--muted);word-break:break-all}
+.booleanGrid{display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center}
+.booleanOperand{padding:8px;border:1px solid var(--line);border-radius:7px;background:#111922}
+.booleanPreview{padding:8px;border:1px solid #765c2c;background:#2b2415;border-radius:7px;color:#ffdc91;font-size:12px;line-height:1.5}
+.bodyBadge{display:inline-block;padding:2px 6px;border:1px solid #5682a2;border-radius:999px;font-size:10px;margin-left:4px}
+.mini{padding:3px 6px;min-width:28px}
+.section{border:1px solid var(--line);border-radius:9px;padding:9px;margin-bottom:9px;background:var(--panel2)}.section h3{font-size:13px;margin:0 0 8px}
+.field{display:grid;grid-template-columns:110px 1fr;gap:7px;align-items:center;margin-bottom:7px}.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.empty,.help{color:var(--muted);font-size:12px}.chip{padding:3px 7px;border:1px solid var(--line);border-radius:999px}
+.dialog{position:fixed;inset:0;background:#0009;display:none;place-items:center;z-index:1000}.dialog.show{display:grid}
+.dialogCard{width:min(94vw,720px);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}
+.multiStatus{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#101923;margin:8px 0}.multiStatus[data-type="ok"]{border-color:#3d7d5a}.multiStatus[data-type="error"]{border-color:#a45353}.multiPeer{display:flex;justify-content:space-between;gap:10px;padding:7px 8px;border-bottom:1px solid #263746}.multiPeer:last-child{border-bottom:0}.multiPeer b{font-weight:600}.multiPeer span{font-size:11px;color:#9fb0bc}.multiPeer.self b{color:#dcecff}.multiHint{font-size:11px;color:#9fb0bc;line-height:1.55}.multiQrBox{margin:12px 0;padding:12px;border:1px solid #355064;border-radius:10px;background:#0e1720;text-align:center}.multiQrBox canvas{display:block;max-width:min(280px,78vw);height:auto;margin:8px auto;background:#fff;border-radius:8px}.multiQrBox input{width:100%;box-sizing:border-box;margin-top:8px;font-size:11px}.multiQrTitle{font-weight:700;margin-bottom:4px}.multiQrHelp{font-size:11px;color:#9fb0bc;line-height:1.5}
+
+.transformGrid{display:grid;gap:8px;align-items:center}
+.transformDock{pointer-events:none;background:transparent;place-items:center end;padding:8px}.transformDock .dialogCard{pointer-events:auto;width:300px;max-width:34vw;max-height:82vh;box-shadow:0 12px 40px #000b;padding:9px;margin-right:8px}.transformDock .transformHeader{align-items:stretch}.transformDock .transformToolTabs{width:100%}.transformDock .transformToolTabs button{flex:1}.transformDock .transformTable{grid-template-columns:46px minmax(72px,1fr);gap:5px}.transformDock .transformTable .transformSlider{grid-column:1/-1}.transformDock .transformNumber,.transformDock .tickSelect{min-width:0}.transformDock .transformGroupTitle{grid-column:1/-1}.transformDock .transformHelp{font-size:10px}
+.transformHeader{display:flex;gap:5px;align-items:center;flex-wrap:wrap}.transformHeader h2{margin:0 auto 0 0;font-size:15px}.transformHeader button{padding:5px 8px}.transformToolTabs{display:flex;gap:4px}.transformTool.active{background:#315f85}.pivotInfo{font-size:11px;color:var(--muted);padding:3px 7px;border:1px solid var(--line);border-radius:6px}
+.propertyModeTabs{display:flex;gap:5px;padding:6px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:3}.propertyModeTab{flex:1;padding:7px 6px}.propertyModeTab.active{background:#315f85}.propertyPane{display:none}.propertyPane.active{display:block}.propertyTransformPanel{padding:8px}.propertyTransformPanel .transformHeader{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.propertyTransformPanel .transformToolTabs{grid-column:1/-1}.propertyTransformPanel .transformToolTabs button{flex:1}.propertyTransformPanel .coord,.propertyTransformPanel .dragMode{min-width:0}.propertyTransformPanel .transformActions{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.propertyTransformPanel .transformTable{display:grid;grid-template-columns:1fr;gap:6px}.propertyTransformPanel .transformGroup{display:grid;grid-template-columns:44px minmax(0,1fr) 76px 62px;gap:5px;align-items:center}.propertyTransformPanel .transformSlider{min-width:0}.propertyTransformPanel .transformGroupTitle{margin-top:7px;padding-top:6px;border-top:1px solid var(--line);font-size:12px;color:var(--accent)}.propertyTransformPanel .transformHelp{font-size:10px;color:var(--muted);margin-top:7px}.propertyTransformPanel .pivotInfo{grid-column:1/-1;text-align:center}.propertyTransformPanel .transformDragModes{grid-column:1/-1;display:flex;gap:5px}.propertyTransformPanel .transformDragModes button{flex:1}.mateTypeGrid{display:grid;grid-template-columns:110px 1fr;gap:7px;align-items:center;margin-top:10px}.mateTypeGrid input,.mateTypeGrid select{width:100%}
+.transformTable{display:grid;grid-template-columns:56px minmax(150px,1fr) 106px 96px;gap:5px;align-items:center;margin-top:6px}.transformTable[data-tool="move"] .transformGroup[data-kind]:not([data-kind="position"]),.transformTable[data-tool="rotate"] .transformGroup[data-kind]:not([data-kind="rotation"]),.transformTable[data-tool="scale"] .transformGroup[data-kind]:not([data-kind="scale"]){display:none}
+.transformRowLabel{font-weight:700}.axisHint{font-size:11px;color:var(--muted);font-weight:400}.transformSlider{width:100%;padding:0;accent-color:var(--accent)}
+.transformNumber{text-align:right;font-variant-numeric:tabular-nums}.tickSelect{width:100%}.transformGroup{display:contents}.transformGroupTitle{grid-column:1/-1;color:#9ed8ff;font-size:12px;border-top:1px solid var(--line);padding-top:7px;margin-top:2px}
+.dragMode.active{background:#315f85}.transformHelp{font-size:11px;color:var(--muted);line-height:1.45}
+
+.treeBranchHeader{display:flex;gap:6px;align-items:center;padding:7px;border-radius:7px;margin-bottom:3px}.treeChildren{padding-left:18px}.treeBranch.collapsed>.treeChildren{display:none}.treeChevron{padding:1px 5px;min-width:24px}.datumItem,.sketchTreeItem{display:flex;align-items:center;gap:7px;padding:5px 7px;border-left:1px solid var(--line);font-size:12px}.datumItem span:nth-child(2),.sketchTreeItem .name{flex:1}.datumItem{cursor:pointer;border-radius:6px;margin-bottom:2px}.datumItem:hover{background:#1d2b37}.datumItem.selected{background:#17354c;box-shadow:inset 0 0 0 1px var(--accent)}.datumItem.hidden{opacity:.45}.axisX{color:#ff7d7d}.axisY{color:#78d79a}.axisZ{color:#73b8ff}.sketchTreeItem:hover{background:#1d2b37}.sketchTreeItem .help{font-size:10px}
+.commandConsole{display:grid;grid-template-rows:minmax(0,1fr) auto;min-width:0}.commandHistory{max-height:76px;overflow:auto;background:#0b131b;border:1px solid var(--line);border-bottom:0;border-radius:7px 7px 0 0;padding:4px 8px;font-family:ui-monospace,monospace;font-size:11px;line-height:1.45}.commandHistory:empty{display:none}.commandEntry{color:#a9bac8}.commandEntry.command{color:#79c9ff}.commandEntry.error{color:#ff8e97}.commandLine .commandInput{border-radius:0 7px 7px 0}.commandLine{background:#0d1720;border-radius:0 0 7px 7px}.sketchWindowTitle{width:100%;display:flex;align-items:center;gap:6px;font-weight:700;background:#0c151e;border:1px solid var(--line);padding:5px 8px;border-radius:7px}.sketchToolbar{background:#121d27eF;border:1px solid var(--line);border-radius:9px;padding:7px;box-shadow:0 8px 24px #0008}.sketchToolbar button{padding:5px 7px}.sketchCommandCode{font-family:ui-monospace,monospace;color:#79c9ff;font-size:10px}
+
+@media(max-width:720px){.transformDock .dialogCard{width:260px;max-width:72vw;max-height:76vh}.axisHint{display:none}}
+@media(max-width:900px){.workspace{grid-template-columns:1fr}.left,.right{position:fixed;top:56px;bottom:44px;width:min(88vw,330px);z-index:50;display:none}.left{left:0}.right{right:0}.left.show,.right.show{display:block}.top button{min-height:42px}.workspace{display:block}#viewport{height:100%}}
+.diagnosticList{display:grid;gap:6px}.diagnosticItem{padding:7px;border:1px solid var(--line);border-radius:7px;background:#111922}.diagnosticItem.warning{border-color:#7d6428;color:#ffdf98}.diagnosticItem.error{border-color:#813842;color:#ffadb4}.diagnosticItem.ok{border-color:#3d795a;color:#a5e4bf}.brepTree{display:grid;gap:6px}.brepNode{padding:7px;border:1px solid var(--line);border-radius:7px;background:#111922}.brepStats{display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:12px}.brepOk{color:#8de1ae}.brepError{color:#ff858f}.faceKernelGrid{display:grid;grid-template-columns:130px 1fr;gap:8px;align-items:center}
+.faceInfoCard{padding:8px;border:1px solid var(--line);border-radius:8px;background:#111922}
+.faceActionNote{padding:8px;border:1px solid #755f2f;border-radius:8px;background:#2b2415;color:#ffdc91;font-size:12px;line-height:1.5}
+.faceId{font-family:ui-monospace,monospace;color:#9ed8ff;font-size:11px;word-break:break-all}.edgeKernelGrid{display:grid;grid-template-columns:130px 1fr;gap:8px;align-items:center}
+.edgeInfoCard{padding:8px;border:1px solid var(--line);border-radius:8px;background:#111922}
+.edgeKernelNote{padding:8px;border:1px solid #725c2c;border-radius:8px;background:#2a2315;color:#ffdc91;font-size:12px;line-height:1.5}
+.edgeId{font-family:ui-monospace,monospace;color:#ffd277;font-size:11px;word-break:break-all}
+.edgeDiagnostic{padding:6px;border:1px solid var(--line);border-radius:6px;background:#111922}
+.edgeDiagnostic.error{border-color:#803842;color:#ffabb2}
+.edgeDiagnostic.warning{border-color:#80672d;color:#ffdc91}
+.edgeDiagnostic.ok{border-color:#3b7958;color:#a5e4bf}.rebuildLog{display:grid;gap:6px;max-height:360px;overflow:auto}
+.rebuildEntry{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:7px;border:1px solid var(--line);border-radius:7px;background:#111922}
+.rebuildEntry.clean{border-left:3px solid #4fbd7d}
+.rebuildEntry.dirty{border-left:3px solid #d6a447}
+.rebuildEntry.error{border-left:3px solid #df6671}
+.rebuildEntry.rebuilding{border-left:3px solid #5aa8dd}
+.historyList{display:grid;gap:6px;max-height:300px;overflow:auto}
+.historyItem{padding:7px;border:1px solid var(--line);border-radius:7px;background:#111922}
+.historyItem.current{border-color:#5aa8dd;background:#16334a}
+.rebuildStats{display:grid;grid-template-columns:130px 1fr;gap:6px;font-size:12px}
+.statusClean{color:#8de1ae}.statusDirty{color:#ffd17f}.statusError{color:#ff858f}.constraintRow{display:grid;grid-template-columns:110px 1fr 90px auto;gap:8px;align-items:center;padding:7px;border-bottom:1px solid #2b4152}.constraintRow .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.treeSubBranch{margin:2px 0 5px 8px}.treeSubHeader{display:flex;align-items:center;gap:6px;padding:4px 5px;border-radius:6px;font-size:11px;color:#b9cad7;cursor:pointer}.treeSubHeader:hover{background:#1d2b37}.treeSubHeader .name{flex:1}.treeSubChildren{padding-left:12px}.treeSubBranch.collapsed>.treeSubChildren{display:none}.datumTreeItem.hidden{opacity:.45}.datumTreeItem.selected{background:#17354c;box-shadow:inset 0 0 0 1px var(--accent)}
+
+.motionCard{width:min(1120px,96vw)}.motionToolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.motionToolbar input,.motionToolbar select{width:auto}.motionGrid{width:100%;border-collapse:collapse;font-size:12px}.motionGrid th,.motionGrid td{border:1px solid var(--line);padding:4px}.motionGrid th{background:#101c26;position:sticky;top:0}.motionGrid input,.motionGrid select{width:100%;min-width:70px;padding:4px}.motionGrid .expr{min-width:280px;font-family:ui-monospace,monospace}.motionGridWrap{max-height:48vh;overflow:auto}.motionHelp{font-size:11px;color:#9eb0bd;line-height:1.55;margin-top:8px}.motionNow{font-family:ui-monospace,monospace;color:#79c9ff}.motionError{color:#ff858f}.motionOk{color:#8de1ae}.motionTabs{display:flex;gap:6px;margin:8px 0}.motionTab.active{background:#1f6f9f}.motionPane{display:none}.motionPane.active{display:block}.sheetBar{display:flex;gap:6px;align-items:center;margin:6px 0}.sheetBar input{width:100%}.sheetWrap{max-height:48vh;overflow:auto;border:1px solid var(--line)}.sheetGrid{border-collapse:collapse;font-size:12px;min-width:900px}.sheetGrid th,.sheetGrid td{border:1px solid var(--line);padding:0}.sheetGrid th{background:#101c26;position:sticky;top:0;z-index:2;min-width:72px;height:24px}.sheetGrid .rowHead{position:sticky;left:0;z-index:1;background:#101c26;text-align:center;min-width:36px}.sheetCell{width:100%;min-width:72px;border:0;background:transparent;color:inherit;padding:5px;font-family:ui-monospace,monospace}.sheetCell:focus{outline:2px solid #4aa3df;background:#142432}
+.aliasTable{width:100%;border-collapse:collapse}.aliasTable th,.aliasTable td{border:1px solid var(--line);padding:5px}.aliasTable input{width:100%;font-family:ui-monospace,monospace}
+
+.spatialPanelLayer{position:absolute;inset:0;pointer-events:none;overflow:hidden}.spatialPanel{position:absolute;width:260px;min-height:160px;transform:translate(-50%,-50%);background:rgba(19,29,39,.94);border:1px solid #5a7385;border-radius:10px;box-shadow:0 10px 28px #0008;pointer-events:auto;z-index:15}.spatialPanel.node{border-color:#8b6fc0}.spatialPanelHead{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:#10202b;border-bottom:1px solid #344454;border-radius:10px 10px 0 0}.spatialPanelHead b{display:flex;gap:5px;align-items:center;width:100%}.spatialPanel .spTitle{width:100%;background:transparent;border:0;color:#eaf2f7;font-weight:700}.spatialPanel .spContent{box-sizing:border-box;width:100%;min-height:105px;resize:vertical;background:#111922;color:#dce7ef;border:0;padding:8px;font-family:inherit}.spatialPanel.node .spContent{font-family:ui-monospace,monospace}.spatialPanel .spFoot{font-size:10px;color:#91a2ad;padding:4px 8px}.spatialPanel .spClose{padding:2px 7px}.workspaceInfo{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center}.physicsGrid{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center}.dialogCard.wideCard{width:min(760px,94vw)}
+.avatarPositionHud.coordHudHidden{display:none!important}.avatarPositionHud{position:absolute;left:12px;top:12px;z-index:19;min-width:220px;padding:7px 9px;border:1px solid #47667b;border-radius:9px;background:rgba(8,16,23,.86);color:#d9e8f2;font:10px/1.45 ui-monospace,monospace;pointer-events:none;box-shadow:0 4px 16px #0007}.avatarPositionHud b{color:#79c9ff;font-size:11px}.avatarPositionHud .coordMuted{color:#8ea4b3}.avatarPositionHud .coordRow{display:flex;gap:8px;justify-content:space-between}.avatarPositionHud .coordRow span:last-child{color:#f0f7fb}
+.scaleHud{position:absolute;right:14px;top:14px;z-index:14;display:flex;gap:7px;align-items:center;flex-wrap:wrap;max-width:420px;background:rgba(10,18,25,.88);border:1px solid #3a5870;border-radius:9px;padding:7px 10px;pointer-events:none;font:11px ui-monospace,monospace;color:#c9d8e3;box-shadow:0 5px 18px #0007}.scaleHud b{color:#79c9ff;font-size:13px}.scaleHud span{padding:2px 6px;background:#142433;border-radius:5px}.scaleHud small{color:#8698a5}.worldModeButtons{display:inline-flex;gap:4px}
+
+.virtualControls{position:absolute;inset:0;pointer-events:none;z-index:18}.virtualStick{position:absolute;bottom:22px;width:118px;height:118px;border:1px solid #6e8ba1;border-radius:50%;background:#07111aaa;pointer-events:auto;touch-action:none;box-shadow:inset 0 0 0 2px #ffffff0d}.virtualStick.left{left:22px}.virtualStick.right{right:22px}.stickKnob{position:absolute;left:50%;top:50%;width:48px;height:48px;border-radius:50%;background:#7fc9ff88;border:1px solid #a9dcff;transform:translate(-50%,-50%);pointer-events:none}.stickLabel{position:absolute;left:50%;bottom:-19px;transform:translateX(-50%);font-size:10px;color:#9eb0bd;white-space:nowrap}.inventoryRow{display:grid;grid-template-columns:1.4fr .8fr 1fr auto auto;gap:7px;align-items:center;padding:7px;border-bottom:1px solid var(--line)}@media (pointer:fine){.virtualControls{opacity:.48}.virtualStick{width:100px;height:100px}}
+
+.creatorScalePanel{position:absolute;right:12px;top:54px;z-index:22;width:244px;max-height:calc(100% - 70px);overflow:auto;background:rgba(9,17,24,.90);border:1px solid #45657c;border-radius:12px;padding:8px;box-shadow:0 8px 28px #0009;display:block;font-size:11px;backdrop-filter:blur(6px)}.creatorScalePanel.show{display:block}.creatorScalePanel.collapsed{width:210px;max-height:42px;overflow:hidden}.creatorScalePanel.collapsed .creatorScaleBody{display:none}.creatorScaleTitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px}.creatorScaleTitle .titleActions{display:flex;align-items:center;gap:5px}.creatorScaleTitle button{min-width:28px;padding:2px 5px}.creatorScaleTitle span{color:#79c9ff;font-family:ui-monospace,monospace}.creatorScaleSlider{width:100%;accent-color:#62b8ef;opacity:.82}.creatorScaleControls{display:grid;grid-template-columns:40px 1fr 40px;gap:8px;align-items:center;margin:8px 0}.creatorScaleDial{--dial-angle:0deg;width:116px;height:116px;margin:auto;border-radius:50%;border:1px solid #62849b;position:relative;touch-action:none;cursor:grab;user-select:none;background:repeating-conic-gradient(from -3deg,#8ecfff 0 1deg,transparent 1deg 29deg),radial-gradient(circle at 50% 50%,transparent 0 49px,#213646 50px 57px,transparent 58px),radial-gradient(circle at 50% 45%,#243b4d,#0b151e 73%);box-shadow:inset 0 0 0 3px #ffffff08,0 5px 16px #0008}.creatorScaleDial:active{cursor:grabbing}.creatorScaleDial:before{content:"";position:absolute;left:50%;top:7px;width:4px;height:22px;background:#ffbd4a;transform-origin:50% 51px;transform:translateX(-50%) rotate(var(--dial-angle));border-radius:4px;box-shadow:0 0 6px #ffbd4a88}.creatorScaleDial i{position:absolute;inset:31px;border-radius:50%;background:#0d1b25;border:1px solid #5f8198;box-shadow:inset 0 0 12px #0008}.creatorScaleDial .dialReadout{position:absolute;left:50%;top:50%;width:74px;transform:translate(-50%,-50%);text-align:center;font:700 11px/1.25 ui-monospace,monospace;color:#dff4ff;pointer-events:none;z-index:2}.creatorScaleDial .dialHint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:9px;color:#8eb2c8;pointer-events:none;white-space:nowrap}.creatorScaleInput{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}.creatorScaleInput input{font-family:ui-monospace,monospace}.creatorScalePanel label{display:inline-flex;gap:4px;align-items:center;margin:7px 12px 0 0}.creatorScalePanel small{display:block;color:#8fa3b2;margin-top:7px;line-height:1.35}.creatorCalendar .row{display:grid;grid-template-columns:auto 1fr auto;gap:5px;align-items:center}.creatorCalendar input{min-width:0;width:100%;padding:5px 6px}.creatorCalendar small{text-align:center;margin-top:4px}.cameraFocusMarker{position:absolute;z-index:21;width:34px;height:34px;transform:translate(-50%,-50%);pointer-events:none;display:none;opacity:.78}.cameraFocusMarker.show{display:block}.cameraFocusMarker:before,.cameraFocusMarker:after{content:"";position:absolute;background:#9edcff;box-shadow:0 0 4px #07131d}.cameraFocusMarker:before{left:0;right:0;top:50%;height:1px}.cameraFocusMarker:after{top:0;bottom:0;left:50%;width:1px}.cameraFocusMarker span{position:absolute;inset:8px;border:1px solid #9edcff;border-radius:50%;box-shadow:0 0 4px #07131d}.cameraFocusMarker span:after{content:"";position:absolute;width:3px;height:3px;background:#9edcff;border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%)}.smartSnapMarker{position:absolute;z-index:30;display:none;transform:translate(-50%,-50%);pointer-events:none;padding:3px 6px 3px 22px;border-radius:999px;background:#111d27e8;border:1px solid #ffd35a;color:#fff3b5;font:10px ui-monospace,monospace;white-space:nowrap;box-shadow:0 2px 10px #000a}.smartSnapMarker.show{display:block}.smartSnapMarker:before{content:"";position:absolute;left:7px;top:50%;width:8px;height:8px;transform:translateY(-50%) rotate(45deg);border:1px solid #ffd35a;background:#16202a}.smartSnapMarker[data-type="vertex"]:before{border-radius:0}.smartSnapMarker[data-type="edge"]:before{border-radius:50%}.smartSnapMarker[data-type="face"]:before{width:10px;height:6px;transform:translateY(-50%)}.smartSnapMarker[data-type="center"]:before{border-radius:50%;background:#ffd35a}.smartSnapMarker[data-type="axis"]:before{width:11px;height:2px;transform:translateY(-50%)}.referenceMateMarker{position:absolute;z-index:31;display:none;transform:translate(-50%,-50%);pointer-events:none;padding:4px 7px 4px 24px;border-radius:999px;background:#111d27ef;font:10px ui-monospace,monospace;white-space:nowrap;box-shadow:0 2px 12px #000b}.referenceMateMarker.show{display:block}.referenceMateMarker:before{content:"";position:absolute;left:7px;top:50%;width:10px;height:10px;transform:translateY(-50%) rotate(45deg)}.referenceMateMarker[data-kind="source"]{border:1px solid #ff8a2b;color:#ffd1ad}.referenceMateMarker[data-kind="source"]:before{border:2px solid #ff8a2b;background:#44220b}.referenceMateMarker[data-kind="target"]{border:1px solid #ffd84f;color:#fff1a5}.referenceMateMarker[data-kind="target"]:before{border:2px solid #ffd84f;background:#413b0a}.mateStatus{font-family:ui-monospace,monospace;font-size:11px;line-height:1.55;padding:8px;border:1px solid #35566b;border-radius:8px;background:#0b1720}.mateStatus b{color:#ffb15f}.mateStatus em{color:#ffe47c;font-style:normal}
+
+.recipeList{display:grid;gap:8px;margin-top:10px;max-height:420px;overflow:auto}.recipeRow{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border:1px solid #365064;border-radius:8px;background:#16232c}.recipeThumb{width:150px;height:96px;border:1px solid #365064;border-radius:7px;background:#0c141b;object-fit:cover;display:block}.recipeThumbEmpty{width:150px;height:96px;border:1px dashed #365064;border-radius:7px;display:grid;place-items:center;opacity:.65}.recipeRow small{display:block;opacity:.72;margin-top:3px}.recipeActions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.recipeActions button{margin:0}.thumbMode{font-size:12px;padding:5px 7px}.thumbMode.active{outline:1px solid #73c7ff;background:#244c67}@media(max-width:760px){.recipeRow{grid-template-columns:96px 1fr}.recipeThumb,.recipeThumbEmpty{width:96px;height:72px}.recipeActions{grid-column:1/-1;justify-content:flex-start}}
+.referenceFrameBtn{display:flex;align-items:center;gap:5px;flex:1;justify-content:center}.referenceFrameBtn svg{width:54px;height:24px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}.referenceFrameBtn.active{color:#ffd277;border-color:#d7a84f}.referenceFrameBtn span{font-size:10px} .specialItem{grid-template-columns:18px 24px minmax(0,1fr) auto}.specialItem.selected{outline:1px solid #69b9ed;background:#23485f}.specialBranch>.treeBranchHeader{background:#152b3a}.modelBranch>.treeBranchHeader{background:#16242d}.selectionScope.active{background:#315f85}
+
+/* v5.12.9 Universal Dial overlay + collapsed panel edge handles */
+.universalDialOverlay{position:absolute;left:12px;top:12px;z-index:24;width:196px;background:rgba(9,17,24,.92);border:1px solid #45657c;border-radius:12px;padding:8px;box-shadow:0 8px 28px #0009;backdrop-filter:blur(6px);pointer-events:auto;font-size:11px}.universalDialOverlay.collapsed{width:178px;height:38px;overflow:hidden;padding-bottom:4px}.universalDialOverlay.collapsed .universalDialOverlayBody{display:none}.universalDialOverlayHeader{display:flex;align-items:center;gap:6px}.universalDialOverlayHeader b{flex:1;color:#79c9ff}.universalDialOverlayHeader button{min-width:28px;padding:2px 5px}.universalDialOverlay .universalDial{width:138px;height:138px;margin:7px auto}.universalDialOverlay .dialCenter{inset:27px}.universalDialOverlay .dialCenter span{font-size:16px}.universalDialOverlay .dialQuick{grid-template-columns:repeat(3,1fr)}.universalDialOverlay:not(.collapsed)~.avatarPositionHud{top:226px}.universalDialOverlay.collapsed~.avatarPositionHud{top:62px}.panelExpandHandle{position:absolute;top:50%;z-index:40;display:none;width:30px;height:62px;transform:translateY(-50%);padding:0;border-radius:0 10px 10px 0;background:rgba(20,37,50,.94);border:1px solid #55778f;font-size:20px;color:#d9efff;box-shadow:0 4px 16px #0008}.panelExpandHandle.left{left:0;border-left:0}.panelExpandHandle.right{right:0;border-radius:10px 0 0 10px;border-right:0}.workspace.leftCollapsed>.panelExpandHandle.left,.workspace.rightCollapsed>.panelExpandHandle.right{display:block}@media(max-width:720px){.universalDialOverlay{left:8px;top:8px;width:180px}.universalDialOverlay .universalDial{width:124px;height:124px}.universalDialOverlay:not(.collapsed)~.avatarPositionHud{top:210px}}
+
+/* v5.12.8 Universal Dial */
+.dialEntryRow{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:5px}.dialPick{padding:4px}.dialTargetEntry.dialActive{outline:2px solid var(--accent,#f59e0b);outline-offset:1px}.universalDialSection{display:flex;flex-direction:column;align-items:stretch}.universalDial{--dial-angle:-1.57rad;width:150px;height:150px;margin:8px auto;position:relative;border:1px solid #6b7280;border-radius:50%;background:radial-gradient(circle at center,rgba(255,255,255,.06) 0 46%,transparent 47%),repeating-conic-gradient(from -90deg,rgba(255,255,255,.32) 0 1deg,transparent 1deg 15deg);touch-action:none;cursor:grab}.universalDial:active{cursor:grabbing}.dialNeedle{position:absolute;left:50%;top:50%;width:2px;height:43%;background:var(--accent,#f59e0b);transform-origin:50% 100%;transform:translate(-50%,-100%) rotate(calc(var(--dial-angle) + 1.5708rad));pointer-events:none}.dialCenter{position:absolute;inset:29px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(18,22,29,.94);padding:7px}.dialCenter strong{font-size:11px}.dialCenter span{font-size:18px;font-variant-numeric:tabular-nums}.dialCenter small{font-size:10px;opacity:.7}.dialQuick{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:5px}.universalDialSection .row{justify-content:center;align-items:center}
+
+
+.mobileGameHud{position:absolute;inset:0;z-index:19;pointer-events:none}.mobileCombatHud{position:absolute;left:14px;top:92px;min-width:150px;padding:7px 9px;border-radius:9px;background:#07111acc;border:1px solid #6e8ba1;color:#eaf7ff;font-size:11px}.mobileHpBar{height:8px;background:#1a2630;border-radius:5px;overflow:hidden;margin-top:4px}.mobileHpFill{height:100%;width:100%;background:linear-gradient(90deg,#d94a4a,#75d478)}.mobileGameHud.hidden{display:none}.mobileHotbar{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto}.mobileHotbar button{width:46px;height:46px;border-radius:10px;background:#07111add;border:1px solid #6e8ba1;color:#e9f7ff;font-size:20px;position:relative}.mobileHotbar button span{position:absolute;left:4px;top:2px;font-size:9px;color:#9eb0bd}.mobileActions{position:absolute;right:24px;bottom:152px;width:142px;height:142px;pointer-events:auto}.mobileActionBtn{position:absolute;width:54px;height:54px;border-radius:50%;font-size:11px;font-weight:700;background:#102333dd;border:1px solid #7fc9ff;color:#eaf7ff}.mobileActionBtn:nth-child(1){left:44px;top:0}.mobileActionBtn:nth-child(2){right:0;top:44px}.mobileActionBtn:nth-child(3){left:44px;bottom:0}.mobileActionBtn:nth-child(4){left:0;top:44px}.mobileMiniButtons{position:absolute;right:18px;bottom:112px;display:flex;gap:6px;pointer-events:auto}.mobileMiniButtons button{min-width:40px;height:32px;border-radius:8px}.mobileInventoryGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px}.mobileInventoryItem{min-height:70px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px}.mobileInventoryItem small{opacity:.7}@media (pointer:fine) and (min-width:900px){.mobileGameHud{opacity:.72}.mobileHotbar{bottom:8px}.mobileActions{bottom:116px}}@media (max-width:700px){.top{max-height:76px;overflow:auto}.panel.left,.panel.right,.splitter{font-size:12px}.virtualStick{bottom:24px}.virtualStick.left{left:14px}.virtualStick.right{right:14px}.mobileActions{right:10px;bottom:148px}.mobileMiniButtons{right:10px}.mobileHotbar{bottom:26px;max-width:42vw;overflow-x:auto}.avatarPositionHud{max-width:58vw;font-size:9px}}
+.ghostPlacementHud{position:absolute;left:50%;bottom:82px;transform:translateX(-50%);z-index:65;display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid #65bfff;border-radius:10px;background:#07131ddd;box-shadow:0 6px 22px #0009;backdrop-filter:blur(6px);pointer-events:auto;color:#eaf7ff;font-size:11px}.ghostPlacementHud.hidden{display:none}.ghostPlacementHud b{color:#7fd2ff}.ghostPlacementHud div{display:flex;gap:5px}.ghostPlacementHud button{min-height:34px}@media(max-width:700px){.ghostPlacementHud{bottom:190px;max-width:94vw;flex-wrap:wrap;justify-content:center}.ghostPlacementHud span{display:none}.ghostPlacementHud button{padding:7px 9px}}
+
+/* v5.46 mobile landscape gamepad + console layout */
+.mobileActionBtn b{display:block;font-size:18px;line-height:17px}.mobileActionBtn small{display:block;font-size:8px;line-height:10px;opacity:.82;max-width:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:auto}
+/* class-driven landscape rules; iOS may keep a portrait viewport */
+  body.mobileLandscapeGame .top,body.mobileLandscapeGame .panel.left,body.mobileLandscapeGame .panel.right,body.mobileLandscapeGame .panelExpandHandle,body.mobileLandscapeGame .avatarPositionHud,body.mobileLandscapeGame .ghostPlacementHud{display:none!important}
+  body.mobileLandscapeGame .workspace{top:0!important;bottom:0!important;height:100vh!important;display:block!important}
+  body.mobileLandscapeGame #viewport{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important}
+  body.mobileLandscapeGame .virtualControls{z-index:70}
+  body.mobileLandscapeGame .virtualStick{width:104px;height:104px;bottom:16px;background:#07111a8f;border:1.5px solid #7fc9ff;box-shadow:0 3px 18px #0008,inset 0 0 0 2px #ffffff0b}
+  body.mobileLandscapeGame .virtualStick.left{left:22px}
+  body.mobileLandscapeGame .virtualStick.right{right:166px}
+  body.mobileLandscapeGame .stickKnob{width:43px;height:43px}
+  body.mobileLandscapeGame .stickLabel{display:none}
+  body.mobileLandscapeGame .mobileGameHud{z-index:71}
+  body.mobileLandscapeGame .mobileActions{right:20px;bottom:54px;width:126px;height:126px}
+  body.mobileLandscapeGame .mobileActionBtn{width:50px;height:50px;padding:2px;border-width:1.5px;background:#102333d9;box-shadow:0 2px 11px #0008}
+  body.mobileLandscapeGame .mobileActionBtn:nth-child(1){left:38px;top:0}
+  body.mobileLandscapeGame .mobileActionBtn:nth-child(2){right:0;top:38px}
+  body.mobileLandscapeGame .mobileActionBtn:nth-child(3){left:38px;bottom:0}
+  body.mobileLandscapeGame .mobileActionBtn:nth-child(4){left:0;top:38px}
+  body.mobileLandscapeGame .mobileCombatHud{left:50%;top:7px;transform:translateX(-50%);min-width:118px;padding:4px 7px;font-size:9px;opacity:.78}
+  body.mobileLandscapeGame .mobileHpBar{height:4px;margin-top:2px}
+  body.mobileLandscapeGame .mobileHotbar,body.mobileLandscapeGame .mobileMiniButtons{display:none!important}
+  body.mobileLandscapeGame .universalDialOverlay{position:fixed;left:7px;top:7px;z-index:74;width:132px!important;height:32px!important;padding:4px 5px!important;border-radius:9px;font-size:9px;overflow:hidden}
+  body.mobileLandscapeGame .universalDialOverlay.collapsed{width:132px!important;height:32px!important}
+  body.mobileLandscapeGame .universalDialOverlayHeader button{min-width:24px;height:23px;padding:0 4px}
+  body.mobileLandscapeGame .universalDialOverlayHeader b{font-size:10px}
+  body.mobileLandscapeGame .universalDialOverlay.collapsed .universalDialOverlayBody{display:none}
+  body.mobileLandscapeGame #app{display:block!important;height:100vh!important}
+  body.mobileLandscapeGame .bottom{position:fixed!important;left:50%!important;right:auto!important;bottom:max(4px,env(safe-area-inset-bottom))!important;transform:translateX(-50%);z-index:79;width:min(92vw,680px);height:32px!important;min-height:32px!important;padding:2px 38px 2px 7px!important;border:1px solid #55778f;border-radius:9px;background:#07111ae8;box-shadow:0 4px 18px #0009;display:block!important}
+  body.mobileLandscapeGame .bottom>.commandConsole,body.mobileLandscapeGame .bottom>#status,body.mobileLandscapeGame .bottom>#selectionHud,body.mobileLandscapeGame .bottom>#subSelectionHud,body.mobileLandscapeGame .bottom>.versionChip,body.mobileLandscapeGame .consoleResizeHandle{display:none!important}
+  body.mobileLandscapeGame .bottom::before{content:"Console";color:#79c9ff;font:700 10px ui-monospace,monospace;line-height:26px;opacity:.82}
+  body.mobileLandscapeGame .consoleToggle{display:block!important;top:2px!important;right:4px!important;width:29px;height:26px}
+  body.mobileLandscapeGame.consoleMobileOpen .bottom{height:var(--mobile-console-height,128px)!important;padding:10px 38px 5px 6px!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:stretch!important}
+  body.mobileLandscapeGame.consoleMobileOpen .bottom::before{display:none}
+  body.mobileLandscapeGame.consoleMobileOpen .bottom>.commandConsole{display:grid!important;min-height:0}
+  body.mobileLandscapeGame.consoleMobileOpen .bottom>#status,body.mobileLandscapeGame.consoleMobileOpen .bottom>#selectionHud,body.mobileLandscapeGame.consoleMobileOpen .bottom>#subSelectionHud,body.mobileLandscapeGame.consoleMobileOpen .bottom>.versionChip{display:none!important}
+  body.mobileLandscapeGame.consoleMobileOpen .consoleResizeHandle{display:block!important}
+  body.mobileLandscapeGame.consoleMobileOpen .commandHistory{max-height:none!important;min-height:0;font-size:10px}
+  body.mobileLandscapeGame.consoleMobileOpen .commandLine{min-height:30px}
+  body.mobileLandscapeGame.consoleMobileOpen .virtualStick,body.mobileLandscapeGame.consoleMobileOpen .mobileActions{transform:translateY(calc(-1 * var(--mobile-console-height,128px) + 34px))}
+  body.mobileLandscapeGame .dialogCard{max-height:86vh}
+
+/* v5.47 iPhone/touch reliability */
+body.mobileTouch .virtualControls{display:block!important;visibility:visible!important;opacity:1!important;z-index:76!important;pointer-events:none!important}
+body.mobileTouch .virtualStick{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+body.mobileTouch .mobileGameHud{display:block;z-index:75}
+body.mobileTouch .consoleToggle{pointer-events:auto!important;touch-action:manipulation!important}
+body.mobileForcedRotate{overflow:hidden!important}
+body.mobileForcedRotate #app{position:fixed!important;left:50%!important;top:50%!important;width:var(--ue-forced-w,100vh)!important;height:var(--ue-forced-h,100vw)!important;transform:translate(-50%,-50%) rotate(90deg)!important;transform-origin:center center!important;overflow:hidden!important}
+body.mobileForcedRotate .workspace{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+body.mobileForcedRotate #viewport{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+body.mobileForcedRotate .bottom{position:absolute!important;width:min(92%,680px)!important}
+body.mobileTouch:not(.mobileLandscapeGame) .virtualStick{width:104px;height:104px;bottom:52px;background:#07111aa8;border:1.5px solid #7fc9ff}
+body.mobileTouch:not(.mobileLandscapeGame) .virtualStick.left{left:16px}
+body.mobileTouch:not(.mobileLandscapeGame) .virtualStick.right{right:16px}
+body.mobileTouch:not(.mobileLandscapeGame) .stickKnob{width:43px;height:43px}
+body.mobileTouch:not(.mobileLandscapeGame) .stickLabel{display:none}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <button id="newProject" data-tooltip="新規"><span class="ribbonIcon">📄</span>新規</button><button id="openProject" data-tooltip="開く"><span class="ribbonIcon">📂</span>開く</button><button id="saveProject" data-tooltip="保存"><span class="ribbonIcon">💾</span>保存</button><input id="projectFileInput" type="file" accept=".uecad,application/json" hidden><button id="addBox">箱</button><button id="addCylinder">円柱</button><button id="addSphere">球</button>
+    <span class="chip">選択</span><button class="selectionScope active" data-scope="part">部品</button><button class="selectionScope" data-scope="group">グループ</button>
+    <button class="selectionMode active" data-mode="body">ボディ 1</button>
+    <button class="selectionMode" data-mode="face">面 2</button>
+    <button class="selectionMode" data-mode="edge">辺 3</button>
+    <button class="selectionMode" data-mode="vertex">頂点 4</button>
+    <button id="moveBtn">移動 M</button><button id="rotateBtn">回転 R</button>
+    <button id="copyBtn">コピー C</button><button id="pasteBtn">貼付 V</button>
+    <button id="groupBtn">グループ G</button><button id="ungroupBtn">解除</button><button id="motionAxisBtn" title="ヒンジ・駆動軸・ピストン等の可動軸">↻ 可動軸</button><button id="socketBtn" title="持つ・置く・接続する基準位置">⌾ ソケット</button><button id="assemblyBtn" title="部品同士の組立拘束">⛓ 組立</button><button id="prototypeBtn" title="参照コピーを作成">◇ 参照コピー</button><button id="syncPrototypeBtn" title="参照コピーを元部品から更新">↻ 参照更新</button><button id="featureBtn">Feature</button><button id="filletBtn">フィレット</button><button id="chamferBtn">面取り</button><button id="extrudeFaceBtn">面押出</button><button id="defaultChamferBtn">既定C面</button><button id="sketchBtn">スケッチ</button><button id="sketchExtrudeBtn">押し出し E</button><button id="sketchRevolveBtn">回転スイープ</button><button id="panBtn">パン</button><button id="cameraHomeBtn" title="カメラ初期位置へ復帰">◎ 視点復帰</button><button id="partDatumBtn">部品基準</button><button id="geometryConstraintBtn">幾何拘束</button><button id="booleanBtn">Boolean</button><button id="mirrorBtn">ミラー</button><button id="patternBtn">配列</button><button id="motionBtn" title="表計算式で位置・角度を時間制御">時間・表計算</button><button id="brepBtn">B-Rep</button><button id="faceKernelBtn">Face</button><button id="edgeKernelBtn">Edge</button><button id="rebuildBtn">再構築</button><button id="historyBtn">履歴</button><button id="workspaceBtn">ワークベンチ</button><button id="characterBtn">キャラメイク</button><button id="jointEditorBtn">関節編集</button><button id="lifeBtn">Life Core</button><button id="createDocumentBtn">文書</button><button id="createNodeBtn">ノード</button><button id="generatorBtn">ガチャ</button><button id="physicsBtn">物理</button><button id="anchorBtn" title="選択モデルを固定して誤移動を防止">⚓ 固定</button><button id="editMoveBtn" title="選択モデルを移動編集可能にする">✒ 移動編集</button><button id="placeBtn" title="選択モデルを机・床・他モデル表面へドラッグ配置">配置</button><button id="creatorModeBtn" data-tooltip="クリエイターモード"><span class="ribbonIcon">🎨</span>Creator</button><button id="scaleWorkbenchBtn" title="作業台へ入り、星系〜ピコまで同じCAD空間で設計">∞ 机編集</button><button id="outsideBtn" title="建物から屋外の惑星へ戻る">⇱ 屋外</button><button id="scaleInBtn" title="一段小さいスケールへ">−尺度</button><button id="scaleOutBtn" title="一段大きいスケールへ">＋尺度</button><button id="avatarOrbitBtn" title="通常のCADカメラ">Orbit</button><button id="avatarFpvBtn" title="人物視点">👁 FPV</button><button id="avatarTpvBtn" title="人物を外から見る">TPV</button><button id="coordinateHudToggle" title="座標HUD 表示/非表示">XYZ</button><button id="avatarWalkBtn" title="アバター歩行開始/停止">歩行</button><button id="avatarRunBtn" title="走行モード。Shiftキーでも有効">走る</button><button id="avatarJumpBtn" title="ジャンプ。Spaceキーでも実行">ジャンプ</button><button id="planetBtn" title="地形付き惑星へ移動して一周できます">🌍 惑星</button><button id="benchInventoryBtn" title="作業台をインベントリへ収納・フィールド/屋内へ設置">▣ 作業台</button><button id="buildColumnBtn">柱</button><button id="buildFloorBtn">床板</button><button id="buildWallBtn">壁板</button><button id="buildRoofBtn">屋根</button><button id="buildDoorBtn" title="蝶番・ノブ付きドア">🚪 ドア</button><button id="doorToggleBtn" title="選択ドアを開閉">↔ 開閉</button><button id="buildWindowBtn" title="建物・宇宙船に使える窓">▤ 窓</button><button id="surfacePaintBtn" title="選択した壁・モデルへ色、文字、画像を貼る">🎨 壁ペイント</button><button id="mediaPlayerBtn" title="選択したメディアプレイヤーへCD/レコードをセット">📻 Player</button><button id="buildStairsBtn" title="歩行可能な段差解消階段">▰ 階段</button><button id="buildLadderBtn" title="高低差用ハシゴ">♯ ハシゴ</button><button id="buildingAssistBtn" title="柱・壁・床・屋根の配置アシスト">🏗 建築Assist</button><button id="recipeBtn" title="選択グループをレシピ/設計図として登録">📘 Recipe</button><button id="marketBtn" title="設置可能なマーケット・ポイント経済">🛒 Market</button><button id="holdRightBtn" title="選択した道具を右手に持つ">✋ 右手</button><button id="holdLeftBtn" title="選択した道具を左手に持つ">🤚 左手</button><button id="dropHandBtn" title="持っている道具を手放す">⬇ 手放す</button><button id="spacecraftBtn" title="宇宙船部品・飛行シーケンス">🚀 宇宙船</button>
+    <button id="deleteBtn">削除</button><button id="fitBtn">全体</button>
+    <button id="leftToggle">部品</button><button id="rightToggle">プロパティ</button><button id="multiplayerBtn" data-tooltip="クロスプレイ / 共同編集"><span class="ribbonIcon">🌐</span>MULTI</button><button id="villageBtn" data-tooltip="村 / 村人 / 友好関係"><span class="ribbonIcon">🏘</span>VILLAGE</button><button id="settingsBtn">設定</button>
+  </div>
+  <div class="workspace" id="workspace">
+    <button id="expandLeftHandle" class="panelExpandHandle left" title="モデル一覧を展開">→</button><button id="expandRightHandle" class="panelExpandHandle right" title="プロパティを展開">←</button>
+    <aside class="panel left" id="leftPanel"><div class="panelHeader"><h3>モデル</h3><button class="panelCollapse" id="collapseLeft" title="モデルを折り畳む">◀</button></div><div id="tree"></div></aside><div class="splitter" id="leftSplitter" title="ドラッグで幅変更"></div>
+    <main id="viewport"><canvas id="canvas"></canvas><div id="scaleHud" class="scaleHud"></div>
+    <div id="universalDialOverlay" class="universalDialOverlay">
+      <div class="universalDialOverlayHeader"><b>◉ Universal Dial</b><button id="globalDialCollapse" title="折り畳み">▴</button></div>
+      <div class="universalDialOverlayBody">
+        <div class="universalDial" id="globalUniversalDial" role="slider" aria-label="Universal Dial"><div class="dialNeedle"></div><div class="dialCenter"><strong id="globalDialTargetName">数値を選択</strong><span id="globalDialTargetValue">—</span><small id="globalDialTargetUnit"></small></div></div>
+        <div class="row"><label>刻み <select id="globalDialStep"><option>.001</option><option>.01</option><option>.1</option><option selected>1</option><option>10</option><option>100</option><option>1000</option></select></label><button id="globalDialMinus">−</button><button id="globalDialPlus">＋</button></div>
+        <div class="dialQuick"><button data-global-dial-quick="time">時間</button><button data-global-dial-quick="timeScale">時間倍率</button><button data-global-dial-quick="creatorScale">Scale</button></div>
+      </div>
+    </div>
+    <div id="avatarPositionHud" class="avatarPositionHud"></div>
+    <div id="cameraFocusMarker" class="cameraFocusMarker" aria-hidden="true"><span></span></div>
+    <div id="creatorScalePanel" class="creatorScalePanel">
+      <div class="creatorScaleTitle"><b>🎨 Creator</b><div class="titleActions"><span id="creatorScaleReadout">1 mm</span><button id="creatorScaleCollapse" title="折り畳み">▴</button></div></div>
+      <div class="creatorScaleBody">
+      <div class="row" style="margin-bottom:6px"><button id="creatorReferenceFrame" class="referenceFrameBtn" title="アバター基準 / 恒星基準を切替"><svg viewBox="0 0 64 32" aria-hidden="true"><path d="M3 17 C10 3 22 29 31 12 S48 4 61 17 C50 30 42 8 32 21 S14 30 3 17"/></svg><span id="creatorReferenceLabel">アバター基準</span></button></div><div class="row" style="margin-bottom:6px"><button id="creatorCameraPan" title="焦点を移動">✥ パン</button><button id="creatorCameraRotate" class="active" title="焦点の周囲を回転">⟳ 回転</button><button id="creatorCameraReset" title="カメラ初期位置">◎</button></div>
+      <input id="creatorScaleSlider" class="creatorScaleSlider" type="range" aria-label="Creator scale logarithmic slider">
+      <div class="creatorScaleControls"><button id="creatorScaleMinus" title="10分の1">−</button><div id="creatorScaleDial" class="creatorScaleDial" title="円周に沿って回す / ホイールでスケール変更"><i></i><span id="creatorDialReadout" class="dialReadout">1 mm</span><span class="dialHint">↻ 尺度</span></div><button id="creatorScalePlus" title="10倍">＋</button></div>
+      <div class="creatorScaleInput"><input id="creatorScaleMm" type="number" min="0.001" step="any"><span>mm / unit</span></div>
+      <div class="creatorScaleInput" style="margin-top:7px"><select id="creatorOriginSelect" title="新規オブジェクトの作成位置"><option value="view">視点位置（焦点）</option><option value="avatar">アバター前方</option><option value="aim">照準 / RTSカーソル</option><option value="workbench">作業台中心（作業原点）</option><option value="custom">任意原点</option></select><span>作成位置</span></div><div class="creatorScaleInput" style="margin-top:7px"><input id="creatorOriginX" type="number" step="any" value="0" title="任意原点X"><input id="creatorOriginY" type="number" step="any" value="0" title="任意原点Y"><input id="creatorOriginZ" type="number" step="any" value="0" title="任意原点Z"><button id="creatorOriginCapture" title="現在の照準/焦点位置を任意原点に登録">⌖</button><span>原点 XYZ</span></div><div class="creatorScaleInput" style="margin-top:7px"><input id="creatorReachMm" type="number" min="100" max="20000" step="100" value="1200" title="アバター中心からの作成間合い"><span>間合い mm</span></div><label><input id="creatorWorkbenchBounded" type="checkbox" checked> 作業台上だけで配置</label><div class="row" style="margin-top:7px;gap:5px"><label title="スナップ全体 ON/OFF"><input id="smartSnapToggle" type="checkbox" checked>〼 Snap</label><label><input class="smartSnapType" data-type="vertex" type="checkbox" checked>端点</label><label><input class="smartSnapType" data-type="edge" type="checkbox" checked>中点</label><label><input class="smartSnapType" data-type="face" type="checkbox" checked>面</label><label><input class="smartSnapType" data-type="axis" type="checkbox" checked>軸中心</label><label><input class="smartSnapType" data-type="center" type="checkbox" checked>球/物体中心</label><button id="referenceMateOpen" title="2つの基準要素を選択して一致">🔗 基準一致</button></div>
+      <label><input id="creatorWorkbenchAnchor" type="checkbox" checked> 作業台を起点</label>
+      <label><input id="creatorPartAssist" type="checkbox" checked> 小部品ゴースト配置</label><button id="creatorAvatarHide" title="作業台で小部品がアバターに隠れないよう一時非表示">👤 アバター非表示</button>
+      <label><input id="focusMarkerToggle" type="checkbox" checked> 焦点</label><label><input id="creatorGridToggle" type="checkbox" checked> グリッド</label>
+      <div class="creatorScaleInput" style="margin-top:7px"><div id="creatorTimeDial" class="creatorScaleDial" title="回して時間を進める / 戻す"><i></i><span id="creatorTimeReadout" class="dialReadout">12:00</span><span class="dialHint">↻ 時間</span></div><span>±24h/周</span></div>
+      <div class="creatorCalendar" style="margin-top:7px"><div class="row"><button id="creatorDayPrev" title="1日前">◀日</button><input id="creatorCalendarDate" type="date" aria-label="シミュレーション日付"><button id="creatorDayNext" title="1日後">日▶</button></div><small id="creatorCalendarReadout">2026年1月1日</small></div>
+      <small>小部品も半透明ゴーストでスナップ配置。パンは焦点移動、回転は焦点周囲のカメラ移動です。</small>
+      </div>
+    </div>
+    <div class="virtualControls"><div id="leftStick" class="virtualStick left"><div class="stickKnob"></div><span class="stickLabel">移動（ゆるやか旋回）</span></div><div id="rightStick" class="virtualStick right"><div class="stickKnob"></div><span class="stickLabel">球状カメラ（常時）</span></div></div><div id="mobileGameHud" class="mobileGameHud"><div id="mobileCombatHud" class="mobileCombatHud"><b id="mobileModeLabel">CO-OP</b> <span id="mobileHpText">HP 100/100</span><div class="mobileHpBar"><div id="mobileHpFill" class="mobileHpFill"></div></div></div><div id="mobileHotbar" class="mobileHotbar"></div><div class="mobileActions"><button class="mobileActionBtn">JUMP</button><button class="mobileActionBtn">USE</button><button class="mobileActionBtn">INV</button><button class="mobileActionBtn">VIEW</button></div><div class="mobileMiniButtons"><button id="mobileInventoryBtn" title="インベントリ">🎒</button><button id="mobileCraftBtn" title="クラフト">🛠️</button><button id="mobileActionSettingsBtn" title="アクション割当">⚙</button><button id="vrEnterBtn" title="WebXR VR">🥽</button></div></div>
+    <div id="smartSnapMarker" class="smartSnapMarker"></div><div id="referenceMateSourceMarker" class="referenceMateMarker"></div><div id="referenceMateTargetMarker" class="referenceMateMarker"></div>
+      <div id="sketchToolbar" class="sketchToolbar"><div class="sketchWindowTitle"><span>✎ スケッチ コマンド</span><span id="activeSketchToolName" class="chip">SELECT</span></div>
+      <button class="sketchTool active" data-tool="select">選択 <span class="sketchCommandCode">ESC</span></button>
+      <button class="sketchTool" data-tool="point">点 <span class="sketchCommandCode">P</span></button>
+      <button class="sketchTool" data-tool="line">線 <span class="sketchCommandCode">L</span></button>
+      <button class="sketchTool" data-tool="rectangle">長方形 <span class="sketchCommandCode">REC</span></button>
+      <button class="sketchTool" data-tool="circle">円 <span class="sketchCommandCode">C</span></button>
+      <button class="sketchTool" data-tool="arc">円弧 <span class="sketchCommandCode">ARC</span></button>
+      <button class="sketchTool" data-tool="spline">スプライン <span class="sketchCommandCode">SPL</span></button>
+      <button class="sketchTool" data-tool="freehand">手書き <span class="sketchCommandCode">FH</span></button>
+      <button id="sketchGridToggle">グリッド</button>
+      <button id="sketchSnapToggle">スナップ</button>
+      <button id="constraintHorizontal">水平 H</button>
+      <button id="constraintVertical">垂直 J</button>
+      <button id="constraintCoincident">端点一致 K</button>
+<button id="constraintParallel">平行 A</button>
+<button id="constraintPerpendicular">直交 O</button>
+<button id="constraintEqual">等長 Q</button>
+<button id="constraintConcentric">同心 N</button>
+<button id="constraintMidpoint">中点 M</button>
+      <button id="constraintFix">固定 X</button>
+      <button id="dimensionSketch">寸法 D</button><button id="trimSketch">トリム TR</button><button id="extendSketch">延長 EX</button><button id="sketchEntityEditBtn">要素編集</button><button id="sketchEntityDeleteBtn">要素削除</button><button id="sketchDiagnosticsBtn">診断</button><button id="sketchRepairBtn">自動修復</button>
+      <button id="finishSketch">スケッチ終了</button>
+    </div><div id="sketchHud" class="sketchHud"></div></main><div class="splitter" id="rightSplitter" title="ドラッグで幅変更"></div>
+    <aside class="panel right" id="rightPanel"><div class="panelHeader"><h3 id="rightPanelTitle">プロパティ / 変形</h3><button class="panelCollapse" id="collapseRight" title="右パネルを折り畳む">▶</button></div><div class="propertyModeTabs"><button id="propertyModeProperties" class="propertyModeTab active" data-property-mode="properties">プロパティ</button><button id="propertyModeTransform" class="propertyModeTab" data-property-mode="transform">変形</button></div><div id="properties" class="propertyPane active"></div><div id="propertyTransformPanel" class="propertyPane propertyTransformPanel"><div class="transformHeader"><div class="transformToolTabs"><button class="transformTool active" data-tool="move">移動</button><button class="transformTool" data-tool="rotate">回転</button><button class="transformTool" data-tool="scale">拡縮</button></div><button class="coord active" data-mode="relative">REL</button><button class="coord" data-mode="absolute">ABS</button><span class="pivotInfo">基準: オブジェクト中心</span><div class="transformDragModes"><button class="dragMode active" data-drag="xy">XY平面</button><button class="dragMode" data-drag="z">Z高さ</button></div><div class="transformActions"><button id="applyTransform">確定</button><button id="cancelTransform">戻す</button><button id="closeTransform">完了</button></div></div><div id="transformControls" class="transformTable"></div><div class="transformHelp">M/R/Scaleでこのタブへ切替。スライダー・数値・ホイールで変更。ビューポートではXY/Zドラッグ、Ctrl+ドラッグでコピーできます。</div></div></aside>
+  </div>
+  <div class="bottom" id="consolePanel">
+    <div id="consoleResizeHandle" class="consoleResizeHandle" title="ドラッグでConsole高さ変更"></div><button id="consoleToggle" class="consoleToggle" title="Consoleを折り畳み / 復帰">⇩</button>
+    <div class="commandConsole"><div id="commandHistory" class="commandHistory"></div><div class="commandLine"><span class="commandPrompt">Command:</span><input id="commandInput" class="commandInput" autocomplete="off" spellcheck="false" placeholder="例: m 16AZ rel -100,100,0 / sel L001 / dim L001 250 / HELP"></div></div><span id="status">準備完了</span><span class="chip" id="selectionHud">選択なし</span><span class="chip" id="subSelectionHud">Body</span><span class="chip versionChip">v5.49.0 UI Customizer / RTS Share</span>
+  </div>
+</div>
+
+
+
+
+<div id="multiplayerDialog" class="dialog"><div class="dialogCard wideCard"><h2>🌐 Cross Play / Collaborative World</h2><p class="help">PC・スマホ・タブレットで同じRoomに接続し、UECADワールドを共同編集します。オブジェクト・惑星設定・建築・設計データは共有、各プレイヤーのアバター位置と選択状態はPresenceとして別同期します。</p><div class="physicsGrid"><label>Player</label><input id="multiplayerPlayerName" value="Player"><label>Room</label><input id="multiplayerRoom" value="UNIVERSE-001"><label>Relay URL</label><input id="multiplayerRelayUrl" placeholder="wss://your-relay.onrender.com"><label>Play Mode</label><select id="multiplayerPlayMode"><option value="coop">協力 / CO-OP</option><option value="versus">対戦 / VERSUS</option></select><label>Team</label><select id="multiplayerTeam"><option value="A">TEAM A</option><option value="B">TEAM B</option><option value="C">TEAM C</option><option value="FREE">FREE</option></select></div><div id="multiplayerStatus" class="multiStatus">オフライン</div><div class="row"><button id="multiplayerHost">HOST / 部屋を開始</button><button id="multiplayerJoin">JOIN / 参加</button><button id="multiplayerDisconnect">切断</button><button id="multiplayerPublish">現在状態を共有</button></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><button id="multiplayerQr">📱 QR共有</button><button id="multiplayerCopyInvite">🔗 招待リンクをコピー</button><button id="multiplayerShareInvite">↗ 共有</button></div><div id="multiplayerQrBox" class="multiQrBox" hidden><div class="multiQrTitle">Universe Engine 招待QR</div><div class="multiQrHelp">スマホで読み取ると、このページ・Relay・Room・ゲームモードを自動設定します。</div><canvas id="multiplayerQrCanvas" width="280" height="280"></canvas><input id="multiplayerInviteUrl" readonly aria-label="Multiplayer invite URL"></div><div class="row" style="margin-top:8px;flex-wrap:wrap"><button id="multiCarryBtn">🤝 選択物を共同運搬</button><button id="multiPilotBtn">🚗 運転席</button><button id="multiPassengerBtn">🪑 同乗</button><button id="multiUnboardBtn">降りる</button><button id="multiAttackBtn">⚔ ATTACK</button><button id="multiRespawnBtn">↻ RESPAWN</button></div><h3 style="margin-top:14px">Players <span id="multiplayerCount" class="chip">1人</span></h3><div id="multiplayerPeers" class="section"></div><p class="multiHint">GitHub PagesなどHTTPSから接続する場合はRelayを <b>wss://</b> で公開してください。HOST側で「📱 QR共有」を押し、表示されたQRを友達のスマホで読むと同じRoom設定が開きます。Player名を確認してJOINしてください。同一LANではserverフォルダのRelayをPCで起動し、スマホ側から <b>ws://PCのIP:8787</b> に接続できます。</p><div class="row"><button id="multiplayerClose">閉じる</button></div></div></div>
+<div id="workspaceDialog" class="dialog"><div class="dialogCard wideCard"><h2>Workspace / Workbench</h2><div class="workspaceInfo"><label>環境</label><select id="workspacePreset"></select><label>制作縮尺</label><select id="workspaceScale"></select></div><p class="help">机は世界内に存在する制作ポータルです。∞机編集でCAD視点へ入り、Ctrl+ホイールまたは尺度ボタンで pm → nm → µm → mm → m → 建物 → 地形 → 惑星 → AU/恒星系まで連続して設計できます。CAD値は実寸mmを保持し、Floating Origin/Scale Bandで表示精度を保ちます。Escまたは⇱屋外で元のFPV/TPV世界へ戻ります。作業原点は主作業机の天板からZ +100 mmです。</p><div class="row"><button id="workspaceApply">切替</button><button id="workspaceClose">閉じる</button></div></div></div>
+
+
+<div id="workbenchInventoryDialog" class="dialog"><div class="dialogCard wideCard"><h2>Portable Workbench / Inventory</h2><p class="help">作業台寸法はアバター身長Hを基準に、高さH/2・幅H・奥行H。屋内でも惑星フィールドでも設置できます。天板にはモデリング用グリッドを表示します。</p><div id="workbenchInventoryList"></div><div class="row" style="margin-top:12px"><button id="workbenchInventoryClose">閉じる</button></div></div></div>
+
+
+<div id="surfacePaintDialog" class="dialog"><div class="dialogCard wideCard"><h2>🎨 Surface Media / Lighting</h2><p class="help">壁・看板・モデルを広告面/メディア面として設定します。コンテンツと照明は自由に組み合わせできます。</p><div class="physicsGrid"><label>コンテンツ</label><select id="surfaceMediaType"><option value="image">画像 / 壁紙</option><option value="gif">GIF</option><option value="video">動画</option><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="embed">他サイト / 埋め込みURL</option><option value="audio">音声</option><option value="music">音楽のみ</option><option value="led">LEDビジョン</option></select><label>背景色</label><input id="surfacePaintBg" type="color" value="#d8d0c2"><label>文字色</label><input id="surfacePaintTextColor" type="color" value="#111111"><label>文字 / 広告</label><input id="surfacePaintText" value="UNIVERSE"><label>画像 / GIF / 動画 / 音声</label><input id="surfacePaintImage" type="file" accept="image/*,video/*,audio/*"><label>URL / 動画サイト</label><input id="surfaceMediaUrl" placeholder="YouTube / Vimeo / 埋め込み可能URL"><label>壁面で再生</label><input id="surfaceMediaWallPlayback" type="checkbox" checked><label>ループ</label><input id="surfaceMediaLoop" type="checkbox" checked><label>自動再生</label><input id="surfaceMediaAutoplay" type="checkbox" checked><label>ミュート</label><input id="surfaceMediaMuted" type="checkbox" checked><label>音量</label><input id="surfaceMediaVolume" type="range" min="0" max="1" step="0.05" value="0.7"><label>開始秒</label><input id="surfaceMediaStart" type="number" min="0" step="1" value="0"><label>終了秒 (0=最後)</label><input id="surfaceMediaEnd" type="number" min="0" step="1" value="0"><label>表示回転</label><select id="surfaceMediaRotation"><option value="0">0°</option><option value="90">90°</option><option value="180" selected>180°（上下補正）</option><option value="270">270°</option></select><label>自動回転補正</label><input id="surfaceMediaAutoRotation" type="checkbox" checked><label>3D空間音響</label><input id="surfaceSpatialAudio" type="checkbox" checked><label>基準距離 (mm)</label><input id="surfaceAudioRefDistance" type="number" min="100" step="100" value="2000"><label>最大距離 (mm)</label><input id="surfaceAudioMaxDistance" type="number" min="500" step="500" value="30000"><label>減衰</label><input id="surfaceAudioRolloff" type="number" min="0.1" max="8" step="0.05" value="1.35"><label>照明</label><select id="surfaceLightMode"><option value="none">なし</option><option value="backlight">バックライト</option><option value="neon">ネオン枠</option><option value="spot">スポットライト</option><option value="flood">フラッドライト</option></select><label>ライト色</label><input id="surfaceLightColor" type="color" value="#fff1c4"><label>ライト強度</label><input id="surfaceLightIntensity" type="number" min="0" max="20" step="0.1" value="2.5"></div><div class="row" style="margin-top:10px"><button id="surfacePaintApply">適用</button><button id="surfaceMediaPlay">▶ 再生/開く</button><button id="surfaceMediaPause">⏸ 壁面停止</button><button id="surfaceMediaResume">▶ 壁面再生</button><button id="surfaceMediaMuteToggle">🔇 ミュート切替</button><button id="surfacePaintClear">消去</button><button id="surfacePaintClose">閉じる</button></div></div></div>
+<div id="buildingAssistDialog" class="dialog"><div class="dialogCard wideCard"><h2>Building Assist</h2><p class="help">柱の直線・矩形グリッド配置、柱間壁、外周壁、床・屋根の自動フィットを行います。SNAP/AUTOに加え、建物全体を半透明ゴーストで確認してから確定できます。</p><div class="physicsGrid"><label>Mode</label><select id="buildingAssistMode"><option value="off">OFF</option><option value="snap">SNAP</option><option value="auto">AUTO</option></select><label>スナップ格子 mm</label><input id="buildingSnapGrid" type="number" min="0.001" step="1" value="250"><label>スナップ半径 mm</label><input id="buildingSnapRadius" type="number" min="1" step="1" value="450"><label>柱本数 / X列</label><input id="buildingColumnCount" type="number" min="2" max="100" value="4"><label>柱間隔 X mm</label><input id="buildingColumnSpacing" type="number" min="1" step="1" value="3000"><label>配置方向</label><select id="buildingColumnAxis"><option value="X">X</option><option value="Y">Y</option></select><label>矩形 Y列</label><input id="buildingColumnRows" type="number" min="2" max="30" value="3"><label>柱間隔 Y mm</label><input id="buildingColumnSpacingY" type="number" min="1" step="1" value="3000"><label>壁厚 mm</label><input id="buildingWallThickness" type="number" min="1" value="120"><label>床厚 mm</label><input id="buildingFloorThickness" type="number" min="1" value="150"><label>自動基礎</label><input id="buildingAutoFoundation" type="checkbox" checked><label>基礎幅 mm</label><input id="buildingFoundationWidth" type="number" min="60" value="320"><label>基礎 最小高さ mm</label><input id="buildingFoundationMinHeight" type="number" min="20" value="250"><label>屋根勾配 °</label><input id="buildingRoofPitch" type="number" min="-80" max="80" step="1" value="20"><label>建物 幅 mm</label><input id="buildingSmartWidth" type="number" min="500" value="6000"><label>建物 奥行 mm</label><input id="buildingSmartDepth" type="number" min="500" value="6000"><label>階数</label><input id="buildingSmartFloors" type="number" min="1" max="20" value="1"><label>Xスパン数</label><input id="buildingSmartBaysX" type="number" min="1" max="20" value="3"><label>Yスパン数</label><input id="buildingSmartBaysY" type="number" min="1" max="20" value="3"><label>階高 mm</label><input id="buildingSmartStory" type="number" min="1000" value="2800"><label>レンガ壁 長さ mm</label><input id="buildingBrickWallLength" type="number" min="100" value="3000"><label>レンガ壁 高さ mm</label><input id="buildingBrickWallHeight" type="number" min="60" value="1700"></div><div class="row" style="margin-top:12px"><button id="buildingColumnLine">柱を直線配置</button><button id="buildingColumnGrid">柱を矩形配置</button><button id="buildingBrickWall">🧱 レンガ積み</button><button id="buildingWallFit">選択柱間に壁</button><button id="buildingWallPerimeter">選択柱の外周壁</button></div><div class="row" style="margin-top:8px"><button id="buildingFloorFit">選択範囲に床</button><button id="buildingRoofFit">選択範囲に屋根</button><button id="buildingSmartCreate">建物を半自動生成</button><button id="buildingAnalyze">選択範囲解析</button><button id="buildingReground" title="選択建築を水平に保ち、敷地の地表高に合わせて支持基礎を自動生成">⇩ 重力基礎で地表支持</button></div><div class="row" style="margin-top:8px"><button id="buildingPreview">👻 建物プレビュー</button><button id="buildingPreviewCommit">✓ プレビュー確定</button><button id="buildingPreviewClear">× プレビュー取消</button></div><div class="row" style="margin-top:8px"><span class="help">Live:</span><button id="liveBuild_column">柱</button><button id="liveBuild_wall">壁</button><button id="liveBuild_floor">床</button><button id="liveBuild_roof">屋根</button><button id="liveBuild_off">停止</button><span class="help">黄=スナップ / 水色=自由 / 赤=重複</span></div><div class="section" style="margin-top:12px"><h3>▦ 間取り → 建築</h3><p class="help">1行1部屋: 部屋名, X, Y, 幅, 奥行 (mm)。部屋矩形から床と壁を生成します。</p><textarea id="buildingFloorPlan" rows="5" style="width:100%">Living,0,0,4000,3000
+Kitchen,4000,0,2500,3000
+Bedroom,0,3000,3500,3000</textarea><div class="row" style="margin-top:8px"><button id="buildingFloorPlanCreate">▦ 間取りから生成</button></div></div><div class="row" style="margin-top:8px"><span class="help">Layer:</span><label><input id="layer_column" type="checkbox" checked>柱</label><label><input id="layer_wall" type="checkbox" checked>壁</label><label><input id="layer_floor" type="checkbox" checked>床</label><label><input id="layer_roof" type="checkbox" checked>屋根</label></div><div class="row" style="margin-top:8px"><button id="buildingAssistApply">設定保存</button><button id="buildingAssistClose">閉じる</button></div></div></div>
+
+<div id="referenceMateDialog" class="dialog"><div class="dialogCard"><h2>Reference Mate / 基準一致・拘束</h2><p class="help">移動元の基準→移動先の基準をクリック。オレンジ=移動元、黄色=移動先。頂点・辺・面・中心・軸を組み合わせられます。</p><div id="referenceMateStatus" class="mateStatus">1. 移動元の基準をクリックしてください</div><div class="mateTypeGrid"><label>拘束タイプ</label><select id="referenceMateType"><option value="auto">自動 / 一致</option><option value="coaxial">同心・同軸</option><option value="parallel">平行</option><option value="perpendicular">垂直</option><option value="distance">距離</option><option value="angle">角度</option></select><label>値</label><input id="referenceMateValue" type="number" step="0.001" value="0" title="距離ならmm、角度なら°"><label>オフセット mm</label><input id="referenceMateOffset" type="number" step="0.001" value="0"><label>向き</label><label><input id="referenceMateFlip" type="checkbox"> 反転</label><label>保持</label><label><input id="referenceMateKeep" type="checkbox"> 拘束として記録</label></div><div class="row" style="margin-top:10px"><button id="referenceMateApply">✓ 適用</button><button id="referenceMateReset">基準を選び直す</button><button id="referenceMateClose">閉じる</button></div><p class="help">自動=位置/面/辺を自動判定。同心・同軸=中心線を一致。平行/垂直=向きだけ合わせる。距離=移動先基準から指定mm。角度=基準方向に指定角度。保持ONならMate拘束として保存します。</p></div></div>
+<div id="recipeDialog" class="dialog"><div class="dialogCard wideCard"><h2>Recipe / Blueprint Library</h2><p class="help">選択オブジェクト/グループを再配置可能なレシピ・設計図として保存します。UECAD内保存に加えて単体JSONの書出し/読込みにも対応します。</p><div class="physicsGrid"><label>名前</label><input id="recipeName" value="新しいレシピ"><label>種類</label><select id="recipeKind"><option value="recipe">Recipe</option><option value="blueprint">Blueprint</option></select><label>カテゴリ</label><input id="recipeCategory" list="recipeCategoryList" value="その他"><datalist id="recipeCategoryList"><option>アイテム</option><option>道具</option><option>食べ物</option><option>建築素材</option><option>建築</option><option>家具</option><option>乗り物</option><option>機械</option><option>キャラ</option><option>服装</option><option>武器</option><option>装備</option><option>クリーチャー</option><option>その他</option></datalist><label>タグ</label><input id="recipeTags" placeholder="木工, 屋外, 試作"><label>メモ</label><input id="recipeNotes" placeholder="材料・用途・設計意図など"><label>検索</label><input id="recipeSearch" placeholder="名前・カテゴリ・タグ"><label>標準サムネイル</label><select id="recipeThumbnailPreferred"><option value="model">🧊 モデル</option><option value="screenshot">📷 スクリーンショット</option></select></div><div class="row" style="margin-top:12px"><button id="recipeSave">選択から登録</button><button id="recipeCaptureScreenshot">📷 選択をスクショ</button><button id="recipeCaptureModel">🧊 選択モデル</button><button id="recipeImport">JSON読込</button><input id="recipeImportFile" type="file" accept=".json,.uerecipe,application/json" style="display:none"><button id="recipeClose">閉じる</button></div><hr><div id="recipeList" class="recipeList"></div></div></div>
+<div id="marketDialog" class="dialog"><div class="dialogCard wideCard"><h2>Universal Marketplace</h2><p class="help">マーケット手数料は管理者が0〜20%で設定できます。販売者受取とマーケット手数料収益のそれぞれからPlatform Contribution（既定1%）をUniversal Engine運営基金へ還流します。ポイントはEngine内ポイントです。</p><div class="physicsGrid"><label>現在アカウント</label><input id="marketUser" value="PLAYER"><label>残高</label><output id="marketWallet">0 P</output><label>Platform Contribution</label><input id="marketPlatformRate" type="number" min="0" max="10" step="0.1" value="1"><label>UE運営基金</label><output id="marketPlatformFund">0 P</output><label>広告収益プール</label><input id="marketAdPool" type="number" min="0" step="1" value="0"><label>広告還元率</label><input id="marketAdDistributionRate" type="number" min="0" max="100" step="1" value="30"><label>評価還元</label><input id="marketRatingReward" type="number" min="0" step="0.1" value="1"><span></span><button id="marketDistributeAds">広告収益を還元</button></div><hr><h3>マーケット設置 / 管理</h3><div class="physicsGrid"><label>名称</label><input id="marketName" value="My Market"><label>手数料 0〜20%</label><input id="marketFee" type="number" min="0" max="20" step="0.1" value="5"><label>マーケット</label><select id="marketSelect"></select><span></span><div class="row"><button id="marketCreate">新規作成</button><button id="marketPlace">現在位置へ設置</button><button id="marketSaveSettings">設定保存</button></div></div><hr><h3>Recipe / Blueprint を出品</h3><div class="physicsGrid"><label>Recipe</label><select id="marketRecipe"></select><label>材料費</label><input id="listingMaterial" type="number" min="0" step="1" value="0"><label>工賃</label><input id="listingLabor" type="number" min="0" step="1" value="0"><label>販売者マージン</label><input id="listingMargin" type="number" min="0" step="1" value="100"><label>販売価格</label><input id="listingPrice" type="number" min="0" step="1" value="100"><label>利用条件</label><select id="listingLicense"><option value="use">利用のみ</option><option value="modify">改造可能</option><option value="redistribute">再配布可能</option><option value="commercial">商用利用可能</option><option value="derivative-sale">派生作品販売可能</option></select></div><div class="row" style="margin-top:8px"><button id="listingPublish">出品</button><button id="marketClose">閉じる</button></div><hr><div id="marketListingList" class="recipeList"></div></div></div>
+<div id="characterDialog" class="dialog"><div class="dialogCard wideCard"><h2>Character Creator / Montage Face</h2><div class="physicsGrid"><label>対象</label><select id="characterTarget"><option value="player">自分 / Player</option><option value="npc">新しいNPC</option></select><label>名前</label><input id="characterName" value="Player"><label>身長</label><input id="characterHeight" type="number" min="80" max="250" step="1" value="170"><label>肌</label><input id="characterSkin" type="color" value="#c28b6d"><label>服</label><input id="characterBody" type="color" value="#5ea6d6"><label>髪</label><input id="characterHair" type="color" value="#2b1d18"><label>目</label><input id="characterEye" type="color" value="#4c7695"><label>顔モード</label><select id="characterFaceMode"><option value="3d">3D Face</option><option value="montage">円柱シェル / モンタージュ</option></select><label>顔ベース画像</label><input id="characterFaceBase" type="file" accept="image/*"><label>目パーツ画像</label><input id="characterFaceEyes" type="file" accept="image/*"><label>鼻パーツ画像</label><input id="characterFaceNose" type="file" accept="image/*"><label>口パーツ画像</label><input id="characterFaceMouth" type="file" accept="image/*"><label>顔の巻き幅</label><input id="characterFaceWrap" type="range" min="0.35" max="1" step="0.01" value="0.72"><label>口の開き</label><input id="characterMouthOpen" type="range" min="0" max="1" step="0.05" value="0"><label>瞬き</label><input id="characterBlink" type="checkbox" checked><label>Brain / NPC思考</label><input id="characterBrain" type="checkbox" checked></div><p class="help">モンタージュ顔は楕円柱状の顔面シェルへ画像を巻き付けます。顔ベース＋目/鼻/口パーツを重ね、瞬きは目領域を動的マスクします。遠距離NPC用の軽量顔としても利用できます。</p><div class="row" style="margin-top:12px"><button id="characterApply">作成 / 反映</button><button id="characterClose">閉じる</button></div></div></div>
+
+<div id="jointEditorDialog" class="dialog"><div class="dialogCard wideCard"><h2>Dummy Skeleton / Joint Editor</h2><div class="physicsGrid"><label>人体レベル</label><select id="rigAnatomyLevel"><option value="dummy">Dummy Parts + Joints</option><option value="skeleton" disabled>Human Skeleton（将来）</option><option value="softTissue" disabled>Muscle / Soft Tissue（将来）</option></select><label>関節マーカー</label><input id="jointMarkers" type="checkbox" checked><label>関節</label><select id="jointSelect"></select><label>RX</label><input id="jointRX" type="range" min="-180" max="180" step="1"><output id="jointRXValue">0°</output><label>RY</label><input id="jointRY" type="range" min="-180" max="180" step="1"><output id="jointRYValue">0°</output><label>RZ</label><input id="jointRZ" type="range" min="-180" max="180" step="1"><output id="jointRZValue">0°</output></div><div class="row" style="margin-top:12px"><button class="posePreset" data-pose="neutral">Neutral</button><button class="posePreset" data-pose="t">T Pose</button><button class="posePreset" data-pose="a">A Pose</button><button class="posePreset" data-pose="sit">Sit</button><button id="jointReset">選択関節を0°</button></div><p class="help">Phase 1ではBox/Capsule/Sphereのダミーパーツを階層関節で接続します。後の人体骨格・筋肉・皮下組織へ置換しても、同じ関節IDとアニメーションを継承できる構造です。</p><div class="row" style="margin-top:12px"><button id="jointEditorClose">閉じる</button></div></div></div>
+
+<div id="physicsDialog" class="dialog"><div class="dialogCard wideCard"><h2>Physics / Gravity</h2><div class="physicsGrid"><label>物理演算</label><input id="physicsEnabled" type="checkbox"><label>重力プリセット</label><select id="gravityPreset"><option value="earth">Earth</option><option value="moon">Moon</option><option value="mars">Mars</option><option value="zero">Zero-G</option><option value="custom">Custom</option></select><label>Gravity X</label><input id="gravityX" type="number" step="0.01"><label>Gravity Y</label><input id="gravityY" type="number" step="0.01"><label>Gravity Z</label><input id="gravityZ" type="number" step="0.01"><hr><span></span><label>選択部品 Physics</label><input id="partPhysicsEnabled" type="checkbox"><label>Body Type</label><select id="partBodyType"><option value="static">Static</option><option value="dynamic">Dynamic</option><option value="kinematic">Kinematic</option></select><label>Mass</label><input id="partMass" type="number" min="0.001" step="0.1" value="1"></div><div class="row" style="margin-top:12px"><button id="dropSelected">DROP</button><button id="freezeSelected">FREEZE</button><button id="physicsApply">適用</button><button id="physicsClose">閉じる</button></div><p class="help">MVP物理では重力・床・ワークベンチ家具・Static部品上への簡易静置をAABBで計算します。配置モードで机や棚へドラッグ後、DROPで物理静置できます。CAD編集中はOFF推奨です。</p></div></div>
+
+<div id="generatorDialog" class="dialog"><div class="dialogCard"><h2>Generator / ガチャ</h2><p class="help">選択中の複数モデルを材料プールとして、配置・姿勢を変えた候補を自動生成します。</p><div class="physicsGrid"><label>生成数</label><input id="generatorCount" type="number" min="1" max="100" value="8"><label>間隔 mm</label><input id="generatorSpacing" type="number" step="1" value="90"><label>Seed</label><input id="generatorSeed" type="number" step="1" value="42"></div><div class="row" style="margin-top:12px"><button id="generatorApply">生成</button><button id="generatorClose">閉じる</button></div></div></div>
+
+<div id="aliasDialog" class="dialog"><div class="dialogCard"><h2>設定 — コマンドエイリアス</h2><p class="help">短縮名と実コマンドを表で編集できます。例: m → MOVE、r → ROTATE。</p><table class="aliasTable"><thead><tr><th>Alias</th><th>Command</th></tr></thead><tbody id="aliasRows"></tbody></table><div class="row" style="margin-top:10px"><button id="aliasAddRow">＋ 行追加</button><button id="aliasSave">保存</button><button id="aliasClose">閉じる</button></div></div></div>
+
+<div id="motionDialog" class="dialog"><div class="dialogCard motionCard">
+<h2>表計算モーション・実時間制御</h2>
+<div class="motionToolbar">
+<button id="motionPlay">▶ 再生</button><button id="motionPause">⏸ 停止</button><button id="motionReset">⏮ 0秒</button>
+<label>SIM_TIME <input id="motionTime" type="number" step="0.01" value="0" style="width:90px"></label>
+<label>速度 <select id="motionSpeed"><option>0.1</option><option>0.5</option><option selected>1</option><option>2</option><option>10</option><option>60</option></select>倍</label>
+<label><input id="motionRealToggle" type="checkbox"> 現実時間を毎フレーム更新</label>
+<span id="motionNow" class="motionNow"></span><button id="motionClose">閉じる</button>
+</div>
+<div class="motionTabs"><button class="motionTab active" data-pane="sheetPane">スプレッドシート</button><button class="motionTab" data-pane="bindingPane">オブジェクト制御</button></div>
+<div id="sheetPane" class="motionPane active"><div class="sheetBar"><span id="sheetCellName">A1</span><input id="sheetFormula" placeholder="値または数式（例 =A1*2、=TIME*10）"><button id="sheetApplyCell">入力</button><button id="sheetClear">シート消去</button></div><div class="sheetWrap"><table id="sheetGrid" class="sheetGrid"></table></div></div>
+<div id="bindingPane" class="motionPane"><div class="motionToolbar"><button id="motionAddRow">＋ 行追加</button><button id="motionApply">式を適用</button></div><div class="motionGridWrap"><table class="motionGrid"><thead><tr><th>有効</th><th>オブジェクト</th><th>変数</th><th>式（表計算）</th><th>座標</th><th>状態</th><th>削除</th></tr></thead><tbody id="motionRows"></tbody></table></div></div>
+<div class="motionHelp">例: <code>=TIME*100</code>、<code>=SIND(TIME*180)*50</code>、<code>=IF(HOUR&gt;=8 AND HOUR&lt;17,100,0)</code>、<code>=SECOND*6</code>、<code>=Motor01.X+50</code>。変数は X/Y/Z、RX/RY/RZ、SX/SY/SZ、VISIBLE。TIME はシミュレーション秒、NOW は現在時刻(ms)、HOUR/MINUTE/SECOND/WEEKDAY を利用できます。実時間連動をOFFにすると編集中の形状が勝手に動きません。</div>
+</div></div>
+
+
+
+
+
+
+
+
+
+
+
+<div id="rebuildDialog" class="dialog"><div class="dialogCard">
+<h2>Parametric Rebuild</h2>
+<div id="rebuildSummary" class="section"></div>
+<div id="rebuildLog" class="rebuildLog"></div>
+<div class="row" style="margin-top:10px">
+<button id="rebuildDirty">Dirtyのみ再構築</button>
+<button id="rebuildAll">全体再構築</button>
+<button id="rebuildClose">閉じる</button>
+</div>
+</div></div>
+
+<div id="historyDialog" class="dialog"><div class="dialogCard">
+<h2>Undo / Redo History</h2>
+<div id="historyList" class="historyList"></div>
+<div class="row" style="margin-top:10px">
+<button id="historyUndo">Undo</button>
+<button id="historyRedo">Redo</button>
+<button id="historySnapshot">Snapshot</button>
+<button id="historyClose">閉じる</button>
+</div>
+</div></div>
+
+<div id="edgeKernelDialog" class="dialog"><div class="dialogCard">
+<h2>Edge Kernel</h2>
+<div id="edgeKernelInfo" class="edgeInfoCard"></div>
+<div class="edgeKernelGrid" style="margin-top:10px">
+<label>操作</label><select id="edgeKernelOperation">
+<option value="split">Split Edge</option>
+<option value="merge">Merge Collinear</option>
+<option value="suppress">Suppress Edge</option>
+<option value="restore">Restore Edge</option>
+<option value="fillet">Fillet Target</option>
+<option value="chamfer">Chamfer Target</option>
+</select>
+<label>分割位置</label><input id="edgeSplitRatio" type="number" min="0.01" max="0.99" step="0.01" value="0.5">
+<label>寸法 mm</label><input id="edgeKernelSize" type="number" min="0.001" step="0.1" value="2">
+</div>
+<div class="edgeKernelNote" style="margin-top:10px">
+SplitはB-Rep上でEdgeとVertexを追加します。Mergeは共線・接続Edgeを簡易統合します。Fillet／Chamferは対象Edge IDと寸法を履歴化し、既存のプレビュー機能へ接続します。
+</div>
+<div id="edgeKernelDiagnostics" style="margin-top:10px"></div>
+<div class="row" style="margin-top:10px">
+<button id="edgeKernelApply">Feature追加</button>
+<button id="edgeKernelDiagnose">診断</button>
+<button id="edgeKernelClose">閉じる</button>
+</div>
+</div></div>
+
+<div id="faceKernelDialog" class="dialog"><div class="dialogCard">
+<h2>Face Kernel</h2>
+<div id="faceKernelInfo" class="faceInfoCard"></div>
+<div class="faceKernelGrid" style="margin-top:10px">
+<label>面オフセット mm</label><input id="faceOffsetValue" type="number" step="0.1" value="5">
+<label>操作</label><select id="faceKernelOperation">
+<option value="offset">Offset</option>
+<option value="reverse">Normal Reverse</option>
+<option value="suppress">Suppress Face</option>
+<option value="restore">Restore Face</option>
+</select>
+</div>
+<div class="faceActionNote" style="margin-top:10px">
+直方体の平面オフセットは実形状へ反映します。法線反転・面SuppressはB-Rep属性と履歴として保持し、表示オーバーレイへ反映します。一般曲面のトリム・縫合は後続カーネルで対応します。
+</div>
+<div class="row" style="margin-top:10px">
+<button id="faceKernelApply">Feature追加</button>
+<button id="faceKernelMerge">共面Face統合</button>
+<button id="faceKernelClose">閉じる</button>
+</div>
+</div></div>
+
+<div id="brepDialog" class="dialog"><div class="dialogCard"><h2>B-Rep Inspector</h2><div id="brepSummary" class="section"></div><div id="brepTree" class="brepTree"></div><div class="row" style="margin-top:10px"><button id="brepRebuild">B-Rep再生成</button><button id="brepExport">JSON出力</button><button id="brepClose">閉じる</button></div></div></div>
+<div id="sketchDiagnosticsDialog" class="dialog"><div class="dialogCard">
+<h2>Sketch Diagnostics</h2><div id="sketchDiagnosticsSummary" class="section"></div>
+<div id="sketchDiagnosticsList" class="diagnosticList"></div>
+<div class="row" style="margin-top:10px"><button id="runSketchRepair">近接端点を自動修復</button><button id="sketchDiagnosticsClose">閉じる</button></div>
+</div></div>
+
+<div id="patternDialog" class="dialog"><div class="dialogCard">
+<h2>オブジェクト配列</h2>
+<div class="featureEditorGrid">
+<label>配列種類</label><select id="patternType"><option value="circular">円形配列</option><option value="rectangular">矩形配列</option><option value="matrix">マトリックス配列</option></select>
+</div>
+<div id="circularPatternFields" class="featureEditorGrid" style="margin-top:10px">
+<label>回転軸</label><select id="patternAxis"><option value="Z">Z軸</option><option value="Y">Y軸</option><option value="X">X軸</option></select>
+<label>個数</label><input id="patternCount" type="number" min="2" max="360" step="1" value="6">
+<label>総角度 °</label><input id="patternAngle" type="number" min="0.001" max="360" step="1" value="360">
+<label>中心 X</label><input id="patternCenterX" type="number" step="0.001" value="0"><label>中心 Y</label><input id="patternCenterY" type="number" step="0.001" value="0"><label>中心 Z</label><input id="patternCenterZ" type="number" step="0.001" value="0">
+<label>姿勢も回転</label><input id="patternRotateObjects" type="checkbox" checked>
+</div>
+<div id="rectangularPatternFields" class="featureEditorGrid" style="display:none;margin-top:10px">
+<label>X 個数</label><input id="patternCountX" type="number" min="1" step="1" value="3"><label>X ピッチ</label><input id="patternPitchX" type="number" step="0.001" value="50">
+<label>Y 個数</label><input id="patternCountY" type="number" min="1" step="1" value="2"><label>Y ピッチ</label><input id="patternPitchY" type="number" step="0.001" value="50">
+<label>Z 個数</label><input id="patternCountZ" type="number" min="1" step="1" value="1"><label>Z ピッチ</label><input id="patternPitchZ" type="number" step="0.001" value="50">
+</div>
+<div id="matrixPatternFields" style="display:none;margin-top:10px">
+<div class="section">1行1個。CSV形式: <code>X,Y,Z,RX,RY,RZ,SX,SY,SZ,名前</code><br>座標は元オブジェクトからの相対値です。</div>
+<textarea id="patternMatrix" style="width:100%;min-height:180px;background:#0d1720;color:#e8f0f6;border:1px solid #344454;border-radius:8px;padding:8px;font-family:ui-monospace,monospace">0,0,0,0,0,0,1,1,1,
+50,0,0,0,0,0,1,1,1,
+100,0,0,0,0,0,1,1,1,</textarea>
+</div>
+<div id="patternSummary" class="section" style="margin-top:10px"></div>
+<div class="row"><button id="patternApply">配列作成</button><button id="patternClose">閉じる</button></div>
+</div></div>
+
+
+<div id="mirrorDialog" class="dialog"><div class="dialogCard">
+<h2>ミラー／ミラーコピー</h2>
+<div class="section">選択オブジェクトを、ワールド座標の基準面に対して反転します。ミラーコピーは元オブジェクトを残して複製を作成します。</div>
+<div class="featureEditorGrid">
+<label>処理</label><select id="mirrorMode"><option value="mirror">ミラー（元を反転）</option><option value="copy">ミラーコピー（元を保持）</option></select>
+<label>基準面</label><select id="mirrorPlane"><option value="X">YZ面（X座標を反転）</option><option value="Y">XZ面（Y座標を反転）</option><option value="Z">XY面（Z座標を反転）</option></select>
+<label>面の座標</label><input id="mirrorOffset" type="number" step="0.001" value="0">
+<label>コピー名接尾辞</label><input id="mirrorSuffix" value=" Mirror">
+</div>
+<div id="mirrorSummary" class="section" style="margin-top:10px"></div>
+<div class="row" style="margin-top:10px"><button id="mirrorApply">実行</button><button id="mirrorClose">閉じる</button></div>
+</div></div>
+
+<div id="booleanDialog" class="dialog"><div class="dialogCard">
+<h2>Boolean</h2>
+<div class="booleanGrid">
+<label>演算</label><select id="booleanOperation">
+<option value="join">Join</option>
+<option value="cut">Cut</option>
+<option value="intersect">Intersect</option>
+</select>
+<label>ターゲット</label><select id="booleanTarget"></select>
+<label>ツール</label><select id="booleanTool"></select>
+<label>ツール保持</label><input id="booleanKeepTool" type="checkbox" checked>
+</div>
+<div id="booleanSummary" class="booleanOperand" style="margin-top:10px"></div>
+<div class="booleanPreview" style="margin-top:10px">
+直方体同士で結果が単一の直方体になるJoin／Intersectは実形状へ反映します。それ以外は非破壊Boolean Featureと半透明プレビューを保持します。
+</div>
+<div class="row" style="margin-top:10px">
+<button id="booleanApply">Boolean実行</button>
+<button id="booleanClose">閉じる</button>
+</div>
+</div></div>
+
+
+<div id="sketchEntityDialog" class="dialog"><div class="dialogCard"><h2>スケッチ要素編集</h2><div id="sketchEntityInfo" class="section"></div><div id="sketchEntityFields" class="featureEditorGrid"></div><div class="row" style="margin-top:10px"><button id="sketchEntityApply">適用</button><button id="sketchEntityDelete">削除</button><button id="sketchEntityClose">閉じる</button></div></div></div>
+<div id="sketchRevolveDialog" class="dialog"><div class="dialogCard"><h2>スケッチ回転スイープ</h2><div id="revolveProfileList" class="profileList"></div><div class="featureEditorGrid" style="margin-top:10px"><label>回転軸</label><select id="revolveAxis"><option value="Y">スケッチY軸</option><option value="X">スケッチX軸</option></select><label>角度 °</label><input id="revolveAngle" type="number" min="0.1" max="360" step="1" value="360"><label>分割数</label><input id="revolveSegments" type="number" min="3" max="256" step="1" value="96"><label>操作</label><select id="revolveOperation"><option value="newBody">新規ソリッド</option><option value="join">追加（和）</option><option value="cut">回転カット</option><option value="intersect">共通部</option></select><label>対象ソリッド</label><select id="revolveTarget"></select></div><div class="row" style="margin-top:10px"><button id="sketchRevolveApply">回転スイープ</button><button id="sketchRevolveClose">閉じる</button></div></div></div>
+<div id="partDatumDialog" class="dialog"><div class="dialogCard"><h2>オブジェクト基準ジオメトリ</h2>
+<div class="section">部品固有の原点・XYZ軸・XY/XZ/YZ面、外形面、穴中心、既存の二次基準を参照して新しい基準を作成します。</div>
+<div class="featureEditorGrid">
+<label>種類</label><select id="partDatumType"><option value="point">基準点</option><option value="axis">基準軸</option><option value="plane">基準面</option></select>
+<label>名前</label><input id="partDatumName" value="Datum 1">
+<label>作成方式</label><select id="partDatumMode"><option value="reference">1つの基準から作成</option><option value="between">2つの基準の中間</option></select>
+<label>参照 A</label><select id="partDatumReferenceA"></select>
+<div id="partDatumReferenceBRow" style="display:contents"><label>参照 B</label><select id="partDatumReferenceB"></select></div>
+<label>方向/面</label><select id="partDatumOrientation"><option value="X">X</option><option value="Y">Y</option><option value="Z">Z</option><option value="XY">XY</option><option value="XZ">XZ</option><option value="YZ">YZ</option></select>
+<label>オフセット</label><input id="partDatumOffset" type="number" step="0.001" value="0">
+<label>追加 X</label><input id="partDatumX" type="number" step="0.001" value="0"><label>追加 Y</label><input id="partDatumY" type="number" step="0.001" value="0"><label>追加 Z</label><input id="partDatumZ" type="number" step="0.001" value="0">
+</div><div class="row" style="margin-top:10px"><button id="partDatumApply">追加</button><button id="partDatumClose">閉じる</button></div></div></div>
+
+
+<div id="geometryConstraintDialog" class="dialog"><div class="dialogCard"><h2>基準ジオメトリ幾何拘束</h2>
+<div class="section">二次基準点・軸・面を、部品基準、外形面、中間面、穴中心、他の二次基準へ拘束します。形状再構築時にも再計算されます。</div>
+<div class="featureEditorGrid">
+<label>拘束対象</label><select id="geometryConstraintTarget"></select>
+<label>拘束種類</label><select id="geometryConstraintType"><option value="coincident">一致</option><option value="parallel">平行</option><option value="perpendicular">垂直</option><option value="distance">距離</option><option value="angle">角度</option><option value="concentric">同心・同軸</option></select>
+<label>参照要素</label><select id="geometryConstraintReference"></select>
+<div id="geometryConstraintValueRow" style="display:contents"><label id="geometryConstraintValueLabel">距離 mm</label><input id="geometryConstraintValue" type="number" step="0.001" value="0"></div>
+</div>
+<div id="geometryConstraintList" class="section" style="margin-top:12px;max-height:220px;overflow:auto"></div>
+<div class="row" style="margin-top:10px"><button id="geometryConstraintApply">拘束追加</button><button id="geometryConstraintClose">閉じる</button></div></div></div>
+
+<div id="spacecraftDialog" class="dialog"><div class="dialogCard wideCard">
+<h2>🚀 Spacecraft Builder / Flight</h2>
+<div class="physicsGrid">
+<label>設置部品</label><select id="spacecraftPartType"><option value="engine">エンジン</option><option value="tank">燃料タンク</option><option value="seat">運転席</option><option value="landing">着陸脚</option><option value="parachute">パラシュート</option><option value="rcs">RCSスラスター</option><option value="hull">有人船体</option><option value="deck">船内床</option><option value="wall">船体壁</option></select>
+<label>部品作成</label><button id="spacecraftPartAdd">選択部品を作成</button>
+<label>航行目標</label><select id="spacecraftTarget"></select>
+<label>スロットル %</label><input id="spacecraftThrottle" type="range" min="0" max="100" step="1" value="100"><label>姿勢制御</label><div class="row"><button id="craftYawLeft">←Yaw</button><button id="craftPitchUp">↑Pitch</button><button id="craftPitchDown">↓Pitch</button><button id="craftYawRight">Yaw→</button><button id="craftRollLeft">↶Roll</button><button id="craftRollRight">Roll↷</button></div><div class="help">W/S=Pitch、A/D=Yaw、Q/E=Roll、Shift/Ctrl=Throttle。有人船体・船体壁には建築の🚪ドア/▤窓を追加できます。</div>
+<label>インパルス Δv m/s</label><div class="row"><input id="spacecraftBurnDv" type="number" min="0.1" step="0.1" value="5"><button id="spacecraftProgradeBurn">順行噴射</button><button id="spacecraftRetrogradeBurn">逆行噴射</button></div>
+<label>カメラ</label><div class="row"><button id="spacecraftCockpitView">コックピット</button><button id="spacecraftChaseView">追尾</button><button id="spacecraftOrbitView">俯瞰</button></div>
+<label>船内・改造</label><div class="row"><button id="spacecraftWalkFPV">船内FPV</button><button id="spacecraftWalkTPV">船内TPV</button><button id="spacecraftReturnSeat">運転席へ戻る</button><button id="spacecraftModify">改造モード</button></div>
+<label>エンジン噴射</label><input id="spacecraftEnginePlume" type="checkbox" checked>
+<label>状態</label><div id="spacecraftStatus" class="help">宇宙船未登録</div>
+<label>現在位置</label><div id="spacecraftPosition" class="help">位置データなし</div><label>軌道力学</label><div id="spacecraftTelemetry" class="help">軌道データなし</div>
+</div>
+<div class="row" style="margin-top:10px;flex-wrap:wrap"><button id="spacecraftAssemble">選択部品から宇宙船登録</button><button id="spacecraftBoard">運転席へ搭乗</button><button id="spacecraftUnboard">降りる</button><button id="spacecraftLaunch">地表離陸</button><button id="spacecraftOrbit">軌道投入</button><button id="spacecraftTransfer">惑星間航行</button><button id="spacecraftLand">着陸</button><button id="spacecraftClose">閉じる</button></div>
+<div class="edgeFeatureNote">エンジン・燃料タンク・運転席・着陸脚・パラシュートは通常のCADオブジェクトです。配置・複製・グループ化・Blueprint登録が可能です。v5.11.1ではコックピット/追尾/俯瞰カメラ、WASD+Q/E操船、エンジン噴射表示、航行中の船内FPV/TPV歩行、Creator改造モードを追加。宇宙船を移動する建築物として扱えます。</div>
+</div></div>
+
+<div id="celestialDialog" class="dialog"><div class="dialogCard">
+<h2>✦ 天体プロパティ</h2>
+<div class="physicsGrid"><label>識別番号</label><input id="celestialId" readonly><label>種類</label><input id="celestialType" readonly><label>名称</label><input id="celestialName"><label>名称表示</label><input id="celestialLabelVisible" type="checkbox"></div>
+<div class="row" style="margin-top:10px"><button id="celestialApply">登録</button><button id="celestialClose">閉じる</button></div>
+<div class="edgeFeatureNote">初期名称は識別番号です。恒星・惑星・月・全天の星をクリックして任意の名前へ変更できます。</div>
+</div></div>
+
+<div id="planetDialog" class="dialog"><div class="dialogCard">
+<h2>🌍 Planet / Terrain</h2>
+<div class="field"><label>惑星モード</label><input id="planetEnabled" type="checkbox"></div>
+<div class="field"><label>惑星半径 (mm)</label><input id="planetRadius" type="number" min="1000" step="1000" value="1000000"></div>
+<div class="field"><label>標高差 (mm)</label><input id="planetTerrain" type="number" min="0" step="100" value="10000"></div><div class="field"><label>スポーン標高目安 (海抜 mm)</label><input id="planetSpawnElevation" type="number" min="0" step="100" value="1000"></div>
+<div class="field"><label>陸地率 目標 (%)</label><input id="planetLandFraction" type="number" min="5" max="85" step="1" value="30"></div>
+<div class="field"><label>登録天体名を表示</label><input id="planetCelestialLabels" type="checkbox" checked></div>
+<div class="field"><label>地形Seed</label><input id="planetSeed" type="number" step="1" value="7"></div>
+<div class="field"><label>大陸スケール地形</label><input id="planetContinents" type="checkbox" checked></div>
+<div class="field"><label>山岳</label><input id="planetMountains" type="checkbox" checked></div><div class="field"><label>大陸スケール</label><input id="planetContinentScale" type="number" min="0.25" max="2.5" step="0.05" value="0.72"></div><div class="field"><label>地形ディテール</label><input id="planetDetailStrength" type="number" min="0" max="2.5" step="0.1" value="1"></div><div class="field"><label>地形粗さ</label><input id="planetRoughness" type="number" min="0.2" max="3" step="0.1" value="1"></div><div class="field"><label>山の鋭さ</label><input id="planetMountainSharpness" type="number" min="1" max="6" step="0.25" value="2.25"></div>
+<div class="field"><label>谷の深さ</label><input id="planetValleyStrength" type="number" min="0" max="2" step="0.05" value="0.65"></div>
+<div class="field"><label>高原</label><input id="planetPlateauStrength" type="number" min="0" max="2" step="0.05" value="0.45"></div>
+<div class="field"><label>崖</label><input id="planetCliffStrength" type="number" min="0" max="2" step="0.05" value="0.35"></div>
+<div class="field"><label>島</label><input id="planetIslandStrength" type="number" min="0" max="2" step="0.05" value="0.30"></div>
+<div class="field"><label>侵食</label><input id="planetErosionStrength" type="number" min="0" max="2" step="0.05" value="0.55"></div>
+<div class="field"><label>バイオーム色分け</label><input id="planetBiomes" type="checkbox" checked></div>
+<div class="field"><label>海</label><input id="planetWater" type="checkbox" checked></div>
+<div class="field"><label>水球半径 (mm)</label><input id="planetWaterRadius" type="number" min="1000" step="100" value="999700"></div>
+<div class="field"><label>波の振幅 (mm)</label><input id="planetWaveAmplitude" type="number" min="0" step="10" value="220"></div>
+<div class="field"><label>河川</label><input id="planetRivers" type="checkbox" checked></div>
+<div class="field"><label>河川本数</label><input id="planetRiverCount" type="number" min="0" max="32" step="1" value="7"></div>
+<div class="field"><label>植生</label><input id="planetVegetation" type="checkbox" checked></div>
+<div class="field"><label>植生密度</label><input id="planetVegetationDensity" type="number" min="0" max="1200" step="20" value="180"></div>
+<div class="field"><label>大気</label><input id="planetAtmosphere" type="checkbox" checked></div>
+<div class="edgeFeatureNote">惑星モードではWASD/方向キーで球面に沿って移動し、反対側まで連続して一周できます。Shift=走る、Space=ジャンプ。</div>
+<div class="row" style="margin-top:10px"><button id="planetApply">再構築・適用</button><button id="planetClose">閉じる</button></div>
+</div></div>
+<div id="sketchExtrudeDialog" class="dialog"><div class="dialogCard">
+<h2>Sketch Profile 押し出し</h2>
+<div id="profileList" class="profileList"></div>
+<div class="featureEditorGrid" style="margin-top:10px">
+<label>距離 mm</label><input id="sketchExtrudeDistance" type="number" min="0.001" step="0.1" value="20">
+<label>方向</label><select id="sketchExtrudeDirection"><option value="positive">正方向</option><option value="negative">逆方向</option><option value="midplane">中立面</option></select>
+<label>操作</label><select id="sketchExtrudeOperation"><option value="newBody">新規ソリッド</option><option value="join">追加（和）</option><option value="cut">押し出しカット</option><option value="intersect">共通部</option></select><label>対象ソリッド</label><select id="sketchExtrudeTarget"></select>
+</div>
+<div class="row" style="margin-top:10px"><button id="sketchExtrudeApply">押し出し</button><button id="sketchExtrudeClose">閉じる</button></div>
+</div></div>
+
+<div id="dimensionDialog" class="dialog"><div class="dialogCard">
+<h2>スケッチ寸法</h2>
+<div id="dimensionTarget" class="section"></div>
+<div class="field"><label>寸法種別</label><select id="dimensionType"><option value="Length">長さ</option><option value="Horizontal">水平距離</option><option value="Vertical">垂直距離</option><option value="Angle">角度</option><option value="Radius">半径</option><option value="Diameter">直径</option></select></div><div class="field"><label id="dimensionValueLabel">寸法</label><input id="dimensionValue" type="number" step="0.001" value="10"></div>
+<div class="row"><button id="dimensionApply">適用</button><button id="dimensionClose">閉じる</button></div>
+</div></div>
+
+<div id="sketchDialog" class="dialog"><div class="dialogCard">
+<h2>新規スケッチ</h2>
+<div class="field"><label>平面</label><select id="sketchPlane"><option value="XY">XY</option><option value="XZ">XZ</option><option value="YZ">YZ</option></select></div>
+<div class="field"><label>グリッド mm</label><input id="sketchGridSize" type="number" min="0.1" step="0.1" value="10"></div>
+<div class="row"><button id="createSketch">作成</button><button id="sketchDialogClose">閉じる</button></div>
+</div></div>
+<div id="defaultChamferDialog" class="dialog"><div class="dialogCard">
+<h2>既定C面ルール</h2>
+<div class="field"><label>自動適用</label><input id="defaultChamferEnabled" type="checkbox"></div>
+<div class="field"><label>C面寸法 mm</label><input id="defaultChamferSize" type="number" min="0" step="0.01" value="0.2"></div>
+<div class="ruleStatus">個別にフィレットまたは面取りを指定した辺は個別設定を優先します。未指定の辺だけが既定C面の対象です。</div>
+<div class="row" style="margin-top:10px"><button id="defaultChamferApply">保存・再計算</button><button id="defaultChamferClose">閉じる</button></div>
+</div></div>
+<div id="faceExtrudeDialog" class="dialog"><div class="dialogCard">
+<h2>選択面押し出し</h2><div id="faceExtrudeSelection" class="section"></div>
+<div class="featureEditorGrid">
+<label>距離 mm</label><input id="faceExtrudeDistance" type="number" step="0.1" value="10">
+<label>方向</label><select id="faceExtrudeDirection"><option value="normal">面法線</option><option value="reverse">反転</option></select>
+<label>操作</label><select id="faceExtrudeOperation"><option value="add">追加</option><option value="offset">面オフセット</option></select>
+</div>
+<div class="edgeFeatureNote" style="margin-top:10px">v3.1.9では直方体の平面を対象に、対応する幅・高さ・奥行を履歴から再計算します。</div>
+<div class="row" style="margin-top:10px"><button id="faceExtrudeApply">Feature追加</button><button id="faceExtrudeClose">閉じる</button></div>
+</div></div>
+
+<div id="edgeFeatureDialog" class="dialog"><div class="dialogCard">
+<h2 id="edgeFeatureTitle">エッジフィーチャー</h2>
+<div id="edgeFeatureSelection" class="section"></div>
+<div class="featureEditorGrid">
+<label id="edgeSizeLabel">寸法 mm</label><input id="edgeFeatureSize" type="number" min="0.001" step="0.1" value="3">
+<label>方式</label><select id="edgeFeatureMethod">
+<option value="constant">一定寸法</option>
+<option value="variable">可変（履歴のみ）</option>
+</select>
+</div>
+<div class="edgeFeatureNote" style="margin-top:10px">
+直方体の全12辺を選択した場合は実メッシュへ反映します。部分エッジ指定は対象辺を履歴・プレビューとして保持し、B-Repカーネル接続時に正確な局所加工へ移行します。
+</div>
+<div class="row" style="margin-top:10px"><button id="edgeFeatureApply">Feature追加</button><button id="edgeFeatureCancel">閉じる</button></div>
+</div></div>
+
+<div id="featureDialog" class="dialog"><div class="dialogCard">
+<h2>Feature Tree</h2>
+<div class="row">
+<button id="addMoveFeature">Move Feature</button>
+<button id="addRotateFeature">Rotate Feature</button>
+<button id="addMetadataFeature">Metadata Feature</button>
+<button id="rebuildFeatures">再計算</button>
+</div>
+<div id="rollbackBar" class="rollbackBar"><div id="rollbackHandle" class="rollbackHandle"></div></div>
+<div id="featureTreePanel" class="featureTree"></div>
+<div id="featureEditor" class="section" style="margin-top:10px"></div>
+<div class="row"><button id="featureClose">閉じる</button></div>
+</div></div>
+
+<div id="groupDialog" class="dialog"><div class="dialogCard">
+<h2>グループ化</h2><div class="field"><label>名前</label><input id="groupName" value="Group"></div>
+<div class="row"><button id="createGroup">作成</button><button id="closeGroup">閉じる</button></div>
+</div></div>
+
+
+<div id="motionAxisDialog" class="dialog"><div class="dialogCard">
+<h2>可動軸 / Motion Axis</h2><div id="motionAxisPart" class="section"></div>
+<div class="featureEditorGrid">
+<label>既存軸</label><select id="motionAxisSelect"></select>
+<label>名称</label><input id="motionAxisName" value="Motion Axis">
+<label>種類</label><select id="motionAxisType"><option value="revolute">Revolute / ヒンジ・回転</option><option value="slider">Slider / ピストン・直動</option><option value="screw">Screw / ねじ送り</option><option value="cylindrical">Cylindrical / 回転+直動</option><option value="fixed">Fixed / 固定</option></select>
+<label>原点 X,Y,Z</label><input id="motionAxisOrigin" value="0,0,0">
+<label>方向 X,Y,Z</label><input id="motionAxisDirection" value="0,0,1">
+<label>最小</label><input id="motionAxisMin" type="number" step="0.1" value="0">
+<label>最大</label><input id="motionAxisMax" type="number" step="0.1" value="360">
+<label>現在値</label><input id="motionAxisValue" type="number" step="0.1" value="0">
+<label>ねじピッチ mm/rev</label><input id="motionAxisPitch" type="number" step="0.01" value="1">
+</div><div class="row" style="margin-top:10px"><button id="motionAxisNew">新規</button><button id="motionAxisApply">保存・適用</button><button id="motionAxisDelete">削除</button><button id="motionAxisClose">閉じる</button></div></div></div>
+
+<div id="socketDialog" class="dialog"><div class="dialogCard">
+<h2>ソケット / Grip・Place・Attach</h2><div id="socketPart" class="section"></div>
+<div class="featureEditorGrid">
+<label>既存ソケット</label><select id="socketSelect"></select>
+<label>名称</label><input id="socketName" value="Socket">
+<label>種類</label><select id="socketType"><option value="grip">Grip / 持つ</option><option value="place">Place / 置く</option><option value="attach">Attach / 接続</option><option value="equipment">Equipment / 装備</option></select>
+<label>手</label><select id="socketHand"><option value="either">左右どちらでも</option><option value="right">右手</option><option value="left">左手</option><option value="both">両手</option></select>
+<label>位置 X,Y,Z</label><input id="socketPosition" value="0,0,0">
+<label>回転 RX,RY,RZ</label><input id="socketRotation" value="0,0,0">
+</div><div class="row" style="margin-top:10px"><button id="socketNew">新規</button><button id="socketApply">保存</button><button id="socketDelete">削除</button><button id="socketClose">閉じる</button></div></div></div>
+
+<div id="assemblyDialog" class="dialog"><div class="dialogCard">
+<h2>Assembly Constraint</h2><div class="featureEditorGrid">
+<label>拘束</label><select id="assemblyType"><option value="coincident">一致</option><option value="concentric">同心・同軸</option><option value="parallel">平行</option><option value="perpendicular">垂直</option><option value="distance">距離</option><option value="angle">角度</option></select>
+<label>基準部品</label><select id="assemblySource"></select><label>基準軸</label><select id="assemblySourceAxis"></select>
+<label>移動部品</label><select id="assemblyTarget"></select><label>移動側軸</label><select id="assemblyTargetAxis"></select>
+<label>値 mm/deg</label><input id="assemblyValue" type="number" step="0.1" value="0">
+</div><div id="assemblyList" class="section" style="margin-top:10px"></div><div class="row"><button id="assemblyAdd">拘束追加・適用</button><button id="assemblyApplyAll">全拘束再計算</button><button id="assemblyClose">閉じる</button></div></div></div>
+
+
+<div id="ueNpcTalkDialog" class="dialog"><div class="dialogCard"><h2 id="ueNpcTalkTitle">💬 会話</h2><div id="ueNpcTalkStatus" class="help" style="margin-bottom:10px"></div><div id="ueNpcTalkLog" style="min-height:120px;max-height:34vh;overflow:auto;border:1px solid #315367;border-radius:10px;padding:10px;background:#0b1821;margin-bottom:10px"></div><div class="row"><input id="ueNpcTalkInput" style="flex:1;min-width:180px" placeholder="話しかける… 例：仕事は？ 村について教えて"><button id="ueNpcTalkSend">送る</button></div><div class="row" style="margin-top:10px"><button data-npcquick="greet">こんにちは</button><button data-npcquick="job">仕事は？</button><button data-npcquick="village">村について</button><button data-npcquick="gift">🎁 プレゼント</button><button data-npcquick="trade">🏪 取引</button><button id="ueNpcTalkClose">閉じる</button></div></div></div>
+<div id="ueVillageDialog" class="dialog"><div class="dialogCard wideCard"><h2 id="ueVillageTitle">🏘 村</h2><div class="physicsGrid"><label>ゲームモード</label><select id="ueVillageMode"><option value="survival">SURVIVAL / 所有権保護</option><option value="creator">CREATOR / 編集可能</option></select><label>村</label><div id="ueVillageSummary" class="help"></div></div><p class="help">サバイバルでは所有者のいる建物・設備を改変できません。会話・取引・プレゼント・イベントで関係が変化します。友好35+信頼25で仲間、仲間は直接操作可能。信頼または信仰50以上でRTS命令が解放されます。高い友好・信頼で家族候補になります。村人は年齢・寿命・体力・知力・記憶容量・所持品・財産を持ち、時間帯に応じて睡眠・仕事・市場・余暇を行います。</p><div id="ueVillageResidents" style="display:grid;gap:8px;max-height:55vh;overflow:auto"></div><div class="row" style="margin-top:10px"><button id="ueVillageCreate">＋ 村を作る</button><button id="ueVillageRelease">🎮 プレイヤーへ戻る</button><button id="ueVillageClose">閉じる</button></div></div></div>
+<script src="./ue-config.js?v=5.49.0"></script>
+<script type="module" src="./src/app.js?v=5.49.0"></script>
+
+<div id="mediaPlayerDialog" class="dialog"><div class="dialogCard"><h2>📻 Media Player</h2><p class="help">CD / レコードにYouTube・Vimeo・音源URLを登録し、選択したプレイヤーから3D空間音響で再生します。</p><div class="physicsGrid"><label>プレイヤー</label><div id="mediaPlayerTarget" class="help">未選択</div><label>メディア</label><select id="mediaCarrierSelect"></select><label>タイトル</label><input id="mediaCarrierTitle" placeholder="曲名 / アルバム名"><label>URL</label><input id="mediaCarrierUrl" placeholder="YouTube / Vimeo / 音源URL"><label>音量</label><input id="mediaPlayerVolume" type="range" min="0" max="1" step="0.05" value="0.8"><label>ループ</label><input id="mediaPlayerLoop" type="checkbox" checked><label>基準距離 (mm)</label><input id="mediaPlayerRefDistance" type="number" min="100" step="100" value="1800"><label>最大距離 (mm)</label><input id="mediaPlayerMaxDistance" type="number" min="500" step="500" value="25000"></div><div class="row" style="margin-top:10px"><button id="mediaCarrierSave">💾 メディアへ保存</button><button id="mediaPlayerLoad">⏏ セットして再生</button><button id="mediaPlayerPause">⏸ 一時停止</button><button id="mediaPlayerResume">▶ 再生</button><button id="mediaPlayerEject">⏏ 取り出す</button><button id="mediaPlayerClose">閉じる</button></div></div></div><div id="mobileUiDialog" class="dialog"><div class="dialogCard"><h2>📱 Mobile Action Settings</h2><p class="help">右側4ボタンの機能を変更します。スティックUIは従来どおりです。</p><div class="physicsGrid"><label>上</label><select class="mobileActionSelect"><option value="jump">JUMP / ジャンプ</option><option value="interact">USE / 操作</option><option value="inventory">INV / インベントリ</option><option value="view">VIEW / FPV⇄TPV</option><option value="run">RUN / 走る</option><option value="walk">WALK / 歩行</option><option value="rightHand">R-HAND / 右手</option><option value="leftHand">L-HAND / 左手</option><option value="drop">DROP / 手放す</option><option value="harvest">HARVEST / 採取</option><option value="craft">CRAFT / クラフト</option><option value="workbench">BENCH / 作業台</option><option value="multi">MULTI / 共同プレイ</option><option value="attack">ATTACK / 攻撃</option><option value="carry">CARRY / 共同運搬</option><option value="pilot">PILOT / 運転席</option><option value="passenger">RIDE / 同乗</option><option value="unboard">EXIT / 降りる</option><option value="respawn">RESPAWN / 復帰</option></select><label>右</label><select class="mobileActionSelect"><option value="jump">JUMP / ジャンプ</option><option value="interact">USE / 操作</option><option value="inventory">INV / インベントリ</option><option value="view">VIEW / FPV⇄TPV</option><option value="run">RUN / 走る</option><option value="walk">WALK / 歩行</option><option value="rightHand">R-HAND / 右手</option><option value="leftHand">L-HAND / 左手</option><option value="drop">DROP / 手放す</option><option value="harvest">HARVEST / 採取</option><option value="craft">CRAFT / クラフト</option><option value="workbench">BENCH / 作業台</option><option value="multi">MULTI / 共同プレイ</option><option value="attack">ATTACK / 攻撃</option><option value="carry">CARRY / 共同運搬</option><option value="pilot">PILOT / 運転席</option><option value="passenger">RIDE / 同乗</option><option value="unboard">EXIT / 降りる</option><option value="respawn">RESPAWN / 復帰</option></select><label>下</label><select class="mobileActionSelect"><option value="jump">JUMP / ジャンプ</option><option value="interact">USE / 操作</option><option value="inventory">INV / インベントリ</option><option value="view">VIEW / FPV⇄TPV</option><option value="run">RUN / 走る</option><option value="walk">WALK / 歩行</option><option value="rightHand">R-HAND / 右手</option><option value="leftHand">L-HAND / 左手</option><option value="drop">DROP / 手放す</option><option value="harvest">HARVEST / 採取</option><option value="craft">CRAFT / クラフト</option><option value="workbench">BENCH / 作業台</option><option value="multi">MULTI / 共同プレイ</option><option value="attack">ATTACK / 攻撃</option><option value="carry">CARRY / 共同運搬</option><option value="pilot">PILOT / 運転席</option><option value="passenger">RIDE / 同乗</option><option value="unboard">EXIT / 降りる</option><option value="respawn">RESPAWN / 復帰</option></select><label>左</label><select class="mobileActionSelect"><option value="jump">JUMP / ジャンプ</option><option value="interact">USE / 操作</option><option value="inventory">INV / インベントリ</option><option value="view">VIEW / FPV⇄TPV</option><option value="run">RUN / 走る</option><option value="walk">WALK / 歩行</option><option value="rightHand">R-HAND / 右手</option><option value="leftHand">L-HAND / 左手</option><option value="drop">DROP / 手放す</option><option value="harvest">HARVEST / 採取</option><option value="craft">CRAFT / クラフト</option><option value="workbench">BENCH / 作業台</option><option value="multi">MULTI / 共同プレイ</option><option value="attack">ATTACK / 攻撃</option><option value="carry">CARRY / 共同運搬</option><option value="pilot">PILOT / 運転席</option><option value="passenger">RIDE / 同乗</option><option value="unboard">EXIT / 降りる</option><option value="respawn">RESPAWN / 復帰</option></select></div><div class="row" style="margin-top:10px"><button id="mobileUiSave">保存</button><button id="mobileUiClose">閉じる</button></div></div></div>
+<div id="smartphoneDialog" class="dialog"><div class="dialogCard" style="max-width:380px"><h2>📱 Universe Phone</h2><p class="help">アバターが装備して使えるスマートフォン。将来は通話・チャット・地図・広告・決済・カメラへ拡張します。</p><div class="mobileInventoryGrid"><button id="phoneInventoryBtn" class="mobileInventoryItem">🎒<b>Inventory</b></button><button id="phoneCraftBtn" class="mobileInventoryItem">🛠️<b>Craft</b></button><button id="phoneMultiBtn" class="mobileInventoryItem">🌐<b>Multi</b></button><button id="phoneMediaBtn" class="mobileInventoryItem">▶<b>Media</b></button></div><div class="row" style="margin-top:10px"><button id="smartphoneClose">閉じる</button></div></div></div><div id="mobileInventoryDialog" class="dialog"><div class="dialogCard"><h2>🎒 Inventory / Equipment</h2><div id="mobileEquippedText" class="help">L: - / R: -</div><div class="row"><button id="unequipLeftBtn">左手を外す</button><button id="unequipRightBtn">右手を外す</button><button id="mobileCraftBtn2" onclick="document.getElementById('mobileInventoryDialog').classList.remove('show');document.getElementById('mobileCraftDialog').classList.add('show')">🛠️ クラフト</button></div><div id="mobileInventoryList" class="mobileInventoryGrid" style="margin-top:8px"></div><div class="row" style="margin-top:10px"><button id="mobileInventoryClose">閉じる</button></div></div></div><div id="mobileCraftDialog" class="dialog"><div class="dialogCard"><h2>🛠️ Craft</h2><div id="mobileCraftResources" class="help"></div><div id="mobileCraftList" class="mobileInventoryGrid" style="margin-top:8px"></div><div class="row" style="margin-top:10px"><button id="mobileCraftClose">閉じる</button></div></div></div>
+
+<div id="surfaceMediaPlayerDialog" class="dialog"><div class="dialogCard wideCard"><h2>▶ Surface Media Player</h2><div id="surfaceMediaPlayerHost" style="width:min(82vw,960px);height:min(55vh,540px);background:#05090c;display:grid;place-items:center;overflow:hidden;border:1px solid #365064;border-radius:8px"></div><div class="row" style="margin-top:10px"><button id="surfaceMediaPlayerClose">閉じる</button></div></div></div>
+<div id="ghostPlacementHud" class="ghostPlacementHud hidden"><b id="ghostPlacementLabel">👻 建物配置</b><span>照準/カーソルで移動</span><div><button id="ghostRotateLeft">↶ 15°</button><button id="ghostRotateRight">↷ 15°</button><button id="ghostCommitBtn">✓ 確定</button><button id="ghostCancelBtn">× 取消</button></div></div>
+</body>
+</html>
